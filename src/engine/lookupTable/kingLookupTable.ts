@@ -1,4 +1,4 @@
-import { moveEast, moveNorth, moveNorthEast, moveNorthWest, moveSouth, moveSouthEast, moveSouthWest, moveWest } from "../constants/movement";
+import { E, N, NE, NW, S, SE, SW, W } from "../constants/movement";
 
 /**
  * We start off with 0x1n (1) in binary.
@@ -34,7 +34,7 @@ import { moveEast, moveNorth, moveNorthEast, moveNorthWest, moveSouth, moveSouth
  * excluding the original square
  */
 export const moveOneStepInAllDirections = (bitboard: bigint): bigint => {
-  const movementFns = [moveNorth, moveEast, moveWest, moveSouth, moveNorthEast, moveNorthWest, moveSouthEast, moveSouthWest];
+  const movementFns = [N, E, W, S, NE, NW, SE, SW];
 
     return movementFns.reduce((collectionOfLegalMoves, fn) => {
     return collectionOfLegalMoves | fn(bitboard)

@@ -1,8 +1,9 @@
-import {NOT_A_B_FILE_MASK, NOT_A_FILE_MASK, NOT_H_FILE_MASK, NOT_H_G_FILE_MASK, NOT_RANK_1_2_MASK, NOT_RANK_1_MASK, NOT_RANK_7_8_MASK, NOT_RANK_8_MASK } from "./masks";
+import {NOT_A_B_FILE_MASK, NOT_A_FILE_MASK, NOT_H_FILE_MASK, NOT_H_G_FILE_MASK, NOT_RANK_1_2_MASK, NOT_RANK_1_MASK, NOT_RANK_7_8_MASK, NOT_RANK_8_MASK } from "./mask";
 
 /**
- * One square movement definitions - typically used for king
+ * One square movement definitions - typically used for king & pawns
  * assets/kingMovement.png
+ * 
   N = (bitboard & NOT_RANK_8) << 8
   E = (bitboard & NOT_H_FILE) << 1
   S = (bitboard & NOT_RANK_1) >> 8
@@ -12,18 +13,21 @@ import {NOT_A_B_FILE_MASK, NOT_A_FILE_MASK, NOT_H_FILE_MASK, NOT_H_G_FILE_MASK, 
   SE = (bitboard & NOT_H_FILE & NOT_RANK_1) >> 7
   SW = (bitboard & NOT_A_FILE & NOT_RANK_1) >> 9
  */
-export const moveNorth = (bitboard: bigint):bigint => (bitboard & NOT_RANK_8_MASK) << 8n;
-export const moveSouth = (bitboard: bigint):bigint => (bitboard & NOT_RANK_1_MASK) >> 8n;
-export const moveEast = (bitboard: bigint):bigint => (bitboard & NOT_H_FILE_MASK)  << 1n;
-export const moveWest = (bitboard: bigint):bigint => (bitboard & NOT_A_FILE_MASK) >> 1n;
-export const moveNorthEast = (bitboard: bigint):bigint => (bitboard & NOT_H_FILE_MASK & NOT_RANK_8_MASK) << 9n;
-export const moveNorthWest = (bitboard: bigint):bigint => (bitboard & NOT_A_FILE_MASK & NOT_RANK_8_MASK) << 7n;
-export const moveSouthEast = (bitboard: bigint):bigint => (bitboard & NOT_H_FILE_MASK & NOT_RANK_1_MASK) >> 7n;
-export const moveSouthWest = (bitboard: bigint):bigint => (bitboard & NOT_A_FILE_MASK & NOT_RANK_1_MASK) >> 9n;
+export const N = (bitboard: bigint):bigint => (bitboard & NOT_RANK_8_MASK) << 8n;
+export const NN = (bitboard: bigint): bigint => (bitboard & NOT_RANK_7_8_MASK) << 16n;
+export const S = (bitboard: bigint):bigint => (bitboard & NOT_RANK_1_MASK) >> 8n;
+export const SS = (bitboard: bigint):bigint => (bitboard & NOT_RANK_1_2_MASK) >> 16n;
+export const E = (bitboard: bigint):bigint => (bitboard & NOT_H_FILE_MASK)  << 1n;
+export const W = (bitboard: bigint):bigint => (bitboard & NOT_A_FILE_MASK) >> 1n;
+export const NE = (bitboard: bigint):bigint => (bitboard & NOT_H_FILE_MASK & NOT_RANK_8_MASK) << 9n;
+export const NW = (bitboard: bigint):bigint => (bitboard & NOT_A_FILE_MASK & NOT_RANK_8_MASK) << 7n;
+export const SE = (bitboard: bigint):bigint => (bitboard & NOT_H_FILE_MASK & NOT_RANK_1_MASK) >> 7n;
+export const SW = (bitboard: bigint):bigint => (bitboard & NOT_A_FILE_MASK & NOT_RANK_1_MASK) >> 9n;
 
 /**
  * Knight movement definitions
  * assets/knightMovement.png
+ * 
   NNW = (bitboard & NOT_A_FILE & NOT_RANK_7_8) << 15
   NNE = (bitboard & NOT_H_FILE & NOT_RANK_7_8) << 17
   WWN = (bitboard & NOT_A_B_FILE & NOT_RANK_8) << 6
