@@ -1,24 +1,44 @@
-/**
- * 
-  north     = << 8
-  south     = >> 8
-  east      = << 1
-  west      = >> 1
+import {NOT_A_B_FILE_MASK, NOT_A_FILE_MASK, NOT_H_FILE_MASK, NOT_H_G_FILE_MASK, NOT_RANK_1_2_MASK, NOT_RANK_1_MASK, NOT_RANK_7_8_MASK, NOT_RANK_8_MASK } from "./masks";
 
-  north-east = << 9
-  north-west = << 7
-  south-east = >> 7
-  south-west = >> 9
+/**
+ * One square movement definitions - typically used for king
+ * assets/kingMovement.png
+  N = (bitboard & NOT_RANK_8) << 8
+  E = (bitboard & NOT_H_FILE) << 1
+  S = (bitboard & NOT_RANK_1) >> 8
+  W = (bitboard & NOT_A_FILE) >> 1
+  NW = (bitboard & NOT_A_FILE & NOT_RANK_8) << 7
+  NE = (bitboard & NOT_H_FILE & NOT_RANK_8) << 9
+  SE = (bitboard & NOT_H_FILE & NOT_RANK_1) >> 7
+  SW = (bitboard & NOT_A_FILE & NOT_RANK_1) >> 9
+ */
+export const moveNorth = (bitboard: bigint):bigint => (bitboard & NOT_RANK_8_MASK) << 8n;
+export const moveSouth = (bitboard: bigint):bigint => (bitboard & NOT_RANK_1_MASK) >> 8n;
+export const moveEast = (bitboard: bigint):bigint => (bitboard & NOT_H_FILE_MASK)  << 1n;
+export const moveWest = (bitboard: bigint):bigint => (bitboard & NOT_A_FILE_MASK) >> 1n;
+export const moveNorthEast = (bitboard: bigint):bigint => (bitboard & NOT_H_FILE_MASK & NOT_RANK_8_MASK) << 9n;
+export const moveNorthWest = (bitboard: bigint):bigint => (bitboard & NOT_A_FILE_MASK & NOT_RANK_8_MASK) << 7n;
+export const moveSouthEast = (bitboard: bigint):bigint => (bitboard & NOT_H_FILE_MASK & NOT_RANK_1_MASK) >> 7n;
+export const moveSouthWest = (bitboard: bigint):bigint => (bitboard & NOT_A_FILE_MASK & NOT_RANK_1_MASK) >> 9n;
+
+/**
+ * Knight movement definitions
+ * assets/knightMovement.png
+  NNW = (bitboard & NOT_A_FILE & NOT_RANK_7_8) << 15
+  NNE = (bitboard & NOT_H_FILE & NOT_RANK_7_8) << 17
+  WWN = (bitboard & NOT_A_B_FILE & NOT_RANK_8) << 6
+  WWS = (bitboard & NOT_A_B_FILE & NOT_RANK_1) >> 10
+  SSW = (bitboard & NOT_RANK_1_2 & NOT_A_FILE) >> 17
+  SSE = (bitboard & NOT_RANK_1_2 & NOT_H_FILE) >> 15
+  EEN = (bitboard & NOT_G_H_FILE & NOT_RANK_8) << 10
+  EES = (bitboard & NOT_G_H_FILE & NOT_RANK_1) >> 6
  */
 
-import {NOT_A_FILE_MASK, NOT_H_FILE_MASK, NOT_RANK_1_MASK, NOT_RANK_8_MASK } from "./masks";
-
-export const moveNorth = (bitboard: bigint) => (bitboard & NOT_RANK_8_MASK) << 8n;
-export const moveSouth = (bitboard: bigint) => (bitboard & NOT_RANK_1_MASK) >> 8n;
-export const moveEast = (bitboard: bigint) => (bitboard & NOT_H_FILE_MASK)  << 1n;
-export const moveWest = (bitboard: bigint) => (bitboard & NOT_A_FILE_MASK) >> 1n;
-export const moveNorthEast = (bitboard: bigint) => (bitboard & NOT_H_FILE_MASK & NOT_RANK_8_MASK) << 9n;
-export const moveNorthWest = (bitboard: bigint) => (bitboard & NOT_A_FILE_MASK & NOT_RANK_8_MASK) << 7n;
-export const moveSouthEast = (bitboard: bigint) => (bitboard & NOT_H_FILE_MASK & NOT_RANK_1_MASK) >> 7n;
-export const moveSouthWest = (bitboard: bigint) => (bitboard & NOT_A_FILE_MASK & NOT_RANK_1_MASK) >> 9n;
-
+export const moveNNW = (bitboard: bigint): bigint => (bitboard & NOT_A_FILE_MASK & NOT_RANK_7_8_MASK) << 15n;
+export const moveNNE = (bitboard: bigint): bigint => (bitboard & NOT_H_FILE_MASK & NOT_RANK_7_8_MASK) << 17n;
+export const moveWWN = (bitboard: bigint): bigint => (bitboard & NOT_A_B_FILE_MASK & NOT_RANK_8_MASK) << 6n;
+export const moveWWS = (bitboard: bigint): bigint => (bitboard & NOT_A_B_FILE_MASK & NOT_RANK_1_MASK) >> 10n;
+export const moveSSW = (bitboard: bigint): bigint => (bitboard & NOT_RANK_1_2_MASK & NOT_A_FILE_MASK) >> 17n;
+export const moveSSE = (bitboard: bigint): bigint => (bitboard & NOT_RANK_1_2_MASK & NOT_H_FILE_MASK) >> 15n;
+export const moveEEN = (bitboard: bigint): bigint => (bitboard & NOT_H_G_FILE_MASK & NOT_RANK_8_MASK) << 10n;
+export const moveEES = (bitboard: bigint): bigint => (bitboard & NOT_H_G_FILE_MASK & NOT_RANK_1_MASK) >> 6n;

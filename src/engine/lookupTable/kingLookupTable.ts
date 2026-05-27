@@ -34,16 +34,11 @@ import { moveEast, moveNorth, moveNorthEast, moveNorthWest, moveSouth, moveSouth
  * excluding the original square
  */
 export const moveOneStepInAllDirections = (bitboard: bigint): bigint => {
-  const northMovement = moveNorth(bitboard);
-  const eastMovement = moveEast(bitboard);
-  const westMovement = moveWest(bitboard);
-  const southMovement = moveSouth(bitboard);
-  const northEastMovement = moveNorthEast(bitboard);
-  const northWestMovement = moveNorthWest(bitboard);
-  const southEastMovement = moveSouthEast(bitboard);
-  const southWestMovement = moveSouthWest(bitboard);
+  const movementFns = [moveNorth, moveEast, moveWest, moveSouth, moveNorthEast, moveNorthWest, moveSouthEast, moveSouthWest];
 
-  return northMovement | eastMovement | westMovement | southMovement | northEastMovement | northWestMovement | southEastMovement | southWestMovement;
+    return movementFns.reduce((collectionOfLegalMoves, fn) => {
+    return collectionOfLegalMoves | fn(bitboard)
+  }, 0n);
 }
 
 // Length = 64 (one for each square on the board)
