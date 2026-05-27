@@ -3,10 +3,10 @@ import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import './App.css'
-import { knightLookupTable } from './engine/lookupTable/knightLookupTable'
-import { kingLookupTable } from './engine/lookupTable/kingLookupTable'
-console.log(knightLookupTable[0]);
-console.log(kingLookupTable[0]);
+import { kingLookupTable, knightLookupTable, whitePawnAttackTable } from './engine/attacks/main'
+console.log(knightLookupTable[35]);
+console.log(kingLookupTable[35]);
+console.log(whitePawnAttackTable[35]);
 
 function App() {
   const [count, setCount] = useState(0)
