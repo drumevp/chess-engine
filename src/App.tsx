@@ -3,6 +3,10 @@ import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import './App.css'
+import { knightLookupTable } from './engine/lookupTable/knightLookupTable'
+import { kingLookupTable } from './engine/lookupTable/kingLookupTable'
+console.log(knightLookupTable[0]);
+console.log(kingLookupTable[0]);
 
 function App() {
   const [count, setCount] = useState(0)
