@@ -1,125 +1,116 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useMemo, useState } from 'react'
 import './App.css'
-import { kingLookupTable, knightLookupTable, whitePawnAttackTable } from './engine/attacks/main'
-console.log(knightLookupTable[35]);
-console.log(kingLookupTable[35]);
-console.log(whitePawnAttackTable[35]);
+import { blackPawnAttackTable, kingLookupTable, knightLookupTable, whitePawnAttackTable } from './engine/attacks/main'
+import { rookRelevantBlockerMask } from './engine/attacks/rook/relevantBlockerMask'
+import { bishopRelevantBlockerMask } from './engine/attacks/bishop/relevantBlockerMask'
 
-function App() {
-  const [count, setCount] = useState(0)
+const BitboardVisualizer: React.FC<{bitboard: bigint[]}> = ({bitboard}) => {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+ const bitboardValues = useMemo(() => bitboard[selectedIndex].toString(2).padStart(64, '0').match(/.{1,8}/g)?.flatMap(row => row.split('').reverse()), [selectedIndex, bitboard]);
+ const emptyBitboard = Array.from({ length: 8 }, (_, r) => Array.from({ length: 8 }, (_, c) => (7 - r) * 8 + c)).flat();
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div style={{display: 'flex', flex: 1, flexDirection: 'row', gap: 50, justifyContent: 'center'}}>
+    
+      <div key={'saddass'} style={{display: 'grid', gridTemplateColumns: 'repeat(8, 25px)',
+  gap: '5px',}}>
+      {emptyBitboard?.map((value, i) => {
+        const isSelectedIndex = value === selectedIndex;
 
-      <div className="ticks"></div>
+        return (
+          <div
+          key={'outer' + i + selectedIndex} 
+          onClick={(e) => {
+            e.preventDefault();
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+            setSelectedIndex(value);
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+          }} style={{
+            minHeight: 30,
+            minWidth: 30,
+            borderWidth: 1,
+            borderColor: 'black',
+            borderStyle: 'solid',
+            backgroundColor: isSelectedIndex ? 'blue' : 'white',
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent:'center',
+            alignContent: 'center',
+            alignItems: 'center',
+            cursor: 'pointer',
+          }}>
+            <div key={'inner' + i + selectedIndex}>
+            {value}
+            </div>
+          </div>
+        )
+      })}
+      </div>
+
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(8, 25px)',
+  gap: '5px',}}>
+      {bitboardValues?.map((value, i) => {
+        const isValueOne = value === '1';
+        
+
+        return (
+          <div key={'outer2-' + i + '-' + selectedIndex} style={{
+            minHeight: 30,
+            minWidth: 30,
+            borderWidth: 1,
+            borderColor: 'black',
+            borderStyle: 'solid',
+            backgroundColor: isValueOne ? 'blue' : 'white',
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent:'center',
+            alignContent: 'center',
+            alignItems: 'center',
+          }}>
+            <div key={'inner2-' + i + '-' + selectedIndex}>
+            {value}
+            </div>
+          </div>
+        )
+      })}
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [table, setTable] = useState(kingLookupTable)
+
+  return (
+    <div style={{display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', gap: 30}}>
+    BITBOARD VISUALIZER
+    <div style={{display: 'flex', flex: 1, flexDirection: 'row', maxHeight: 20}}>
+    <button onClick={() => {
+      setTable(kingLookupTable);
+    }}>King table</button>
+    <button onClick={() => {
+      setTable(knightLookupTable);
+    }}>Knight table</button>
+    <button onClick={() => {
+      setTable(whitePawnAttackTable);
+    }}>White pawn attack table</button>
+    <button onClick={() => {
+      setTable(blackPawnAttackTable);
+    }}>Black pawn attack table</button>
+    <button onClick={() => {
+      setTable(rookRelevantBlockerMask);
+    }}>Rook mask</button>
+        <button onClick={() => {
+      setTable(bishopRelevantBlockerMask);
+    }}>Bishop mask</button>
+
+    
+    </div>
+    <div>
+    <BitboardVisualizer key={1} bitboard={table}/>
+    </div>
+    </div>
   )
 }
 
