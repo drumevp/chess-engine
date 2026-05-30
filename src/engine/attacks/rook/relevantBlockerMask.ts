@@ -13,9 +13,9 @@ const calculateMaskForRookPosition = (position: number): bigint => {
   let mask:bigint = 0x0000000000000000n;
 
   const addBitToMask = (rank: number, file: number) => {
-    const index = getCurrentIndex(rank, file);
+    const index = getCurrentIndex(rank, file); // current position on bitboard (xy)
 
-    mask = mask |  (1n << BigInt(index));
+    mask = mask | (1n << BigInt(index));
   }
 
 
