@@ -35,6 +35,8 @@ export const calculatePieceIndex = (color: ColorType, index: number) => {
   return (color * NUMBER_OF_PIECE_CATEGORIES) + index;
 }
 
+export const FULL_BOARD: bigint = 0xffffffffffffffffn;
+
 // Rooks on A1 and H1
 const whiteRookBitboard: bigint = 0x0000000000000081n;
 

@@ -10,6 +10,8 @@ import { bishopRelevantBlockerMask } from './engine/attacks/bishop/relevantBlock
 
 // console.log(bishopBlockerSubsets[29][32]);
 // console.log(bishopAttacks[29][32]);
+// console.log(rookShift[0]);
+// console.log(rookMagic[0]);
 
 const BitboardVisualizer: React.FC<{bitboard: bigint[]}> = ({bitboard}) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
