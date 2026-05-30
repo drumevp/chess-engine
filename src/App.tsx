@@ -1,17 +1,14 @@
 import { useMemo, useState } from 'react';
 import './App.css';
-import { blackPawnAttackTable, kingLookupTable, knightLookupTable, whitePawnAttackTable } from './engine/attacks/main';
-import { rookRelevantBlockerMask } from './engine/attacks/rook/relevantBlockerMask';
-import { bishopRelevantBlockerMask } from './engine/attacks/bishop/relevantBlockerMask';
-// import { rookAttacks } from './engine/attacks/rook/attacks';
-// import { rookBlockerSubsets } from './engine/attacks/rook/blockerSubsets';
-// import { bishopBlockerSubsets } from './engine/attacks/bishop/blockerSubsets';
-// import { bishopAttacks } from './engine/attacks/bishop/attack';
+// import { blackPawnAttackTable, kingLookupTable, knightLookupTable, whitePawnAttackTable } from './engine/attacks/main';
+// import { rookRelevantBlockerMask } from './engine/attacks/rook/relevantBlockerMask';
+// import { bishopRelevantBlockerMask } from './engine/attacks/bishop/relevantBlockerMask';
 
-// console.log(bishopBlockerSubsets[29][32]);
-// console.log(bishopAttacks[29][32]);
-// console.log(rookShift[0]);
-// console.log(rookMagic[0]);
+import tables from './engine/attacks/importedPrecalculatedData';
+
+const {blackPawnAttacks: blackPawnAttackTable, kingAttacks: kingLookupTable, knightAttacks: knightLookupTable, whitePawnAttacks: whitePawnAttackTable, rookMagicNumbers, rookRelevantBlockerMasks: rookRelevantBlockerMask, bishopRelevantBlockerMasks:bishopRelevantBlockerMask  } = tables;
+
+console.log(rookMagicNumbers[0]);
 
 const BitboardVisualizer: React.FC<{bitboard: bigint[]}> = ({bitboard}) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
