@@ -28,6 +28,12 @@
  */
 
 import { E, moveEEN, moveEES, moveNNE, moveNNW, moveSSE, moveSSW, moveWWN, moveWWS, N, NE, NW, S, SE, SW, W } from "../constants/movement";
+import { bishopMagic, bishopMagicIndexedAttackTable } from "./bishop/magic";
+import { bishopRelevantBlockerMask } from "./bishop/relevantBlockerMask";
+import { bishopShift } from "./bishop/shift";
+import { rookMagic, rookMagicIndexedAttackTable } from "./rook/magic";
+import { rookRelevantBlockerMask } from "./rook/relevantBlockerMask";
+import { rookShift } from "./rook/shift";
 
 
 // King
@@ -61,4 +67,19 @@ for(let i = 0; i < 64; i++) {
   blackPawnAttackTable[i] = shift(currentPositionBitboard, blackPawnMovementFns);
   
   currentPositionBitboard = currentPositionBitboard << 1n;
+}
+
+export default {
+  kingAttacks: kingLookupTable,
+  knightAttacks: knightLookupTable,
+  whitePawnAttacks: whitePawnAttackTable,
+  blackPawnAttacks: blackPawnAttackTable,
+  rookRelevantBlockerMasks: rookRelevantBlockerMask,
+  rookShifts: rookShift,
+  rookMagicNumbers: rookMagic,
+  rookMagicAttacks: rookMagicIndexedAttackTable,
+  bishopRelevantBlockerMasks: bishopRelevantBlockerMask,
+  bishopShifts: bishopShift,
+  bishopMagicNumbers: bishopMagic,
+  bishopMagicAttacks: bishopMagicIndexedAttackTable,
 }

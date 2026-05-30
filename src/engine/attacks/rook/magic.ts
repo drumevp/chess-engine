@@ -4,12 +4,12 @@
 
 import { getMagicNumberCandidate } from "../../helpers/main";
 import { FULL_BOARD } from "../../state/initialState";
-import { rookAttacks } from "./attacks";
+import { rookAttacks } from "./attack";
 import { rookBlockerSubsets } from "./blockerSubsets";
 import { rookShift } from "./shift";
 
 export const rookMagic: bigint[] = new Array(64);
-export let rookMagicIndexedAttackTable: bigint[][] = new Array(64);
+export const rookMagicIndexedAttackTable: bigint[][] = new Array(64);
 
 for (let i = 0; i < 64; i++) {
   const shift = rookShift[i];
