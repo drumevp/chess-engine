@@ -15,7 +15,9 @@
  * This directly translates to 1000 0001 in binary
  */
 
-import type { ColorType } from "../types/main";
+import { COLOR, type ColorType, type Position } from "../types/main";
+import buildPieceAtArray from "./buildPieceAtArray";
+import getOccupiedPiecesBitboard from "./getPiecesOccupied";
 
 export const NUMBER_OF_PIECE_CATEGORIES = 6;
 
@@ -81,3 +83,47 @@ export const INITIAL_STATE: bigint[] = [
   blackKingBitboard,
   blackPawnsBitboard,
 ];
+
+export const CASTLING_RIGHTS = {
+  WHITE_KINGSIDE: 1 << 0, // 0001
+  WHITE_QUEENSIDE: 1 << 1, // 0010
+  BLACK_KINGSIDE: 1 << 2, // 0100
+  BLACK_QUEENSIDE: 1 << 3, // 1000
+}
+
+
+
+export const createInitialPosition = (): Position => {
+  const state = [...INITIAL_STATE];
+
+  const pieceAtInitial = buildPieceAtArray(INITIAL_STATE);
+  const whiteKingSquare = pieceAtInitial.findIndex((value) => value === KING_INDEX);
+  const blackKingSquare = pieceAtInitial.findIndex((value) => value === calculatePieceIndex(COLOR.BLACK, KING_INDEX));
+
+  if (whiteKingSquare === -1 || blackKingSquare === -1) {
+    throw new Error('Invalid king position');
+  }
+
+  const kingSquares = new Int8Array([whiteKingSquare, blackKingSquare]);
+
+  const allOccupancy = getOccupiedPiecesBitboard(state);
+  const whiteOccupancy = getOccupiedPiecesBitboard(state.slice(ROOK_INDEX, PAWN_INDEX + 1));
+  const blackOccupancy = getOccupiedPiecesBitboard(state.slice(calculatePieceIndex(COLOR.BLACK, ROOK_INDEX), calculatePieceIndex(COLOR.BLACK, PAWN_INDEX) + 1));
+
+  const castlingRights = CASTLING_RIGHTS.WHITE_KINGSIDE | CASTLING_RIGHTS.WHITE_QUEENSIDE | CASTLING_RIGHTS.BLACK_KINGSIDE | CASTLING_RIGHTS.BLACK_QUEENSIDE;
+  
+
+  return {
+    state,
+    allOccupancy,
+    whiteOccupancy,
+    blackOccupancy,
+    color: COLOR.WHITE,
+    castlingRights,
+    enPessantSquare: null,
+    halfMoveClock: 0,
+    fullMoveNumber: 0,
+    pieceAt: pieceAtInitial,
+    kingSquares: kingSquares,
+  }
+}

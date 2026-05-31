@@ -8,7 +8,7 @@
 import type { GenerateAttacksFn } from "../attacks/types";
 import { FULL_BOARD_MASK } from "../constants/mask";
 import forEachBitGetSquare from "../helpers/forEachBitGetSquare";
-import getPieceAtSquare from "../helpers/getPieceAtSquare";
+import getPieceTypeFromStateIndex from "../helpers/getPieceTypeFromStateIndex ";
 import { calculatePieceIndex } from "../state/initialState";
 import { MOVE_FLAG, type Move } from "../types/main";
 import type { MoveGenerationContext } from "./types";
@@ -27,13 +27,15 @@ const generateMove = (ctx: MoveGenerationContext, pieceIndex: number, generateAt
     const quietTargets = targets & emptySquares;
 
     forEachBitGetSquare(captureTargets, (captureTargetSquare) => {
+      const capturedPiece = ctx.pieceAt[captureTargetSquare];
+
       moves.push({
         color: ctx.color,
         flag: MOVE_FLAG.CAPTURE,
         from: originSquare,
         to: captureTargetSquare,
         piece: pieceIndex,
-        capturedPiece: getPieceAtSquare(ctx.state, captureTargetSquare)?.piece,
+        capturedPiece: getPieceTypeFromStateIndex(capturedPiece),
       });
     });
 
