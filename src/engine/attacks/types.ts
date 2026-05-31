@@ -1,0 +1,1 @@
+export type GenerateAttacksFn = (square: number, occupancy: bigint) => bigint;

@@ -1,5 +1,7 @@
+import generateKnightMoves from "./moves/knight";
 import getOccupiedPiecesBitmap from "./state/getPiecesOccupied";
-import { calculatePieceIndex, COLOR, INITIAL_STATE, PAWN_INDEX, ROOK_INDEX, type ColorType } from "./state/initialState";
+import { calculatePieceIndex,  INITIAL_STATE, PAWN_INDEX, ROOK_INDEX } from "./state/initialState";
+import { COLOR, type ColorType } from "./types/main";
 
 class ChessEngine {
   turn: ColorType; // 0 White | 1 Black
@@ -10,9 +12,9 @@ class ChessEngine {
   
   // Bitmap state variables
   state: bigint[]; // 12x64bit bitboards defining the state of each class of piece by color
-  whitePiecesOccupied: bigint;
-  blackPiecesOccupied: bigint;
-  allPiecesOccupied: bigint;
+  whiteOccupancy: bigint;
+  blackOccupancy: bigint;
+  allOccupancy: bigint;
 
   constructor()  {
     this.turn = COLOR.WHITE;
@@ -21,13 +23,16 @@ class ChessEngine {
     this.move = 1;
 
     this.state = [...INITIAL_STATE];
-    this.whitePiecesOccupied = getOccupiedPiecesBitmap(this.state.slice(ROOK_INDEX, PAWN_INDEX + 1));
-    this.blackPiecesOccupied = getOccupiedPiecesBitmap(this.state.slice(calculatePieceIndex(COLOR.BLACK, ROOK_INDEX), calculatePieceIndex(COLOR.BLACK, PAWN_INDEX) + 1));
-    this.allPiecesOccupied = getOccupiedPiecesBitmap(this.state);
+    this.whiteOccupancy = getOccupiedPiecesBitmap(this.state.slice(ROOK_INDEX, PAWN_INDEX + 1));
+    this.blackOccupancy = getOccupiedPiecesBitmap(this.state.slice(calculatePieceIndex(COLOR.BLACK, ROOK_INDEX), calculatePieceIndex(COLOR.BLACK, PAWN_INDEX) + 1));
+    this.allOccupancy = getOccupiedPiecesBitmap(this.state);
   }
 
   public init() {
+    // test
 
+    const knightMoves = generateKnightMoves({allOccupancy: this.allOccupancy, color: COLOR.WHITE, enemyOccupancy: this.blackOccupancy, ownOccupancy: this.whiteOccupancy, state: this.state});
+    console.log(knightMoves);
   }
 }
 

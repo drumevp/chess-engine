@@ -15,17 +15,12 @@
  * This directly translates to 1000 0001 in binary
  */
 
-export const COLOR = {
-  WHITE: 0,
-  BLACK: 1,
-} as const;
+import type { ColorType } from "../types/main";
 
-export type ColorType = typeof COLOR[keyof typeof COLOR];
-
-const NUMBER_OF_PIECE_CATEGORIES = 6;
+export const NUMBER_OF_PIECE_CATEGORIES = 6;
 
 export const ROOK_INDEX: number = 0;
-export const HORSE_INDEX: number = 1;
+export const KNIGHT_INDEX: number = 1;
 export const BISHOP_INDEX: number = 2;
 export const QUEEN_INDEX: number = 3;
 export const KING_INDEX: number = 4;
@@ -35,13 +30,11 @@ export const calculatePieceIndex = (color: ColorType, index: number) => {
   return (color * NUMBER_OF_PIECE_CATEGORIES) + index;
 }
 
-export const FULL_BOARD: bigint = 0xffffffffffffffffn;
-
 // Rooks on A1 and H1
 const whiteRookBitboard: bigint = 0x0000000000000081n;
 
-// Horses on B1 and G1
-const whiteHorseBitboard: bigint = 0x0000000000000042n;
+// knight on B1 and G1
+const whiteKnightBitboard: bigint = 0x0000000000000042n;
 
 // Bishops on C1 and F1
 const whiteBishopBitboard: bigint = 0x0000000000000024n;
@@ -58,8 +51,8 @@ const whitePawnsBitboard: bigint = 0x000000000000ff00n;
 // Rooks on A8 and H8
 const blackRookBitboard: bigint = 0x8100000000000000n;
 
-// Horses on B8 and G8
-const blackHorseBitboard: bigint = 0x4200000000000000n;
+// Knight on B8 and G8
+const blackKnightBitboard: bigint = 0x4200000000000000n;
 
 // Bishops on C8 and F8
 const blackBishopBitboard: bigint = 0x2400000000000000n;
@@ -76,13 +69,13 @@ const blackPawnsBitboard: bigint = 0x00ff000000000000n;
 
 export const INITIAL_STATE: bigint[] = [
   whiteRookBitboard,
-  whiteHorseBitboard,
+  whiteKnightBitboard,
   whiteBishopBitboard,
   whiteQueenBitboard,
   whiteKingBitboard,
   whitePawnsBitboard,
   blackRookBitboard,
-  blackHorseBitboard,
+  blackKnightBitboard,
   blackBishopBitboard,
   blackQueenBitboard,
   blackKingBitboard,

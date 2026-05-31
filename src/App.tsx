@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
 import './App.css';
-import tables from './engine/lookupTables/importedPrecalculatedData';
+import {blackPawnAttacks as blackPawnAttackTable, kingAttacks as kingLookupTable, knightAttacks as knightLookupTable, whitePawnAttacks as whitePawnAttackTable,  rookRelevantBlockerMasks as rookRelevantBlockerMask, bishopRelevantBlockerMasks as bishopRelevantBlockerMask  }  from './engine/lookupTables/importedPrecalculatedData';
+import ChessEngine from './engine/main';
 
-const {blackPawnAttacks: blackPawnAttackTable, kingAttacks: kingLookupTable, knightAttacks: knightLookupTable, whitePawnAttacks: whitePawnAttackTable, rookMagicNumbers, rookRelevantBlockerMasks: rookRelevantBlockerMask, bishopRelevantBlockerMasks:bishopRelevantBlockerMask  } = tables;
 
-console.log(rookMagicNumbers[0]);
+const chessEngine = new ChessEngine();
+
+chessEngine.init();
+
 
 const BitboardVisualizer: React.FC<{bitboard: bigint[]}> = ({bitboard}) => {
   const [selectedIndex, setSelectedIndex] = useState(0);

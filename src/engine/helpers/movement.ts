@@ -1,4 +1,4 @@
-import {NOT_A_B_FILE_MASK, NOT_A_FILE_MASK, NOT_H_FILE_MASK, NOT_H_G_FILE_MASK, NOT_RANK_1_2_MASK, NOT_RANK_1_MASK, NOT_RANK_7_8_MASK, NOT_RANK_8_MASK } from "./mask";
+import {NOT_A_B_FILE_MASK, NOT_A_FILE_MASK, NOT_H_FILE_MASK, NOT_H_G_FILE_MASK, NOT_RANK_1_2_MASK, NOT_RANK_1_MASK, NOT_RANK_7_8_MASK, NOT_RANK_8_MASK } from "../constants/mask";
 
 /**
  * One square movement definitions - typically used for king & pawns

@@ -1,7 +1,8 @@
 import { whitePawnAttacks as whitePawnAttacksTable } from "../lookupTables/importedPrecalculatedData";
+import type { GenerateAttacksFn } from "./types";
 
-const whitePawnAttacks = (square: number) => {
+const generateWhitePawnAttacks: GenerateAttacksFn = (square, _occupancy) => {
   return whitePawnAttacksTable[square];
 }
 
-export default whitePawnAttacks;
+export default generateWhitePawnAttacks;

@@ -1,11 +1,12 @@
+import { FULL_BOARD_MASK } from "../constants/mask";
 import { bishopRelevantBlockerMasks, bishopMagicNumbers, bishopMagicAttacks, bishopShifts } from "../lookupTables/importedPrecalculatedData";
-import { FULL_BOARD } from "../state/initialState";
+import type { GenerateAttacksFn } from "./types";
 
-const bishopAttacks = (square: number, occupancy: bigint): bigint => {
+const generateBishopAttacks: GenerateAttacksFn = (square, occupancy) => {
   const blockers = occupancy & bishopRelevantBlockerMasks[square];
-  const magicIndex = ((blockers * bishopMagicNumbers[square]) & FULL_BOARD) >> BigInt(bishopShifts[square]);
+  const magicIndex = ((blockers * bishopMagicNumbers[square]) & FULL_BOARD_MASK) >> BigInt(bishopShifts[square]);
 
   return bishopMagicAttacks[square][Number(magicIndex)];
 }
 
-export default bishopAttacks;
+export default generateBishopAttacks;

@@ -1,12 +1,13 @@
+import { FULL_BOARD_MASK } from "../constants/mask";
 import { rookRelevantBlockerMasks, rookMagicNumbers, rookMagicAttacks, rookShifts } from "../lookupTables/importedPrecalculatedData";
-import { FULL_BOARD } from "../state/initialState";
+import type { GenerateAttacksFn } from "./types";
 
 // occupancy here is full board occupancy
-const rookAttacks = (square: number, occupancy: bigint): bigint => {
+const generateRookAttacks: GenerateAttacksFn = (square, occupancy) => {
   const blockers = occupancy & rookRelevantBlockerMasks[square];
-  const magicIndex = ((blockers * rookMagicNumbers[square]) & FULL_BOARD) >> BigInt(rookShifts[square]);
+  const magicIndex = ((blockers * rookMagicNumbers[square]) & FULL_BOARD_MASK) >> BigInt(rookShifts[square]);
 
   return rookMagicAttacks[square][Number(magicIndex)];
 }
 
-export default rookAttacks;
+export default generateRookAttacks;

@@ -1,5 +1,5 @@
+import { FULL_BOARD_MASK } from "../../constants/mask";
 import { getMagicNumberCandidate } from "../../helpers/main";
-import { FULL_BOARD } from "../../state/initialState";
 import { bishopAttacks } from "./attack";
 import { bishopBlockerSubsets } from "./blockerSubsets";
 import { bishopShift } from "./shift";
@@ -25,7 +25,7 @@ for (let i = 0; i < 64; i++) {
       const attack = attacks[j];
       const product = blockerSubset * candidateMagic;
 
-      const product64 = product & FULL_BOARD;
+      const product64 = product & FULL_BOARD_MASK;
       const magicIndex = product64 >> BigInt(shift);
 
       const magicIndexNumber = Number(magicIndex);
