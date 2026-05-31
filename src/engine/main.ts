@@ -1,3 +1,4 @@
+import generatePseudoLegalMoves from "./moves/generatePseudoLegalMoves";
 import generateKnightMoves from "./moves/knight";
 import getOccupiedPiecesBitmap from "./state/getPiecesOccupied";
 import { calculatePieceIndex,  INITIAL_STATE, PAWN_INDEX, ROOK_INDEX } from "./state/initialState";
@@ -31,8 +32,11 @@ class ChessEngine {
   public init() {
     // test
 
-    const knightMoves = generateKnightMoves({allOccupancy: this.allOccupancy, color: COLOR.WHITE, enemyOccupancy: this.blackOccupancy, ownOccupancy: this.whiteOccupancy, state: this.state});
-    console.log(knightMoves);
+    const pseudoLegalMovesWhite = generatePseudoLegalMoves({allOccupancy: this.allOccupancy, color: COLOR.WHITE, enemyOccupancy: this.blackOccupancy, ownOccupancy: this.whiteOccupancy, state: this.state});
+    console.log(pseudoLegalMovesWhite);
+
+    const pseudoLegalMovesBlack = generatePseudoLegalMoves({allOccupancy: this.allOccupancy, color: COLOR.BLACK, enemyOccupancy: this.whiteOccupancy, ownOccupancy: this.blackOccupancy, state: this.state});
+    console.log(pseudoLegalMovesBlack);
   }
 }
 

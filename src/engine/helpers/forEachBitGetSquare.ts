@@ -12,7 +12,7 @@ const forEachBitGetSquare = (bitboard: bigint, callback: (square: number) => voi
     const leastSignificantBit = bb & -bb;
     const square = squareIndexByBitboard.get(leastSignificantBit);
 
-    if (!square) {
+    if (square === undefined) {
       throw new Error('Invalid bitboard state');
     }
 
