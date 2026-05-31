@@ -11,8 +11,6 @@ export { rookMagicAttacks } from "../../../precalculatedData/rookMagicAttacks";
 export { bishopRelevantBlockerMasks } from "../../../precalculatedData/bishopRelevantBlockerMasks";
 export { bishopShifts } from "../../../precalculatedData/bishopShifts";
 export { bishopMagicNumbers } from "../../../precalculatedData/bishopMagicNumbers";
-import { bishopMagicAttacks as rawBishopMagicAttacks } from "../../../precalculatedData/bishopMagicAttacks";
-
-export const bishopMagicAttacks: bigint[][] = rawBishopMagicAttacks as bigint[][];
+export { bishopMagicAttacks } from "../../../precalculatedData/bishopMagicAttacks";
 
 export { squareBitboards } from "../../../precalculatedData/squareBitboards";
