@@ -1,10 +1,6 @@
 import { useMemo, useState } from 'react';
 import './App.css';
-// import { blackPawnAttackTable, kingLookupTable, knightLookupTable, whitePawnAttackTable } from './engine/attacks/main';
-// import { rookRelevantBlockerMask } from './engine/attacks/rook/relevantBlockerMask';
-// import { bishopRelevantBlockerMask } from './engine/attacks/bishop/relevantBlockerMask';
-
-import tables from './engine/attacks/importedPrecalculatedData';
+import tables from './engine/lookupTables/importedPrecalculatedData';
 
 const {blackPawnAttacks: blackPawnAttackTable, kingAttacks: kingLookupTable, knightAttacks: knightLookupTable, whitePawnAttacks: whitePawnAttackTable, rookMagicNumbers, rookRelevantBlockerMasks: rookRelevantBlockerMask, bishopRelevantBlockerMasks:bishopRelevantBlockerMask  } = tables;
 
