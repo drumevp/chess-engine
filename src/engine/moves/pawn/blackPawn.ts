@@ -1,7 +1,7 @@
 import generateWhitePawnAttacks from "../../attacks/whitePawn";
 import { FULL_BOARD_MASK } from "../../constants/mask";
 import forEachBitGetSquare from "../../helpers/forEachBitGetSquare";
-import getPieceAtSquare from "../../helpers/getPieceAtSquare";
+import getPieceTypeFromStateIndex from "../../helpers/getPieceTypeFromStateIndex ";
 import { getCurrentRank } from "../../helpers/main";
 import { S, SS } from "../../helpers/movement";
 import { squareBitboards, squareIndexByBitboard } from "../../lookupTables/importedPrecalculatedData";
@@ -82,12 +82,10 @@ const generateBlackPawnMoves = (ctx: MoveGenerationContext): Move[] => {
     const captureTargets = attacks & ctx.enemyOccupancy;
 
     forEachBitGetSquare(captureTargets, (targetSquare) => {
-      const capturedPiece = getPieceAtSquare(ctx.state, targetSquare);
+      const capturedPiece = ctx.pieceAt[targetSquare];
       const targetSquareRank = getCurrentRank(targetSquare);
 
       if (targetSquareRank === 0) {
-        const capturedPiece = getPieceAtSquare(ctx.state, targetSquare);
-
         [KNIGHT_INDEX, QUEEN_INDEX, ROOK_INDEX, BISHOP_INDEX].forEach((promotionPieceIndex) => {
           moves.push({
             color: ctx.color,
@@ -96,7 +94,7 @@ const generateBlackPawnMoves = (ctx: MoveGenerationContext): Move[] => {
             to: targetSquare,
             piece: PAWN_INDEX,
             promotionPiece: promotionPieceIndex,
-            capturedPiece: capturedPiece?.piece,
+            capturedPiece: getPieceTypeFromStateIndex(capturedPiece),
           });
         });
       } else {
@@ -106,7 +104,7 @@ const generateBlackPawnMoves = (ctx: MoveGenerationContext): Move[] => {
             from: originSquare,
             to: targetSquare,
             piece: PAWN_INDEX,
-            capturedPiece: capturedPiece?.piece,
+            capturedPiece: getPieceTypeFromStateIndex(capturedPiece),
         });
       }
     });

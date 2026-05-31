@@ -6,4 +6,7 @@ export type MoveGenerationContext = {
   ownOccupancy: bigint;
   enemyOccupancy: bigint;
   allOccupancy: bigint;
+  pieceAt: Int8Array;
+  ownKingSquare: number;
+  enemyKingSquare: number;
 };
