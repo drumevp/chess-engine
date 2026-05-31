@@ -1,4 +1,4 @@
-import { countRelevantBits } from "../../helpers/main";
+import countRelevantBits from "../../helpers/countRelevantBits";
 import { bishopRelevantBlockerMask } from "./relevantBlockerMask";
 
 export const bishopShift: number[] = [];

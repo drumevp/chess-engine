@@ -1,7 +1,8 @@
 import { kingAttacks as kingAttacksTable } from "../lookupTables/importedPrecalculatedData";
+import type { GenerateAttacksFn } from "./types";
 
-const kingAttacks = (square: number) => {
+const generateKingAttacks: GenerateAttacksFn = (square, _occupancy) => {
   return kingAttacksTable[square];
 }
 
-export default kingAttacks;
+export default generateKingAttacks;

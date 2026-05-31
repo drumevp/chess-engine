@@ -3,7 +3,7 @@
  * Example for a1 (index 0). Shift = 64 - 12 = 52
  */
 
-import { countRelevantBits } from "../../helpers/main";
+import countRelevantBits from "../../helpers/countRelevantBits";
 import { rookRelevantBlockerMask } from "./relevantBlockerMask";
 
 export const rookShift: number[] = [];

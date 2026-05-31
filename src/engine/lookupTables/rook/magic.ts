@@ -2,8 +2,8 @@
  * Hashing formula for magic index = occupancy * magic number >> shift
  */
 
+import { FULL_BOARD_MASK } from "../../constants/mask";
 import { getMagicNumberCandidate } from "../../helpers/main";
-import { FULL_BOARD } from "../../state/initialState";
 import { rookAttacks } from "./attack";
 import { rookBlockerSubsets } from "./blockerSubsets";
 import { rookShift } from "./shift";
@@ -30,7 +30,7 @@ for (let i = 0; i < 64; i++) {
       const product = blockerSubset * candidateMagic;
 
       // Truncate to 64bits
-      const product64 = product & FULL_BOARD;
+      const product64 = product & FULL_BOARD_MASK;
       const magicIndex = product64 >> BigInt(shift);
 
       const magicIndexNumber = Number(magicIndex);

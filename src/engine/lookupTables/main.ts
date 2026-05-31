@@ -27,7 +27,7 @@
  *           3           d1        1000
  */
 
-import { E, moveEEN, moveEES, moveNNE, moveNNW, moveSSE, moveSSW, moveWWN, moveWWS, N, NE, NW, S, SE, SW, W } from "../constants/movement";
+import { E, moveEEN, moveEES, moveNNE, moveNNW, moveSSE, moveSSW, moveWWN, moveWWS, N, NE, NW, S, SE, SW, W } from "../helpers/movement";
 import { bishopMagic, bishopMagicIndexedAttackTable } from "./bishop/magic";
 import { bishopRelevantBlockerMask } from "./bishop/relevantBlockerMask";
 import { bishopShift } from "./bishop/shift";

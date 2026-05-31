@@ -13,4 +13,13 @@ export { bishopShifts } from "../../../precalculatedData/bishopShifts";
 export { bishopMagicNumbers } from "../../../precalculatedData/bishopMagicNumbers";
 export { bishopMagicAttacks } from "../../../precalculatedData/bishopMagicAttacks";
 
-export { squareBitboards } from "../../../precalculatedData/squareBitboards";
+import { squareBitboards } from "../../../precalculatedData/squareBitboards";
+
+export { squareBitboards };
+
+// inverted squareBitboards
+export const squareIndexByBitboard = new Map<bigint, number>();
+
+for (let i = 0; i < 64; i++) {
+  squareIndexByBitboard.set(squareBitboards[i], i);
+}

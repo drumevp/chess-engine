@@ -2,7 +2,7 @@
  * Explicitly defining NOT masks to prevent bit length inaccuracy
  */
 
-const FULL_BOARD_MASK: bigint = 0xffffffffffffffffn;
+export const FULL_BOARD_MASK: bigint = 0xffffffffffffffffn;
 
 
 export const A_FILE_MASK: bigint = 0x0101010101010101n;
