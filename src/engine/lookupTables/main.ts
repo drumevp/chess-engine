@@ -79,6 +79,13 @@ for(let i = 0; i < 64; i++) {
   squareBitboards[i] = value;
 }
 
+// inverted squareBitboards
+export const squareIndexByBitboard = new Map<bigint, number>();
+
+for (let i = 0; i < 64; i++) {
+  squareIndexByBitboard.set(squareBitboards[i], i);
+}
+
 export default {
   kingAttacks: kingLookupTable,
   knightAttacks: knightLookupTable,
@@ -93,4 +100,5 @@ export default {
   bishopMagicNumbers: bishopMagic,
   bishopMagicAttacks: bishopMagicIndexedAttackTable,
   squareBitboards,
+  squareIndexByBitboard,
 }
