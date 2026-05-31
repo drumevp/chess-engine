@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "fs";
 import * as path from "path";
 import { inspect } from "util";
-import tables from '../src/engine/attacks/main'
+import tables from '../src/engine/lookupTables/main'
 
 const OUT_DIR = path.join(process.cwd(), "precalculatedData/");
 
@@ -36,3 +36,4 @@ writeTableFile("bishopRelevantBlockerMasks.ts", "bishopRelevantBlockerMasks", ta
 writeTableFile("bishopShifts.ts", "bishopShifts", tables.bishopShifts);
 writeTableFile("bishopMagicNumbers.ts", "bishopMagicNumbers", tables.bishopMagicNumbers);
 writeTableFile("bishopMagicAttacks.ts", "bishopMagicAttacks", tables.bishopMagicAttacks);
+writeTableFile("squareBitboards.ts", "squareBitboards", tables.squareBitboards);

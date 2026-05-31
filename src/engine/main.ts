@@ -20,9 +20,9 @@ class ChessEngine {
     this.halfMoveClock = 0;
     this.move = 1;
 
-    this.state = INITIAL_STATE;
-    this.whitePiecesOccupied = getOccupiedPiecesBitmap(this.state.splice(ROOK_INDEX, PAWN_INDEX));
-    this.blackPiecesOccupied = getOccupiedPiecesBitmap(this.state.splice(calculatePieceIndex(COLOR.BLACK, ROOK_INDEX), calculatePieceIndex(COLOR.BLACK, PAWN_INDEX)));
+    this.state = [...INITIAL_STATE];
+    this.whitePiecesOccupied = getOccupiedPiecesBitmap(this.state.slice(ROOK_INDEX, PAWN_INDEX + 1));
+    this.blackPiecesOccupied = getOccupiedPiecesBitmap(this.state.slice(calculatePieceIndex(COLOR.BLACK, ROOK_INDEX), calculatePieceIndex(COLOR.BLACK, PAWN_INDEX) + 1));
     this.allPiecesOccupied = getOccupiedPiecesBitmap(this.state);
   }
 

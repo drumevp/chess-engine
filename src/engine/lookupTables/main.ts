@@ -69,6 +69,16 @@ for(let i = 0; i < 64; i++) {
   currentPositionBitboard = currentPositionBitboard << 1n;
 }
 
+// Square bitboards to target specific squares
+
+const squareBitboards: bigint[] = new Array(64);
+
+for(let i = 0; i < 64; i++) {
+  const value = 1n << BigInt(i);
+
+  squareBitboards[i] = value;
+}
+
 export default {
   kingAttacks: kingLookupTable,
   knightAttacks: knightLookupTable,
@@ -82,4 +92,5 @@ export default {
   bishopShifts: bishopShift,
   bishopMagicNumbers: bishopMagic,
   bishopMagicAttacks: bishopMagicIndexedAttackTable,
+  squareBitboards,
 }
