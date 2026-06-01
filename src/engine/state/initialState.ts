@@ -120,7 +120,7 @@ export const createInitialPosition = (): Position => {
     blackOccupancy,
     color: COLOR.WHITE,
     castlingRights,
-    enPessantSquare: null,
+    enPassantSquare: null,
     halfMoveClock: 0,
     fullMoveNumber: 0,
     pieceAt: pieceAtInitial,
