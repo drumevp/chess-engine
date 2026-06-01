@@ -50,7 +50,7 @@ export type Position = {
   castlingRights: number;
 
   // En pessant square (index on board)
-  enPessantSquare: number | null;
+  enPassantSquare: number | null;
 
   // If 50 moves are made without a capture or a pawn move, game ends in a draw
   halfMoveClock: number;
