@@ -44,7 +44,7 @@ export type Position = {
   color: ColorType;
 
   // Castling rights
-  // 4 bit values where each bit represents whether
+  // 4 bit values where each bit represents whether the king can castle in a directions
   // 1111
   // lowest bit -> WHITE KINGSIDE, WHITE QUEENSIDE, BLACK KINGSIDE, BLACK QUEENSIDE
   castlingRights: number;
