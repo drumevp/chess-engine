@@ -1,11 +1,14 @@
 import generateKingAttacks from "../attacks/king";
 import { KING_INDEX } from "../state/initialState";
 import { type Move } from "../types/main";
-import generateMove from "./generateMove";
+import type { AttackInfo } from "./attackInfo/types";
 import type { MoveGenerationContext } from "./types";
 
-const generateKingMoves = (ctx: MoveGenerationContext): Move[] => {
-  return generateMove(ctx, KING_INDEX, generateKingAttacks);
+const generateKingMoves = (ctx: MoveGenerationContext, attackInfo: AttackInfo): Move[] => {
+  // TODO:
+
+
+  return [];
 }
 
 export default generateKingMoves;

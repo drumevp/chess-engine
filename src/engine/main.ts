@@ -1,4 +1,4 @@
-import generatePseudoLegalMoves from "./moves/generatePseudoLegalMoves";
+import generateLegalMoves from "./moves/generateLegalMoves";
 import { createInitialPosition } from "./state/initialState";
 import { type Position } from "./types/main";
 
@@ -12,8 +12,8 @@ class ChessEngine {
   public init() {
     // test
 
-    const pseudoLegalMovesWhite = generatePseudoLegalMoves(this.position);
-    console.log(pseudoLegalMovesWhite);
+    const legalMovesWhite = generateLegalMoves(this.position);
+    console.log(legalMovesWhite);
   }
 }
 
