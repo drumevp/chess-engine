@@ -29,6 +29,10 @@ const generateMove = (ctx: MoveGenerationContext, pieceIndex: number, generateAt
     forEachBitGetSquare(captureTargets, (captureTargetSquare) => {
       const capturedPiece = ctx.pieceAt[captureTargetSquare];
 
+      if (capturedPiece === -1) {
+        throw new Error('Invalid captured piece');
+      }
+
       moves.push({
         color: ctx.color,
         flag: MOVE_FLAG.CAPTURE,

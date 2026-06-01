@@ -1,9 +1,10 @@
 export const countRelevantBits = (bitboard: bigint): number => {
   let relevantBitCount = 0;
+  let bb = bitboard;
 
   // Remove 1s until the bitboard is empty
-  while(bitboard !== 0n) {
-    bitboard = bitboard & (bitboard - 1n);
+  while(bb !== 0n) {
+    bb = bb & (bb - 1n);
     relevantBitCount ++;
   }
 

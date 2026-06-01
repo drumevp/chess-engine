@@ -111,3 +111,11 @@ writeTableFile("squareBitboards.ts", "squareBitboards", tables.squareBitboards, 
 
 writeTableFile("squareIndexByBitboard.ts", "squareIndexByBitboard", tables.squareIndexByBitboard, "Map<bigint, number>");
 
+writeTableFile(
+  "betweenSquares.ts",
+  "betweenSquares",
+  denseBigInt2D(tables.betweenSquares as Array<Array<bigint | undefined>>),
+  "bigint[][]",
+);
+
+

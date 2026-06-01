@@ -15,3 +15,5 @@ export { bishopMagicAttacks } from "../../../precalculatedData/bishopMagicAttack
 
 export { squareBitboards } from "../../../precalculatedData/squareBitboards";
 export { squareIndexByBitboard } from "../../../precalculatedData/squareIndexByBitboard";
+
+export { betweenSquares } from "../../../precalculatedData/betweenSquares";
