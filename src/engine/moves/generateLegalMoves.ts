@@ -2,9 +2,9 @@ import { type Move, type Position } from "../types/main";
 import generateAttackInfo from "./attackInfo/main";
 import generateBishopMoves from "./bishop";
 import generateMoveGenerationContext from "./generateMoveGenerationContext";
-import generateKingMoves from "./king";
+import generateKingMoves from "./king/king";
 import generateKnightMoves from "./knight";
-import generatePawnMoves from "./pawn/main";
+import generatePawnMoves from "./pawn/pawn";
 import generateQueenMoves from "./queen";
 import generateRookMoves from "./rook";
 

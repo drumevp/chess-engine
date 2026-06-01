@@ -15,6 +15,7 @@ const generateMoveGenerationContext = (position: Position): MoveGenerationContex
       enemyKingSquare: position.kingSquares[COLOR.BLACK],
       pieceAt: position.pieceAt,
       enPassantSquare: position.enPassantSquare,
+      castlingRights: position.castlingRights,
     }
   } else {
     ctx = {
@@ -27,6 +28,7 @@ const generateMoveGenerationContext = (position: Position): MoveGenerationContex
       enemyKingSquare: position.kingSquares[COLOR.WHITE],
       pieceAt: position.pieceAt,
       enPassantSquare: position.enPassantSquare,
+      castlingRights: position.castlingRights,
     }
   }
 

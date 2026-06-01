@@ -10,4 +10,5 @@ export type MoveGenerationContext = {
   ownKingSquare: number;
   enemyKingSquare: number;
   enPassantSquare: number | null;
+  castlingRights: number;
 };
