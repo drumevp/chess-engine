@@ -9,4 +9,5 @@ export type MoveGenerationContext = {
   pieceAt: Int8Array;
   ownKingSquare: number;
   enemyKingSquare: number;
+  enPassantSquare: number | null;
 };

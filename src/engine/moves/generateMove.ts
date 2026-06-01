@@ -9,19 +9,30 @@ import type { GenerateAttacksFn } from "../attacks/types";
 import { FULL_BOARD_MASK } from "../constants/mask";
 import forEachBitGetSquare from "../helpers/forEachBitGetSquare";
 import getPieceTypeFromStateIndex from "../helpers/getPieceTypeFromStateIndex ";
+import { squareBitboards } from "../lookupTables/importedPrecalculatedData";
 import { calculatePieceIndex } from "../state/initialState";
 import { MOVE_FLAG, type Move } from "../types/main";
+import type { AttackInfo } from "./attackInfo/types";
 import type { MoveGenerationContext } from "./types";
 
-const generateMove = (ctx: MoveGenerationContext, pieceIndex: number, generateAttacksFn: GenerateAttacksFn): Move[] => {
+const generateMove = (ctx: MoveGenerationContext, attackInfo: AttackInfo, pieceIndex: number, generateAttacksFn: GenerateAttacksFn): Move[] => {
   const moves: Move[] = [];
   const emptySquares = ~ctx.allOccupancy & FULL_BOARD_MASK;
 
-  const piece = ctx.state[calculatePieceIndex(ctx.color, pieceIndex)];
+  const pieces = ctx.state[calculatePieceIndex(ctx.color, pieceIndex)];
 
-  forEachBitGetSquare(piece, (originSquare) => {
+  forEachBitGetSquare(pieces, (originSquare) => {
     const attacks = generateAttacksFn(originSquare, ctx.allOccupancy);
-    const targets = attacks & ~ctx.ownOccupancy;
+    const pseudoTargets = attacks & ~ctx.ownOccupancy;
+    let targets = pseudoTargets & attackInfo.checkMask;
+
+    // Get whether this piece is pinned
+    const isPinned = (attackInfo.pinnedPieces & squareBitboards[originSquare]) !== 0n;
+    
+    // If pinned, limit the moves to moves that resolve check
+    if (isPinned) {
+      targets = targets & attackInfo.pinRaysBySquare[originSquare];
+    }
 
     const captureTargets = targets & ctx.enemyOccupancy;
     const quietTargets = targets & emptySquares;

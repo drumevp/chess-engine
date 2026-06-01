@@ -1,13 +1,7 @@
-import { COLOR, type Move, type Position } from "../types/main";
-import generateBishopMoves from "./bishop";
-import generateKingMoves from "./king";
-import generateKnightMoves from "./knight";
-import generatePawnMoves from "./pawn/main";
-import generateQueenMoves from "./queen";
-import generateRookMoves from "./rook";
+import { COLOR, type Position } from "../types/main";
 import type { MoveGenerationContext } from "./types";
 
-const generatePseudoLegalMoves = (position: Position): Move[] => {
+const generateMoveGenerationContext = (position: Position): MoveGenerationContext => {
   let ctx: MoveGenerationContext;
 
   if (position.color === COLOR.WHITE) {
@@ -20,6 +14,7 @@ const generatePseudoLegalMoves = (position: Position): Move[] => {
       ownKingSquare: position.kingSquares[COLOR.WHITE],
       enemyKingSquare: position.kingSquares[COLOR.BLACK],
       pieceAt: position.pieceAt,
+      enPassantSquare: position.enPassantSquare,
     }
   } else {
     ctx = {
@@ -31,17 +26,11 @@ const generatePseudoLegalMoves = (position: Position): Move[] => {
       ownKingSquare: position.kingSquares[COLOR.BLACK],
       enemyKingSquare: position.kingSquares[COLOR.WHITE],
       pieceAt: position.pieceAt,
+      enPassantSquare: position.enPassantSquare,
     }
   }
 
-  const kingMoves = generateKingMoves(ctx);
-  const knightMoves = generateKnightMoves(ctx);
-  const pawnMoves = generatePawnMoves(ctx);
-  const rookMoves = generateRookMoves(ctx);
-  const bishopMoves = generateBishopMoves(ctx);
-  const queenMoves = generateQueenMoves(ctx);
-
-  return kingMoves.concat(knightMoves, pawnMoves, rookMoves, bishopMoves, queenMoves);
+  return ctx;
 }
 
-export default generatePseudoLegalMoves;
+export default generateMoveGenerationContext;
