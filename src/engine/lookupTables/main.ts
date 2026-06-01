@@ -27,6 +27,7 @@
  *           3           d1        1000
  */
 
+import generateBetweenSquaresTable from "../helpers/generateBetweenSquaresTable";
 import { E, moveEEN, moveEES, moveNNE, moveNNW, moveSSE, moveSSW, moveWWN, moveWWS, N, NE, NW, S, SE, SW, W } from "../helpers/movement";
 import { bishopMagic, bishopMagicIndexedAttackTable } from "./bishop/magic";
 import { bishopRelevantBlockerMask } from "./bishop/relevantBlockerMask";
@@ -86,6 +87,8 @@ for (let i = 0; i < 64; i++) {
   squareIndexByBitboard.set(squareBitboards[i], i);
 }
 
+const betweenSquares = generateBetweenSquaresTable();
+
 export default {
   kingAttacks: kingLookupTable,
   knightAttacks: knightLookupTable,
@@ -101,4 +104,5 @@ export default {
   bishopMagicAttacks: bishopMagicIndexedAttackTable,
   squareBitboards,
   squareIndexByBitboard,
+  betweenSquares,
 }

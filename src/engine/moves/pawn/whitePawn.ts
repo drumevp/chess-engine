@@ -99,6 +99,11 @@ const generateWhitePawnMoves = (ctx: MoveGenerationContext): Move[] => {
 
     forEachBitGetSquare(captureTargets, (targetSquare) => {
       const capturedPiece = ctx.pieceAt[targetSquare];
+
+      if (capturedPiece === -1) {
+        throw new Error('Invalid captured piece');
+      }
+
       const targetSquareRank = getCurrentRank(targetSquare);
 
       if (targetSquareRank === 7) {
