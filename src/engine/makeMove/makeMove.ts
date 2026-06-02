@@ -12,7 +12,7 @@
  * - castling rights
  */
 
-import { MOVE_FLAG, type Move, type Position } from "../types/main";
+import { COLOR, MOVE_FLAG, type Move, type Position } from "../types/main";
 import quietMoveHandler from "./moveFlagHandlers/quietMoveHandler";
 import getEnPassantSquare from "./helpers/getEnPassantSquare";
 import captureMoveHandler from "./moveFlagHandlers/captureMoveHandler";
@@ -25,8 +25,23 @@ import updateSideToMove from "./positionUpdates/updateSideToMove";
 import updateHalfMoveClock from "./positionUpdates/updateHalfMoveClock";
 import updateFullMoveNumber from "./positionUpdates/updateFullMoveNumber";
 import updateCastlingRights from "./positionUpdates/updateCastlingRights";
+import type { Undo } from "../types/history";
+import { calculatePieceIndex } from "../state/initialState";
+import getOppositeColor from "../helpers/getOppositeColor";
 
-const makeMove = (position: Position, move: Move): void => {
+const makeMove = (position: Position, move: Move): Undo => {
+  const undo: Undo = {
+    previousColor: position.color,
+    previousCastlingRights: position.castlingRights,
+    previousEnPassantSquare: position.enPassantSquare,
+    previousFullMoveNumber: position.fullMoveNumber,
+    previousHalfMoveClock: position.halfMoveClock,
+    previousKingSquares: new Int8Array(position.kingSquares),
+
+    capturedPieceStateIndex: null,
+    capturedSquare: null,
+  }
+
   position.enPassantSquare = null;
 
   switch (move.flag) {
@@ -68,6 +83,19 @@ const makeMove = (position: Position, move: Move): void => {
   updateHalfMoveClock(position, move);
   updateFullMoveNumber(position);
   updateSideToMove(position);
+
+  if (move.capturedPiece !== undefined) {
+    undo.capturedPieceStateIndex = calculatePieceIndex(getOppositeColor(move.color), move.capturedPiece);
+    
+    if (move.flag === MOVE_FLAG.EN_PASSANT) {
+      undo.capturedSquare = move.color === COLOR.WHITE ? move.to - 8 : move.to + 8;
+    } else {
+      undo.capturedSquare = move.to;
+    }
+  }
+  
+
+  return undo;
 };
 
 export default makeMove;
