@@ -1,19 +1,21 @@
+import makeMove from "./makeMove/makeMove";
 import generateLegalMoves from "./moves/generateLegalMoves";
 import { createInitialPosition } from "./state/initialState";
-import { type Position } from "./types/main";
+import { type Move, type Position } from "./types/main";
 
 class ChessEngine {
   position: Position;
 
-  constructor()  {
+  constructor() {
     this.position = createInitialPosition();
   }
 
-  public init() {
-    // test
+  public generateLegalMoves(): Move[] {
+    return generateLegalMoves(this.position);
+  }
 
-    const legalMovesWhite = generateLegalMoves(this.position);
-    console.log(legalMovesWhite);
+  public makeMove(move: Move): void {
+    makeMove(this.position, move);
   }
 }
 
