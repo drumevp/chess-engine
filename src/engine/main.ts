@@ -1,3 +1,4 @@
+import generatePositionFromFen from "./fen/generatePositionFromFen";
 import makeMove from "./makeMove/makeMove";
 import generateLegalMoves from "./moves/generateLegalMoves";
 import perft from "./perft/main";
@@ -10,8 +11,10 @@ class ChessEngine {
   position: Position;
   history: History[];
 
-  constructor() {
-    this.position = createInitialPosition();
+  constructor(fen?: string) {
+    this.position = fen
+      ? generatePositionFromFen(fen)
+      : createInitialPosition();
     this.history = [];
   }
 
@@ -21,8 +24,8 @@ class ChessEngine {
 
   public makeMove(move: Move): void {
     const undo = makeMove(this.position, move);
-    
-    this.history.push({move, undo});
+
+    this.history.push({ move, undo });
   }
 
   public undoMove(): void {
@@ -37,6 +40,11 @@ class ChessEngine {
 
   public perft(depth: number): number {
     return perft(this.position, depth);
+  }
+
+  public loadFen(fen: string): void {
+    this.position = generatePositionFromFen(fen);
+    this.history = [];
   }
 }
 

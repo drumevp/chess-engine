@@ -52,11 +52,11 @@ const undoMove = (position: Position, move: Move, undo: Undo): void => {
       } else {
         // reset black king
         clearSquare(position, move.to);
-        setSquare(position, BLACK_KING_ORIGIN_SQUARE, calculatePieceIndex(COLOR.WHITE, KING_INDEX));
+        setSquare(position, BLACK_KING_ORIGIN_SQUARE, calculatePieceIndex(COLOR.BLACK, KING_INDEX));
 
         // reset black rook
         clearSquare(position, BLACK_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE);
-        setSquare(position, BLACK_KINGSIDE_ROOK_ORIGIN_SQUARE, calculatePieceIndex(COLOR.WHITE, ROOK_INDEX));
+        setSquare(position, BLACK_KINGSIDE_ROOK_ORIGIN_SQUARE, calculatePieceIndex(COLOR.BLACK, ROOK_INDEX));
       }
       break;
 
