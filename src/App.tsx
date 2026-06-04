@@ -1,11 +1,10 @@
 import "./App.css";
-// import ChessEngine from "./engine/main";
-// const chessEngine = new ChessEngine(
-//   "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
-// );
-// console.log(chessEngine.perft(5));
+import ChessEngine from "./engine/main";
+const chessEngine = new ChessEngine();
+// console.log(chessEngine.perft(6));
 
-// console.log(chessEngine.generateLegalMovesForFrontend())
+// "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+console.log(chessEngine.generateLegalMovesForFrontend());
 
 function App() {
   return <div></div>;

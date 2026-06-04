@@ -1,4 +1,4 @@
-import type { ColorType } from "./main"
+import type { ColorType } from "./main";
 
 export type Undo = {
   previousColor: ColorType;
@@ -10,9 +10,9 @@ export type Undo = {
 
   capturedPieceStateIndex: number | null;
   capturedSquare: number | null;
-}
+};
 
 export type History = {
   move: number;
   undo: Undo;
-}
+};
