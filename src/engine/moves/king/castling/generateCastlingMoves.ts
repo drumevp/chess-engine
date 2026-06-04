@@ -10,7 +10,7 @@
  * 6) The king does not land on an attacked square
  */
 
-import { COLOR, type Move } from "../../../types/main";
+import { COLOR } from "../../../types/main";
 import type { AttackInfo } from "../../attackInfo/types";
 import type { MoveGenerationContext } from "../../types";
 import blackKingsideCastling from "./blackKingsideCastling";
@@ -40,44 +40,24 @@ export const WHITE_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE = 3; // d1;
 export const BLACK_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE = 61; // f8
 export const BLACK_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE = 59; // d8;
 
-const generateCastlingMoves = (ctx: MoveGenerationContext, attackInfo: AttackInfo): Move[] | null => {
+const generateCastlingMoves = (ctx: MoveGenerationContext, attackInfo: AttackInfo): void => {
   if (attackInfo.checkCount !== 0) {
-    return null;
+    return;
   }
-
-  const moves: Move[] = [];
 
   // White castling
   if (ctx.color === COLOR.WHITE) {
-    const whiteKingsideCastleMove = whiteKingsideCastling(ctx, attackInfo);
+    whiteKingsideCastling(ctx, attackInfo);
+    whiteQueenCastling(ctx, attackInfo);
 
-    if (whiteKingsideCastleMove !== null) {
-      moves.push(whiteKingsideCastleMove);
-    }
-
-    const whiteQueensideCastleMove = whiteQueenCastling(ctx, attackInfo);
-
-    if (whiteQueensideCastleMove !== null) {
-      moves.push(whiteQueensideCastleMove);
-    }
-
-    return moves;
+    return;
   }
 
   // Black castling
-  const blackKingsideCastleMove = blackKingsideCastling(ctx, attackInfo);
+  blackKingsideCastling(ctx, attackInfo);
+  blackQueenCastling(ctx, attackInfo);
 
-  if (blackKingsideCastleMove !== null) {
-    moves.push(blackKingsideCastleMove);
-  }
-
-  const blackQueensideCastleMove = blackQueenCastling(ctx, attackInfo);
-
-  if (blackQueensideCastleMove !== null) {
-    moves.push(blackQueensideCastleMove);
-  }
-
-  return moves;
+  return;
 }
 
 export default generateCastlingMoves;

@@ -12,14 +12,14 @@ import generateKingAttacks from "../../attacks/king";
 import { FULL_BOARD_MASK } from "../../constants/mask";
 import forEachBitGetSquare from "../../helpers/forEachBitGetSquare";
 import getPieceTypeFromStateIndex from "../../helpers/getPieceTypeFromStateIndex ";
+import { encodeMove } from "../../packedMove/main";
 import { KING_INDEX } from "../../state/initialState";
-import { MOVE_FLAG, type Move } from "../../types/main";
+import { MOVE_FLAG } from "../../types/main";
 import type { AttackInfo } from "../attackInfo/types";
 import type { MoveGenerationContext } from "../types";
 import generateCastlingMoves from "./castling/generateCastlingMoves";
 
-const generateKingMoves = (ctx: MoveGenerationContext, attackInfo: AttackInfo): Move[] => {
-  const moves: Move[] = [];
+const generateKingMoves = (ctx: MoveGenerationContext, attackInfo: AttackInfo): void => {
   const attacks = generateKingAttacks(ctx.ownKingSquare, ctx.allOccupancy);
   let targets = attacks & (FULL_BOARD_MASK ^ ctx.ownOccupancy);
   targets = targets & (FULL_BOARD_MASK ^ attackInfo.enemyAttackedSquares);
@@ -35,33 +35,16 @@ const generateKingMoves = (ctx: MoveGenerationContext, attackInfo: AttackInfo): 
       throw new Error('Invalid captured piece');
     }
 
-    moves.push({
-      color: ctx.color,
-      flag: MOVE_FLAG.CAPTURE,
-      from: ctx.ownKingSquare,
-      to: captureTargetSquare,
-      piece: KING_INDEX,
-      capturedPiece: getPieceTypeFromStateIndex(capturedPiece),
-    })
+    ctx.moves.push(
+      encodeMove(ctx.ownKingSquare, captureTargetSquare, ctx.color, KING_INDEX, MOVE_FLAG.CAPTURE, getPieceTypeFromStateIndex(capturedPiece)));
   });
 
   forEachBitGetSquare(quietTargets, (quietTargetSquare) => {
-    moves.push({
-      color: ctx.color,
-      flag: MOVE_FLAG.QUIET,
-      from: ctx.ownKingSquare,
-      to: quietTargetSquare,
-      piece: KING_INDEX,
-    })
+    ctx.moves.push(
+      encodeMove(ctx.ownKingSquare, quietTargetSquare, ctx.color, KING_INDEX, MOVE_FLAG.QUIET))
   });
 
-  const castlingMoves = generateCastlingMoves(ctx, attackInfo);
-
-  if (castlingMoves !== null) {
-    moves.push(...castlingMoves);
-  }
-
-  return moves;
+  generateCastlingMoves(ctx, attackInfo);
 }
 
 export default generateKingMoves;

@@ -22,6 +22,7 @@ import {
   squareBitboards,
   squareIndexByBitboard,
 } from "../../lookupTables/importedPrecalculatedData";
+import { ENCODE_MOVE_NO_PIECE, encodeMove } from "../../packedMove/main";
 import {
   BISHOP_INDEX,
   calculatePieceIndex,
@@ -30,7 +31,7 @@ import {
   QUEEN_INDEX,
   ROOK_INDEX,
 } from "../../state/initialState";
-import { COLOR, MOVE_FLAG, type Move } from "../../types/main";
+import { COLOR, MOVE_FLAG } from "../../types/main";
 import type { AttackInfo } from "../attackInfo/types";
 import type { MoveGenerationContext } from "../types";
 import generateEnPassantMove from "./generateEnPassantMove";
@@ -39,8 +40,7 @@ import { PAWN_CONFIG } from "./pawnConfig";
 const generatePawnMoves = (
   ctx: MoveGenerationContext,
   attackInfo: AttackInfo,
-): Move[] => {
-  const moves: Move[] = [];
+): void => {
   const pawns = ctx.state[calculatePieceIndex(ctx.color, PAWN_INDEX)];
   const pawnConfig = PAWN_CONFIG[ctx.color];
   const emptySquares = ~ctx.allOccupancy & FULL_BOARD_MASK;
@@ -86,24 +86,13 @@ const generatePawnMoves = (
       if (targetSquareRank === pawnConfig.promotionRank) {
         [KNIGHT_INDEX, QUEEN_INDEX, ROOK_INDEX, BISHOP_INDEX].forEach(
           (promotionPieceIndex) => {
-            moves.push({
-              color: ctx.color,
-              flag: MOVE_FLAG.PROMOTION,
-              from: originSquare,
-              to: targetSquare,
-              piece: PAWN_INDEX,
-              promotionPiece: promotionPieceIndex,
-            });
+            ctx.moves.push(
+              encodeMove(originSquare, targetSquare, ctx.color, PAWN_INDEX, MOVE_FLAG.PROMOTION, ENCODE_MOVE_NO_PIECE, promotionPieceIndex));
           },
         );
       } else {
-        moves.push({
-          color: ctx.color,
-          flag: MOVE_FLAG.QUIET,
-          from: originSquare,
-          to: targetSquare,
-          piece: PAWN_INDEX,
-        });
+        ctx.moves.push(
+          encodeMove(originSquare, targetSquare, ctx.color, PAWN_INDEX, MOVE_FLAG.QUIET));
       }
     }
 
@@ -136,13 +125,8 @@ const generatePawnMoves = (
           throw new Error("Invalid bitboard");
         }
 
-        moves.push({
-          color: ctx.color,
-          flag: MOVE_FLAG.DOUBLE_PAWN_PUSH,
-          from: originSquare,
-          to: targetSquare,
-          piece: PAWN_INDEX,
-        });
+        ctx.moves.push(
+          encodeMove(originSquare, targetSquare, ctx.color, PAWN_INDEX, MOVE_FLAG.DOUBLE_PAWN_PUSH));
       }
     }
 
@@ -162,7 +146,7 @@ const generatePawnMoves = (
     /**
      * En Pessant logic
      */
-    const enPassantMove = generateEnPassantMove(
+    generateEnPassantMove(
       ctx,
       attackInfo.checkMask,
       attackInfo.checkers,
@@ -170,10 +154,6 @@ const generatePawnMoves = (
       targets,
       originSquare,
     );
-
-    if (enPassantMove !== null) {
-      moves.push(enPassantMove);
-    }
 
     targets = targets & attackInfo.checkMask;
     targets = targets & ctx.enemyOccupancy;
@@ -190,31 +170,16 @@ const generatePawnMoves = (
       if (targetSquareRank === pawnConfig.promotionRank) {
         [KNIGHT_INDEX, QUEEN_INDEX, ROOK_INDEX, BISHOP_INDEX].forEach(
           (promotionPieceIndex) => {
-            moves.push({
-              color: ctx.color,
-              flag: MOVE_FLAG.PROMOTION_CAPTURE,
-              from: originSquare,
-              to: targetSquare,
-              piece: PAWN_INDEX,
-              promotionPiece: promotionPieceIndex,
-              capturedPiece: getPieceTypeFromStateIndex(capturedPiece),
-            });
+            ctx.moves.push(
+              encodeMove(originSquare, targetSquare, ctx.color, PAWN_INDEX, MOVE_FLAG.PROMOTION_CAPTURE, getPieceTypeFromStateIndex(capturedPiece), promotionPieceIndex));
           },
         );
       } else {
-        moves.push({
-          color: ctx.color,
-          flag: MOVE_FLAG.CAPTURE,
-          from: originSquare,
-          to: targetSquare,
-          piece: PAWN_INDEX,
-          capturedPiece: getPieceTypeFromStateIndex(capturedPiece),
-        });
+        ctx.moves.push(
+          encodeMove(originSquare, targetSquare, ctx.color, PAWN_INDEX, MOVE_FLAG.CAPTURE, getPieceTypeFromStateIndex(capturedPiece)));
       }
     });
   });
-
-  return moves;
 };
 
 export default generatePawnMoves;

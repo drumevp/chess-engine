@@ -25,8 +25,8 @@ export type Move = {
   color: ColorType;
   piece: number;
 
-  capturedPiece?: number;
-  promotionPiece?: number;
+  capturedPiece: number | null;
+  promotionPiece: number | null;
 
   flag: MoveFlagType;
 };

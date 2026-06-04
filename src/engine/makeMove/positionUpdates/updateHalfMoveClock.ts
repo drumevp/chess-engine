@@ -1,13 +1,13 @@
 import { PAWN_INDEX } from "../../state/initialState";
-import { MOVE_FLAG, type Move, type Position } from "../../types/main";
+import { MOVE_FLAG, type MoveFlagType, type Position } from "../../types/main";
 
-const updateHalfMoveClock = (position: Position, move: Move) => {
-  const isPawnMove = move.piece === PAWN_INDEX;
+const updateHalfMoveClock = (position: Position, moveFlag: MoveFlagType, movePiece: number) => {
+  const isPawnMove = movePiece === PAWN_INDEX;
 
   const isCapture =
-    move.flag === MOVE_FLAG.CAPTURE ||
-    move.flag === MOVE_FLAG.PROMOTION_CAPTURE ||
-    move.flag === MOVE_FLAG.EN_PASSANT;
+    moveFlag === MOVE_FLAG.CAPTURE ||
+    moveFlag === MOVE_FLAG.PROMOTION_CAPTURE ||
+    moveFlag=== MOVE_FLAG.EN_PASSANT;
 
   if (isPawnMove || isCapture) {
     position.halfMoveClock = 0;

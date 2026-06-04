@@ -9,18 +9,18 @@ import {
   KING_INDEX,
   ROOK_INDEX,
 } from "../../state/initialState";
-import { COLOR, type Move, type Position } from "../../types/main";
+import { COLOR, type ColorType, type Position } from "../../types/main";
 import clearSquare from "../occupancy/clearSquare";
 import setSquare from "../occupancy/setSquare";
 
-const queensideCastleMoveHandler = (position: Position, move: Move) => {
-  const kingStateIndex = calculatePieceIndex(move.color, KING_INDEX);
-  const rookStateIndex = calculatePieceIndex(move.color, ROOK_INDEX);
+const queensideCastleMoveHandler = (position: Position, moveFrom: number, moveTo: number, moveColor: ColorType) => {
+  const kingStateIndex = calculatePieceIndex(moveColor, KING_INDEX);
+  const rookStateIndex = calculatePieceIndex(moveColor, ROOK_INDEX);
 
   let rookFrom: number;
   let rookTo: number;
 
-  if (move.color === COLOR.WHITE) {
+  if (moveColor === COLOR.WHITE) {
     rookFrom = WHITE_QUEENSIDE_ROOK_ORIGIN_SQUARE;
     rookTo = WHITE_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE;
   } else {
@@ -29,9 +29,9 @@ const queensideCastleMoveHandler = (position: Position, move: Move) => {
   }
 
   // Update king position
-  clearSquare(position, move.from);
-  setSquare(position, move.to, kingStateIndex);
-  position.kingSquares[move.color] = move.to;
+  clearSquare(position, moveFrom);
+  setSquare(position, moveTo, kingStateIndex);
+  position.kingSquares[moveColor] = moveTo;
 
   // Update rook position
   clearSquare(position, rookFrom);

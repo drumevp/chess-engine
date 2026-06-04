@@ -1,20 +1,20 @@
 import { calculatePieceIndex } from "../../state/initialState";
-import type { Move, Position } from "../../types/main";
+import type { ColorType, Position } from "../../types/main";
 import clearSquare from "../occupancy/clearSquare";
 import setSquare from "../occupancy/setSquare";
 
-const promotionMoveHandler = (position: Position, move: Move) => {
-  if (move.promotionPiece === undefined) {
+const promotionMoveHandler = (position: Position, moveFrom: number, moveTo: number, moveColor: ColorType, movePromotionPiece: number | null) => {
+  if (movePromotionPiece === null) {
     throw new Error(`No promotion piece`);
   }
 
   const promotionPieceStateIndex = calculatePieceIndex(
-    move.color,
-    move.promotionPiece,
+    moveColor,
+    movePromotionPiece,
   );
 
-  clearSquare(position, move.from);
-  setSquare(position, move.to, promotionPieceStateIndex);
+  clearSquare(position, moveFrom);
+  setSquare(position, moveTo, promotionPieceStateIndex);
 };
 
 export default promotionMoveHandler;

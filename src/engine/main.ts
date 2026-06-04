@@ -1,6 +1,7 @@
 import generatePositionFromFen from "./fen/generatePositionFromFen";
 import makeMove from "./makeMove/makeMove";
 import generateLegalMoves from "./moves/generateLegalMoves";
+import { moveDecodeCapturedPiece, moveDecodeColor, moveDecodeFlag, moveDecodeFrom, moveDecodePiece, moveDecodePromotionPiece, moveDecodeTo } from "./packedMove/main";
 import perft from "./perft/main";
 import { createInitialPosition } from "./state/initialState";
 import type { History } from "./types/history";
@@ -18,11 +19,27 @@ class ChessEngine {
     this.history = [];
   }
 
-  public generateLegalMoves(): Move[] {
+  public generateLegalMoves(): number[] {
     return generateLegalMoves(this.position);
   }
 
-  public makeMove(move: Move): void {
+  public generateLegalMovesForFrontend(): Move[] {
+    const encodedMoves = generateLegalMoves(this.position);
+
+    return encodedMoves.map((move) => {
+      return {
+        from: moveDecodeFrom(move),
+        to: moveDecodeTo(move),
+        color: moveDecodeColor(move),
+        flag: moveDecodeFlag(move),
+        piece: moveDecodePiece(move),
+        capturedPiece: moveDecodeCapturedPiece(move),
+        promotionPiece: moveDecodePromotionPiece(move),
+      }
+    });
+  }
+
+  public makeMove(move: number): void {
     const undo = makeMove(this.position, move);
 
     this.history.push({ move, undo });

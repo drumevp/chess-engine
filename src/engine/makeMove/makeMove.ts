@@ -12,7 +12,7 @@
  * - castling rights
  */
 
-import { COLOR, MOVE_FLAG, type Move, type Position } from "../types/main";
+import { COLOR, MOVE_FLAG, type Position } from "../types/main";
 import quietMoveHandler from "./moveFlagHandlers/quietMoveHandler";
 import getEnPassantSquare from "./helpers/getEnPassantSquare";
 import captureMoveHandler from "./moveFlagHandlers/captureMoveHandler";
@@ -28,8 +28,9 @@ import updateCastlingRights from "./positionUpdates/updateCastlingRights";
 import type { Undo } from "../types/history";
 import { calculatePieceIndex } from "../state/initialState";
 import getOppositeColor from "../helpers/getOppositeColor";
+import { moveDecodeCapturedPiece, moveDecodeColor, moveDecodeFlag, moveDecodeFrom, moveDecodePiece, moveDecodePromotionPiece, moveDecodeTo } from "../packedMove/main";
 
-const makeMove = (position: Position, move: Move): Undo => {
+const makeMove = (position: Position, move: number): Undo => {
   const undo: Undo = {
     previousColor: position.color,
     previousCastlingRights: position.castlingRights,
@@ -44,53 +45,61 @@ const makeMove = (position: Position, move: Move): Undo => {
 
   position.enPassantSquare = null;
 
-  switch (move.flag) {
+  const moveFrom = moveDecodeFrom(move);
+  const moveTo = moveDecodeTo(move);
+  const moveColor = moveDecodeColor(move);
+  const movePiece = moveDecodePiece(move);
+  const moveFlag = moveDecodeFlag(move);
+  const moveCapturedPiece = moveDecodeCapturedPiece(move);
+  const movePromotionPiece = moveDecodePromotionPiece(move); 
+
+  switch (moveFlag) {
     case MOVE_FLAG.QUIET:
-      quietMoveHandler(position, move);
+      quietMoveHandler(position, moveFrom, moveTo, moveColor, movePiece);
       break;
 
     case MOVE_FLAG.DOUBLE_PAWN_PUSH:
-      quietMoveHandler(position, move);
-      position.enPassantSquare = getEnPassantSquare(move);
+      quietMoveHandler(position, moveFrom, moveTo, moveColor, movePiece);
+      position.enPassantSquare = getEnPassantSquare(moveFrom, moveTo);
       break;
 
     case MOVE_FLAG.CAPTURE:
-      captureMoveHandler(position, move);
+      captureMoveHandler(position, moveFrom, moveTo, moveColor, movePiece);
       break;
 
     case MOVE_FLAG.PROMOTION:
-      promotionMoveHandler(position, move);
+      promotionMoveHandler(position, moveFrom, moveTo, moveColor, movePromotionPiece);
       break;
 
     case MOVE_FLAG.PROMOTION_CAPTURE:
-      promotionCaptureMoveHandler(position, move);
+      promotionCaptureMoveHandler(position, moveFrom, moveTo, moveColor, movePromotionPiece);
       break;
 
     case MOVE_FLAG.EN_PASSANT:
-      enPassantMoveHandler(position, move);
+      enPassantMoveHandler(position, moveFrom, moveTo, moveColor, movePiece);
       break;
 
     case MOVE_FLAG.KING_CASTLE:
-      kingsideCastleMoveHandler(position, move);
+      kingsideCastleMoveHandler(position, moveFrom, moveTo, moveColor);
       break;
 
     case MOVE_FLAG.QUEEN_CASTLE:
-      queensideCastleMoveHandler(position, move);
+      queensideCastleMoveHandler(position, moveFrom, moveTo, moveColor);
       break;
   }
 
-  updateCastlingRights(position, move);
-  updateHalfMoveClock(position, move);
+  updateCastlingRights(position, moveFrom, moveTo, moveColor, movePiece, moveFlag, moveCapturedPiece);
+  updateHalfMoveClock(position, moveFlag, movePiece);
   updateFullMoveNumber(position);
   updateSideToMove(position);
 
-  if (move.capturedPiece !== undefined) {
-    undo.capturedPieceStateIndex = calculatePieceIndex(getOppositeColor(move.color), move.capturedPiece);
+  if (moveCapturedPiece !== null) {
+    undo.capturedPieceStateIndex = calculatePieceIndex(getOppositeColor(moveColor), moveCapturedPiece);
     
-    if (move.flag === MOVE_FLAG.EN_PASSANT) {
-      undo.capturedSquare = move.color === COLOR.WHITE ? move.to - 8 : move.to + 8;
+    if (moveFlag === MOVE_FLAG.EN_PASSANT) {
+      undo.capturedSquare = moveColor === COLOR.WHITE ? moveTo - 8 : moveTo + 8;
     } else {
-      undo.capturedSquare = move.to;
+      undo.capturedSquare = moveTo;
     }
   }
   

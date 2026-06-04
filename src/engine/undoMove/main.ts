@@ -7,25 +7,32 @@
 import clearSquare from "../makeMove/occupancy/clearSquare";
 import setSquare from "../makeMove/occupancy/setSquare";
 import { BLACK_KING_ORIGIN_SQUARE, BLACK_KINGSIDE_ROOK_ORIGIN_SQUARE, BLACK_QUEENSIDE_ROOK_ORIGIN_SQUARE, BLACK_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE, BLACK_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE, WHITE_KING_ORIGIN_SQUARE, WHITE_KINGSIDE_ROOK_ORIGIN_SQUARE, WHITE_QUEENSIDE_ROOK_ORIGIN_SQUARE, WHITE_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE, WHITE_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE } from "../moves/king/castling/generateCastlingMoves";
+import { moveDecodeColor, moveDecodeFlag, moveDecodeFrom, moveDecodePiece, moveDecodeTo } from "../packedMove/main";
 import { calculatePieceIndex, KING_INDEX, ROOK_INDEX } from "../state/initialState";
 import type { Undo } from "../types/history";
-import { COLOR, MOVE_FLAG, type Move, type Position } from "../types/main";
+import { COLOR, MOVE_FLAG, type Position } from "../types/main";
 
-const undoMove = (position: Position, move: Move, undo: Undo): void => {
-  const movingPieceStateIndex = calculatePieceIndex(move.color, move.piece);
+const undoMove = (position: Position, move: number, undo: Undo): void => {
+  const moveColor = moveDecodeColor(move);
+  const movePiece = moveDecodePiece(move);
+  const moveFlag = moveDecodeFlag(move);
+  const moveFrom = moveDecodeFrom(move);
+  const moveTo = moveDecodeTo(move);
 
-  switch (move.flag) {
+  const movingPieceStateIndex = calculatePieceIndex(moveColor, movePiece);
+
+  switch (moveFlag) {
     case MOVE_FLAG.QUIET:
     case MOVE_FLAG.DOUBLE_PAWN_PUSH:
-      clearSquare(position, move.to);
-      setSquare(position, move.from, movingPieceStateIndex);
+      clearSquare(position, moveTo);
+      setSquare(position, moveFrom, movingPieceStateIndex);
       break;
 
     case MOVE_FLAG.CAPTURE:
     case MOVE_FLAG.PROMOTION_CAPTURE:
     case MOVE_FLAG.EN_PASSANT:
-      clearSquare(position, move.to);
-      setSquare(position, move.from, movingPieceStateIndex);
+      clearSquare(position, moveTo);
+      setSquare(position, moveFrom, movingPieceStateIndex);
 
       if (undo.capturedSquare === null || undo.capturedPieceStateIndex === null) {
         throw new Error('No valid captured piece to undo');
@@ -35,15 +42,15 @@ const undoMove = (position: Position, move: Move, undo: Undo): void => {
       break;
 
     case MOVE_FLAG.PROMOTION:
-      clearSquare(position, move.to);
-      setSquare(position, move.from, movingPieceStateIndex);
+      clearSquare(position, moveTo);
+      setSquare(position, moveFrom, movingPieceStateIndex);
       break;
 
     case MOVE_FLAG.KING_CASTLE:
       // WHITE
-      if (move.color === COLOR.WHITE) {
+      if (moveColor === COLOR.WHITE) {
         // reset white king
-        clearSquare(position, move.to);
+        clearSquare(position, moveTo);
         setSquare(position, WHITE_KING_ORIGIN_SQUARE, calculatePieceIndex(COLOR.WHITE, KING_INDEX));
 
         // reset white rook
@@ -51,7 +58,7 @@ const undoMove = (position: Position, move: Move, undo: Undo): void => {
         setSquare(position, WHITE_KINGSIDE_ROOK_ORIGIN_SQUARE, calculatePieceIndex(COLOR.WHITE, ROOK_INDEX));
       } else {
         // reset black king
-        clearSquare(position, move.to);
+        clearSquare(position, moveTo);
         setSquare(position, BLACK_KING_ORIGIN_SQUARE, calculatePieceIndex(COLOR.BLACK, KING_INDEX));
 
         // reset black rook
@@ -62,9 +69,9 @@ const undoMove = (position: Position, move: Move, undo: Undo): void => {
 
     case MOVE_FLAG.QUEEN_CASTLE:
       // WHITE
-      if (move.color === COLOR.WHITE) {
+      if (moveColor === COLOR.WHITE) {
         // reset white king
-        clearSquare(position, move.to);
+        clearSquare(position, moveTo);
         setSquare(position, WHITE_KING_ORIGIN_SQUARE, calculatePieceIndex(COLOR.WHITE, KING_INDEX));
 
         // reset white rook
@@ -72,7 +79,7 @@ const undoMove = (position: Position, move: Move, undo: Undo): void => {
         setSquare(position, WHITE_QUEENSIDE_ROOK_ORIGIN_SQUARE, calculatePieceIndex(COLOR.WHITE, ROOK_INDEX));
       } else {
         // reset black king
-        clearSquare(position, move.to);
+        clearSquare(position, moveTo);
         setSquare(position, BLACK_KING_ORIGIN_SQUARE, calculatePieceIndex(COLOR.BLACK, KING_INDEX));
 
         // reset black rook

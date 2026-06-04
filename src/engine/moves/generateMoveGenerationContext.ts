@@ -3,6 +3,8 @@ import type { MoveGenerationContext } from "./types";
 
 const generateMoveGenerationContext = (position: Position): MoveGenerationContext => {
   let ctx: MoveGenerationContext;
+  
+  const moves: number[] = [];
 
   if (position.color === COLOR.WHITE) {
     ctx = {
@@ -16,6 +18,7 @@ const generateMoveGenerationContext = (position: Position): MoveGenerationContex
       pieceAt: position.pieceAt,
       enPassantSquare: position.enPassantSquare,
       castlingRights: position.castlingRights,
+      moves,
     }
   } else {
     ctx = {
@@ -29,6 +32,7 @@ const generateMoveGenerationContext = (position: Position): MoveGenerationContex
       pieceAt: position.pieceAt,
       enPassantSquare: position.enPassantSquare,
       castlingRights: position.castlingRights,
+      moves,
     }
   }
 

@@ -10,13 +10,13 @@ import { FULL_BOARD_MASK } from "../constants/mask";
 import forEachBitGetSquare from "../helpers/forEachBitGetSquare";
 import getPieceTypeFromStateIndex from "../helpers/getPieceTypeFromStateIndex ";
 import { squareBitboards } from "../lookupTables/importedPrecalculatedData";
+import { encodeMove } from "../packedMove/main";
 import { calculatePieceIndex } from "../state/initialState";
-import { MOVE_FLAG, type Move } from "../types/main";
+import { MOVE_FLAG } from "../types/main";
 import type { AttackInfo } from "./attackInfo/types";
 import type { MoveGenerationContext } from "./types";
 
-const generateMove = (ctx: MoveGenerationContext, attackInfo: AttackInfo, pieceIndex: number, generateAttacksFn: GenerateAttacksFn): Move[] => {
-  const moves: Move[] = [];
+const generateMove = (ctx: MoveGenerationContext, attackInfo: AttackInfo, pieceIndex: number, generateAttacksFn: GenerateAttacksFn): void => {
   const emptySquares = ~ctx.allOccupancy & FULL_BOARD_MASK;
 
   const pieces = ctx.state[calculatePieceIndex(ctx.color, pieceIndex)];
@@ -44,28 +44,15 @@ const generateMove = (ctx: MoveGenerationContext, attackInfo: AttackInfo, pieceI
         throw new Error('Invalid captured piece');
       }
 
-      moves.push({
-        color: ctx.color,
-        flag: MOVE_FLAG.CAPTURE,
-        from: originSquare,
-        to: captureTargetSquare,
-        piece: pieceIndex,
-        capturedPiece: getPieceTypeFromStateIndex(capturedPiece),
-      });
+      ctx.moves.push(
+        encodeMove(originSquare, captureTargetSquare, ctx.color, pieceIndex, MOVE_FLAG.CAPTURE, getPieceTypeFromStateIndex(capturedPiece)));
     });
 
     forEachBitGetSquare(quietTargets, (quietTargetSquare) => {
-      moves.push({
-        color: ctx.color,
-        flag: MOVE_FLAG.QUIET,
-        from: originSquare,
-        to: quietTargetSquare,
-        piece: pieceIndex,
-      });
+      ctx.moves.push(
+        encodeMove(originSquare, quietTargetSquare, ctx.color, pieceIndex, MOVE_FLAG.QUIET));
     });
   });
-
-  return moves;
 }
 
 export default generateMove;
