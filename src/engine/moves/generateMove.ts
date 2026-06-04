@@ -14,9 +14,15 @@ import { encodeMove } from "../packedMove/main";
 import { calculatePieceIndex } from "../state/initialState";
 import { MOVE_FLAG } from "../types/main";
 import type { AttackInfo } from "./attackInfo/types";
+import { addMove } from "./moveList";
 import type { MoveGenerationContext } from "./types";
 
-const generateMove = (ctx: MoveGenerationContext, attackInfo: AttackInfo, pieceIndex: number, generateAttacksFn: GenerateAttacksFn): void => {
+const generateMove = (
+  ctx: MoveGenerationContext,
+  attackInfo: AttackInfo,
+  pieceIndex: number,
+  generateAttacksFn: GenerateAttacksFn,
+): void => {
   const emptySquares = ~ctx.allOccupancy & FULL_BOARD_MASK;
 
   const pieces = ctx.state[calculatePieceIndex(ctx.color, pieceIndex)];
@@ -27,8 +33,9 @@ const generateMove = (ctx: MoveGenerationContext, attackInfo: AttackInfo, pieceI
     let targets = pseudoTargets & attackInfo.checkMask;
 
     // Get whether this piece is pinned
-    const isPinned = (attackInfo.pinnedPieces & squareBitboards[originSquare]) !== 0n;
-    
+    const isPinned =
+      (attackInfo.pinnedPieces & squareBitboards[originSquare]) !== 0n;
+
     // If pinned, limit the moves to moves that resolve check
     if (isPinned) {
       targets = targets & attackInfo.pinRaysBySquare[originSquare];
@@ -41,18 +48,35 @@ const generateMove = (ctx: MoveGenerationContext, attackInfo: AttackInfo, pieceI
       const capturedPiece = ctx.pieceAt[captureTargetSquare];
 
       if (capturedPiece === -1) {
-        throw new Error('Invalid captured piece');
+        throw new Error("Invalid captured piece");
       }
 
-      ctx.moves.push(
-        encodeMove(originSquare, captureTargetSquare, ctx.color, pieceIndex, MOVE_FLAG.CAPTURE, getPieceTypeFromStateIndex(capturedPiece)));
+      addMove(
+        ctx.moves,
+        encodeMove(
+          originSquare,
+          captureTargetSquare,
+          ctx.color,
+          pieceIndex,
+          MOVE_FLAG.CAPTURE,
+          getPieceTypeFromStateIndex(capturedPiece),
+        ),
+      );
     });
 
     forEachBitGetSquare(quietTargets, (quietTargetSquare) => {
-      ctx.moves.push(
-        encodeMove(originSquare, quietTargetSquare, ctx.color, pieceIndex, MOVE_FLAG.QUIET));
+      addMove(
+        ctx.moves,
+        encodeMove(
+          originSquare,
+          quietTargetSquare,
+          ctx.color,
+          pieceIndex,
+          MOVE_FLAG.QUIET,
+        ),
+      );
     });
   });
-}
+};
 
 export default generateMove;

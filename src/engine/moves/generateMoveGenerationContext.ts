@@ -1,10 +1,12 @@
 import { COLOR, type Position } from "../types/main";
+import type { MoveList } from "./moveList";
 import type { MoveGenerationContext } from "./types";
 
-const generateMoveGenerationContext = (position: Position): MoveGenerationContext => {
+const generateMoveGenerationContext = (
+  position: Position,
+  moveList: MoveList,
+): MoveGenerationContext => {
   let ctx: MoveGenerationContext;
-  
-  const moves: number[] = [];
 
   if (position.color === COLOR.WHITE) {
     ctx = {
@@ -18,8 +20,8 @@ const generateMoveGenerationContext = (position: Position): MoveGenerationContex
       pieceAt: position.pieceAt,
       enPassantSquare: position.enPassantSquare,
       castlingRights: position.castlingRights,
-      moves,
-    }
+      moves: moveList,
+    };
   } else {
     ctx = {
       state: position.state,
@@ -32,11 +34,11 @@ const generateMoveGenerationContext = (position: Position): MoveGenerationContex
       pieceAt: position.pieceAt,
       enPassantSquare: position.enPassantSquare,
       castlingRights: position.castlingRights,
-      moves,
-    }
+      moves: moveList,
+    };
   }
 
   return ctx;
-}
+};
 
 export default generateMoveGenerationContext;

@@ -1,4 +1,5 @@
 import type { ColorType } from "../types/main";
+import type { MoveList } from "./moveList";
 
 export type MoveGenerationContext = {
   state: bigint[];
@@ -11,5 +12,5 @@ export type MoveGenerationContext = {
   enemyKingSquare: number;
   enPassantSquare: number | null;
   castlingRights: number;
-  moves: number[];
+  moves: MoveList;
 };

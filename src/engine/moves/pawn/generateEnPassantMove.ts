@@ -12,6 +12,7 @@ import {
   ROOK_INDEX,
 } from "../../state/initialState";
 import { COLOR, MOVE_FLAG } from "../../types/main";
+import { addMove } from "../moveList";
 import type { MoveGenerationContext } from "../types";
 
 const generateEnPassantMove = (
@@ -92,7 +93,17 @@ const generateEnPassantMove = (
     return;
   }
 
-  ctx.moves.push(encodeMove(pawnOriginSquare, ctx.enPassantSquare, ctx.color, PAWN_INDEX, MOVE_FLAG.EN_PASSANT, PAWN_INDEX));
+  addMove(
+    ctx.moves,
+    encodeMove(
+      pawnOriginSquare,
+      ctx.enPassantSquare,
+      ctx.color,
+      PAWN_INDEX,
+      MOVE_FLAG.EN_PASSANT,
+      PAWN_INDEX,
+    ),
+  );
 };
 
 export default generateEnPassantMove;

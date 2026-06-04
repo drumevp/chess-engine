@@ -33,6 +33,7 @@ import {
 } from "../../state/initialState";
 import { COLOR, MOVE_FLAG } from "../../types/main";
 import type { AttackInfo } from "../attackInfo/types";
+import { addMove } from "../moveList";
 import type { MoveGenerationContext } from "../types";
 import generateEnPassantMove from "./generateEnPassantMove";
 import { PAWN_CONFIG } from "./pawnConfig";
@@ -86,13 +87,31 @@ const generatePawnMoves = (
       if (targetSquareRank === pawnConfig.promotionRank) {
         [KNIGHT_INDEX, QUEEN_INDEX, ROOK_INDEX, BISHOP_INDEX].forEach(
           (promotionPieceIndex) => {
-            ctx.moves.push(
-              encodeMove(originSquare, targetSquare, ctx.color, PAWN_INDEX, MOVE_FLAG.PROMOTION, ENCODE_MOVE_NO_PIECE, promotionPieceIndex));
+            addMove(
+              ctx.moves,
+              encodeMove(
+                originSquare,
+                targetSquare,
+                ctx.color,
+                PAWN_INDEX,
+                MOVE_FLAG.PROMOTION,
+                ENCODE_MOVE_NO_PIECE,
+                promotionPieceIndex,
+              ),
+            );
           },
         );
       } else {
-        ctx.moves.push(
-          encodeMove(originSquare, targetSquare, ctx.color, PAWN_INDEX, MOVE_FLAG.QUIET));
+        addMove(
+          ctx.moves,
+          encodeMove(
+            originSquare,
+            targetSquare,
+            ctx.color,
+            PAWN_INDEX,
+            MOVE_FLAG.QUIET,
+          ),
+        );
       }
     }
 
@@ -125,8 +144,16 @@ const generatePawnMoves = (
           throw new Error("Invalid bitboard");
         }
 
-        ctx.moves.push(
-          encodeMove(originSquare, targetSquare, ctx.color, PAWN_INDEX, MOVE_FLAG.DOUBLE_PAWN_PUSH));
+        addMove(
+          ctx.moves,
+          encodeMove(
+            originSquare,
+            targetSquare,
+            ctx.color,
+            PAWN_INDEX,
+            MOVE_FLAG.DOUBLE_PAWN_PUSH,
+          ),
+        );
       }
     }
 
@@ -170,13 +197,32 @@ const generatePawnMoves = (
       if (targetSquareRank === pawnConfig.promotionRank) {
         [KNIGHT_INDEX, QUEEN_INDEX, ROOK_INDEX, BISHOP_INDEX].forEach(
           (promotionPieceIndex) => {
-            ctx.moves.push(
-              encodeMove(originSquare, targetSquare, ctx.color, PAWN_INDEX, MOVE_FLAG.PROMOTION_CAPTURE, getPieceTypeFromStateIndex(capturedPiece), promotionPieceIndex));
+            addMove(
+              ctx.moves,
+              encodeMove(
+                originSquare,
+                targetSquare,
+                ctx.color,
+                PAWN_INDEX,
+                MOVE_FLAG.PROMOTION_CAPTURE,
+                getPieceTypeFromStateIndex(capturedPiece),
+                promotionPieceIndex,
+              ),
+            );
           },
         );
       } else {
-        ctx.moves.push(
-          encodeMove(originSquare, targetSquare, ctx.color, PAWN_INDEX, MOVE_FLAG.CAPTURE, getPieceTypeFromStateIndex(capturedPiece)));
+        addMove(
+          ctx.moves,
+          encodeMove(
+            originSquare,
+            targetSquare,
+            ctx.color,
+            PAWN_INDEX,
+            MOVE_FLAG.CAPTURE,
+            getPieceTypeFromStateIndex(capturedPiece),
+          ),
+        );
       }
     });
   });
