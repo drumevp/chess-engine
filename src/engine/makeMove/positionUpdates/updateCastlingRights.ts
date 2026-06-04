@@ -13,12 +13,12 @@ import {
   KING_INDEX,
   ROOK_INDEX,
 } from "../../state/initialState";
-import { COLOR, MOVE_FLAG, type Move, type Position } from "../../types/main";
+import { COLOR, MOVE_FLAG, type ColorType, type MoveFlagType, type Position } from "../../types/main";
 
-const updateCastlingRights = (position: Position, move: Move) => {
+const updateCastlingRights = (position: Position, moveFrom: number, moveTo: number, moveColor: ColorType, movePiece: number, moveFlag: MoveFlagType, moveCapturedPiece: number | null) => {
   // King moved
-  if (move.piece === KING_INDEX) {
-    if (move.color === COLOR.WHITE) {
+  if (movePiece === KING_INDEX) {
+    if (moveColor === COLOR.WHITE) {
       position.castlingRights =
         position.castlingRights &
         ~(CASTLING_RIGHTS.WHITE_KINGSIDE | CASTLING_RIGHTS.WHITE_QUEENSIDE);
@@ -30,8 +30,8 @@ const updateCastlingRights = (position: Position, move: Move) => {
   }
 
   // Rook moved
-  if (move.piece === ROOK_INDEX) {
-    switch (move.from) {
+  if (movePiece === ROOK_INDEX) {
+    switch (moveFrom) {
       case WHITE_KINGSIDE_ROOK_ORIGIN_SQUARE:
         position.castlingRights &= ~CASTLING_RIGHTS.WHITE_KINGSIDE;
         break;
@@ -49,15 +49,15 @@ const updateCastlingRights = (position: Position, move: Move) => {
 
   // Rook captured on origin square
   const isRookCapture =
-    move.capturedPiece === ROOK_INDEX &&
-    (move.flag === MOVE_FLAG.CAPTURE ||
-      move.flag === MOVE_FLAG.PROMOTION_CAPTURE);
+    moveCapturedPiece === ROOK_INDEX &&
+    (moveFlag === MOVE_FLAG.CAPTURE ||
+      moveFlag === MOVE_FLAG.PROMOTION_CAPTURE);
 
   if (!isRookCapture) {
     return;
   }
 
-  switch (move.to) {
+  switch (moveTo) {
     case WHITE_KINGSIDE_ROOK_ORIGIN_SQUARE:
       position.castlingRights &= ~CASTLING_RIGHTS.WHITE_KINGSIDE;
       break;

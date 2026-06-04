@@ -1,16 +1,16 @@
 import { calculatePieceIndex } from "../../state/initialState";
-import { COLOR, type Move, type Position } from "../../types/main";
+import { COLOR, type ColorType, type Position } from "../../types/main";
 import clearSquare from "../occupancy/clearSquare";
 import setSquare from "../occupancy/setSquare";
 
-const enPassantMoveHandler = (position: Position, move: Move) => {
-  const pieceStateIndex = calculatePieceIndex(move.color, move.piece);
+const enPassantMoveHandler = (position: Position, moveFrom: number, moveTo: number, moveColor: ColorType, movePiece: number) => {
+  const pieceStateIndex = calculatePieceIndex(moveColor, movePiece);
 
-  const squareToClear = move.color === COLOR.WHITE ? move.to - 8 : move.to + 8;
+  const squareToClear = moveColor === COLOR.WHITE ? moveTo - 8 : moveTo + 8;
 
-  clearSquare(position, move.from);
+  clearSquare(position, moveFrom);
   clearSquare(position, squareToClear);
-  setSquare(position, move.to, pieceStateIndex);
+  setSquare(position, moveTo, pieceStateIndex);
 };
 
 export default enPassantMoveHandler;

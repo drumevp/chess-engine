@@ -1,4 +1,4 @@
-import { type Move, type Position } from "../types/main";
+import { type Position } from "../types/main";
 import generateAttackInfo from "./attackInfo/main";
 import generateBishopMoves from "./bishop";
 import generateMoveGenerationContext from "./generateMoveGenerationContext";
@@ -8,24 +8,24 @@ import generatePawnMoves from "./pawn/pawn";
 import generateQueenMoves from "./queen";
 import generateRookMoves from "./rook";
 
-const generateLegalMoves = (position: Position): Move[] => {
+const generateLegalMoves = (position: Position): number[] => {
   const ctx = generateMoveGenerationContext(position);
   const attackInfo = generateAttackInfo(ctx);
 
-  const kingMoves = generateKingMoves(ctx, attackInfo);
+  generateKingMoves(ctx, attackInfo);
 
   if (attackInfo.checkCount >= 2) {
-    return kingMoves;
+    return ctx.moves;
   }
 
   
-  const knightMoves = generateKnightMoves(ctx, attackInfo);
-  const pawnMoves = generatePawnMoves(ctx, attackInfo);
-  const rookMoves = generateRookMoves(ctx, attackInfo);
-  const bishopMoves = generateBishopMoves(ctx, attackInfo);
-  const queenMoves = generateQueenMoves(ctx, attackInfo);
+  generateKnightMoves(ctx, attackInfo);
+  generatePawnMoves(ctx, attackInfo);
+  generateRookMoves(ctx, attackInfo);
+  generateBishopMoves(ctx, attackInfo);
+  generateQueenMoves(ctx, attackInfo);
 
-  return kingMoves.concat(knightMoves, pawnMoves, rookMoves, bishopMoves, queenMoves);
+  return ctx.moves;
 }
 
 export default generateLegalMoves;

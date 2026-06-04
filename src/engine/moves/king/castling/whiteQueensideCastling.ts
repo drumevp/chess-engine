@@ -1,21 +1,22 @@
 import { squareBitboards } from "../../../lookupTables/importedPrecalculatedData";
+import { encodeMove } from "../../../packedMove/main";
 import { calculatePieceIndex, CASTLING_RIGHTS, KING_INDEX, ROOK_INDEX } from "../../../state/initialState";
-import { COLOR, MOVE_FLAG, type Move } from "../../../types/main";
+import { COLOR, MOVE_FLAG } from "../../../types/main";
 import type { AttackInfo } from "../../attackInfo/types";
 import type { MoveGenerationContext } from "../../types";
 import { WHITE_KING_ORIGIN_SQUARE, WHITE_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE, WHITE_QUEENSIDE_ROOK_ORIGIN_SQUARE, WHITE_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE } from "./generateCastlingMoves";
 
-const whiteQueenCastling = (ctx: MoveGenerationContext, attackInfo: AttackInfo): Move | null => {
+const whiteQueenCastling = (ctx: MoveGenerationContext, attackInfo: AttackInfo): void => {
   const isWhiteQueensideCastlingAllowed = (ctx.castlingRights & CASTLING_RIGHTS.WHITE_QUEENSIDE) !== 0;
 
   if (!isWhiteQueensideCastlingAllowed) {
-    return null;
+    return;
   }
 
   const isKingOnOriginSquare = ctx.ownKingSquare === WHITE_KING_ORIGIN_SQUARE;
 
   if (!isKingOnOriginSquare) {
-    return null;
+    return;
   }
 
   const a1Bitboard = squareBitboards[WHITE_QUEENSIDE_ROOK_ORIGIN_SQUARE];
@@ -23,7 +24,7 @@ const whiteQueenCastling = (ctx: MoveGenerationContext, attackInfo: AttackInfo):
   const isRookOnA1 = (a1Bitboard & rooksBitboard) !== 0n;
   
   if (!isRookOnA1) {
-    return null;
+    return;
   }
 
   const c1Bitboard = squareBitboards[WHITE_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
@@ -38,22 +39,16 @@ const whiteQueenCastling = (ctx: MoveGenerationContext, attackInfo: AttackInfo):
   const isPathEmpty = (ctx.allOccupancy & emptyMask) === 0n;
 
   if (!isPathEmpty) {
-    return null;
+    return;
   }
 
   const isPathSafe = (attackInfo.enemyAttackedSquares & safeMask) === 0n;
 
   if (!isPathSafe) {
-    return null;
+    return;
   }
 
-  return {
-    color: ctx.color,
-    flag: MOVE_FLAG.QUEEN_CASTLE,
-    from: ctx.ownKingSquare,
-    to: WHITE_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE,
-    piece: KING_INDEX,
-  }
+  ctx.moves.push(encodeMove(ctx.ownKingSquare, WHITE_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE, ctx.color, KING_INDEX, MOVE_FLAG.QUEEN_CASTLE));
 }
 
 export default whiteQueenCastling;

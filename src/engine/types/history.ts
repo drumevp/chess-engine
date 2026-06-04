@@ -1,4 +1,4 @@
-import type { ColorType, Move } from "./main"
+import type { ColorType } from "./main"
 
 export type Undo = {
   previousColor: ColorType;
@@ -13,6 +13,6 @@ export type Undo = {
 }
 
 export type History = {
-  move: Move;
+  move: number;
   undo: Undo;
 }

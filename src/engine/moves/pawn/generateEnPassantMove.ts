@@ -3,6 +3,7 @@ import generateRookAttacks from "../../attacks/rook";
 import { FULL_BOARD_MASK } from "../../constants/mask";
 import getOppositeColor from "../../helpers/getOppositeColor";
 import { squareBitboards } from "../../lookupTables/importedPrecalculatedData";
+import { encodeMove } from "../../packedMove/main";
 import {
   BISHOP_INDEX,
   calculatePieceIndex,
@@ -10,7 +11,7 @@ import {
   QUEEN_INDEX,
   ROOK_INDEX,
 } from "../../state/initialState";
-import { COLOR, MOVE_FLAG, type Move } from "../../types/main";
+import { COLOR, MOVE_FLAG } from "../../types/main";
 import type { MoveGenerationContext } from "../types";
 
 const generateEnPassantMove = (
@@ -20,17 +21,17 @@ const generateEnPassantMove = (
   checkCount: number,
   attackTargets: bigint,
   pawnOriginSquare: number,
-): Move | null => {
+): void => {
   const originSquareBitboard = squareBitboards[pawnOriginSquare];
 
   if (ctx.enPassantSquare === null) {
-    return null;
+    return;
   }
 
   const enPassantBitboard = squareBitboards[ctx.enPassantSquare];
 
   if ((attackTargets & enPassantBitboard) === 0n) {
-    return null;
+    return;
   }
 
   const targetEnPassantPawnSquare =
@@ -48,7 +49,7 @@ const generateEnPassantMove = (
       (checkMask & enPassantBitboard) !== 0n;
 
     if (!isCapturedPawnChecker && !enPassantTargetBlocksSliderCheck) {
-      return null;
+      return;
     }
   }
 
@@ -59,7 +60,7 @@ const generateEnPassantMove = (
     ctx.pieceAt[targetEnPassantPawnSquare] !==
     calculatePieceIndex(enemyColor, PAWN_INDEX)
   ) {
-    return null;
+    return;
   }
 
   // Remove the origin pawn, target en pessant pawn and add the new pawn position
@@ -88,17 +89,10 @@ const generateEnPassantMove = (
   const isEnPassantMoveLegal = rookExposure && bishopExposure;
 
   if (!isEnPassantMoveLegal) {
-    return null;
+    return;
   }
 
-  return {
-    color: ctx.color,
-    flag: MOVE_FLAG.EN_PASSANT,
-    from: pawnOriginSquare,
-    to: ctx.enPassantSquare,
-    piece: PAWN_INDEX,
-    capturedPiece: PAWN_INDEX,
-  };
+  ctx.moves.push(encodeMove(pawnOriginSquare, ctx.enPassantSquare, ctx.color, PAWN_INDEX, MOVE_FLAG.EN_PASSANT, PAWN_INDEX));
 };
 
 export default generateEnPassantMove;

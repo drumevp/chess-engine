@@ -1,3 +1,4 @@
+/*
 import type { Position } from "../types/main";
 
 const generateFenFromPosition = (position: Position): stirng => {
@@ -5,3 +6,4 @@ const generateFenFromPosition = (position: Position): stirng => {
 };
 
 export default generateFenFromPosition;
+*/

@@ -5,6 +5,8 @@ import "./App.css";
 // );
 // console.log(chessEngine.perft(5));
 
+// console.log(chessEngine.generateLegalMovesForFrontend())
+
 function App() {
   return <div></div>;
 }

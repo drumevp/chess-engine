@@ -1,16 +1,16 @@
 import { calculatePieceIndex, KING_INDEX } from "../../state/initialState";
-import type { Move, Position } from "../../types/main";
+import type { ColorType, Position } from "../../types/main";
 import clearSquare from "../occupancy/clearSquare";
 import setSquare from "../occupancy/setSquare";
 
-const quietMoveHandler = (position: Position, move: Move) => {
-  const pieceStateIndex = calculatePieceIndex(move.color, move.piece);
+const quietMoveHandler = (position: Position, moveFrom: number, moveTo: number, moveColor: ColorType, movePiece: number) => {
+  const pieceStateIndex = calculatePieceIndex(moveColor, movePiece);
 
-  clearSquare(position, move.from);
-  setSquare(position, move.to, pieceStateIndex);
+  clearSquare(position, moveFrom);
+  setSquare(position, moveTo, pieceStateIndex);
 
-  if (move.piece === KING_INDEX) {
-    position.kingSquares[move.color] = move.to;
+  if (movePiece === KING_INDEX) {
+    position.kingSquares[moveColor] = moveTo;
   }
 };
 
