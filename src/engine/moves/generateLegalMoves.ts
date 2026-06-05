@@ -1,33 +1,17 @@
-import { type Position } from "../types/main";
+import type { Position } from "../types/main";
 import generateAttackInfo from "./attackInfo/main";
-import generateBishopMoves from "./bishop";
+import generateLegalMovesFromContext from "./generateLegalMovesFromContext";
 import generateMoveGenerationContext from "./generateMoveGenerationContext";
-import generateKingMoves from "./king/king";
-import generateKnightMoves from "./knight";
-import type { MoveList } from "./moveList";
-import generatePawnMoves from "./pawn/pawn";
-import generateQueenMoves from "./queen";
-import generateRookMoves from "./rook";
+import { createMoveList } from "./moveList";
 
-const generateLegalMoves = (position: Position, moveList: MoveList): number => {
-  moveList.count = 0;
-
+const generateLegalMoves = (position: Position): Uint32Array => {
+  const moveList = createMoveList();
   const ctx = generateMoveGenerationContext(position, moveList);
   const attackInfo = generateAttackInfo(ctx);
 
-  generateKingMoves(ctx, attackInfo);
+  generateLegalMovesFromContext(ctx, attackInfo);
 
-  if (attackInfo.checkCount >= 2) {
-    return moveList.count;
-  }
-
-  generateKnightMoves(ctx, attackInfo);
-  generatePawnMoves(ctx, attackInfo);
-  generateRookMoves(ctx, attackInfo);
-  generateBishopMoves(ctx, attackInfo);
-  generateQueenMoves(ctx, attackInfo);
-
-  return moveList.count;
+  return moveList.moves.slice(0, moveList.count);
 };
 
 export default generateLegalMoves;
