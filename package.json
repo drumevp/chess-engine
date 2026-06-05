@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "export-precalculated-data": "tsx ./scripts/precalculateAttackTables.ts"
+    "export-precalculated-data": "tsx ./scripts/precalculateAttackTables.ts",
+    "test-perft": "tsx ./scripts/perft.ts --max-depth 4"
   },
   "dependencies": {
     "react": "^19.2.6",
