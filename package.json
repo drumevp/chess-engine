@@ -1,6 +1,6 @@
 {
   "name": "@drumevp/chess-engine",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A TypeScript bitboard chess move generation engine",
   "license": "MIT",
   "keywords": ["chess", "engine", "bitboard", "move-generation", "perft"],

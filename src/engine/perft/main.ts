@@ -4,7 +4,9 @@
  */
 
 import makeMove from "../makeMove/makeMove";
-import generateLegalMoves from "../moves/generateLegalMoves";
+import generateAttackInfo from "../moves/attackInfo/main";
+import generateLegalMovesFromContext from "../moves/generateLegalMovesFromContext";
+import generateMoveGenerationContext from "../moves/generateMoveGenerationContext";
 import { createMoveList, type MoveList } from "../moves/moveList";
 import type { Position } from "../types/main";
 import undoMove from "../undoMove/main";
@@ -20,7 +22,9 @@ const perftRecursive = (
   }
 
   const moveList = moveLists[ply];
-  const count = generateLegalMoves(position, moveList);
+  const ctx = generateMoveGenerationContext(position, moveList);
+  const attackInfo = generateAttackInfo(ctx);
+  const count = generateLegalMovesFromContext(ctx, attackInfo);
 
   if (depth === 1) {
     return count;
