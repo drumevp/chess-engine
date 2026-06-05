@@ -3,7 +3,7 @@ import * as path from "path";
 import { inspect } from "util";
 import tables from "../src/engine/lookupTables/main";
 
-const OUT_DIR = path.join(process.cwd(), "precalculatedData/");
+const OUT_DIR = path.join(process.cwd(), "/src/precalculatedData/");
 
 function denseBigInt2D(table: Array<Array<bigint | undefined>>): bigint[][] {
   return Array.from({ length: table.length }, (_, outerIndex) => {
@@ -68,10 +68,25 @@ export const ${exportName}${type} = ${valueToCode(table)};
 }
 
 writeTableFile("kingAttacks.ts", "kingAttacks", tables.kingAttacks, "bigint[]");
-writeTableFile("knightAttacks.ts", "knightAttacks", tables.knightAttacks, "bigint[]");
+writeTableFile(
+  "knightAttacks.ts",
+  "knightAttacks",
+  tables.knightAttacks,
+  "bigint[]",
+);
 
-writeTableFile("whitePawnAttacks.ts", "whitePawnAttacks", tables.whitePawnAttacks, "bigint[]");
-writeTableFile("blackPawnAttacks.ts", "blackPawnAttacks", tables.blackPawnAttacks, "bigint[]");
+writeTableFile(
+  "whitePawnAttacks.ts",
+  "whitePawnAttacks",
+  tables.whitePawnAttacks,
+  "bigint[]",
+);
+writeTableFile(
+  "blackPawnAttacks.ts",
+  "blackPawnAttacks",
+  tables.blackPawnAttacks,
+  "bigint[]",
+);
 
 writeTableFile(
   "rookRelevantBlockerMasks.ts",
@@ -81,7 +96,12 @@ writeTableFile(
 );
 
 writeTableFile("rookShifts.ts", "rookShifts", tables.rookShifts, "number[]");
-writeTableFile("rookMagicNumbers.ts", "rookMagicNumbers", tables.rookMagicNumbers, "bigint[]");
+writeTableFile(
+  "rookMagicNumbers.ts",
+  "rookMagicNumbers",
+  tables.rookMagicNumbers,
+  "bigint[]",
+);
 
 writeTableFile(
   "rookMagicAttacks.ts",
@@ -97,8 +117,18 @@ writeTableFile(
   "bigint[]",
 );
 
-writeTableFile("bishopShifts.ts", "bishopShifts", tables.bishopShifts, "number[]");
-writeTableFile("bishopMagicNumbers.ts", "bishopMagicNumbers", tables.bishopMagicNumbers, "bigint[]");
+writeTableFile(
+  "bishopShifts.ts",
+  "bishopShifts",
+  tables.bishopShifts,
+  "number[]",
+);
+writeTableFile(
+  "bishopMagicNumbers.ts",
+  "bishopMagicNumbers",
+  tables.bishopMagicNumbers,
+  "bigint[]",
+);
 
 writeTableFile(
   "bishopMagicAttacks.ts",
@@ -107,9 +137,19 @@ writeTableFile(
   "bigint[][]",
 );
 
-writeTableFile("squareBitboards.ts", "squareBitboards", tables.squareBitboards, "bigint[]");
+writeTableFile(
+  "squareBitboards.ts",
+  "squareBitboards",
+  tables.squareBitboards,
+  "bigint[]",
+);
 
-writeTableFile("squareIndexByBitboard.ts", "squareIndexByBitboard", tables.squareIndexByBitboard, "Map<bigint, number>");
+writeTableFile(
+  "squareIndexByBitboard.ts",
+  "squareIndexByBitboard",
+  tables.squareIndexByBitboard,
+  "Map<bigint, number>",
+);
 
 writeTableFile(
   "betweenSquares.ts",
@@ -117,5 +157,3 @@ writeTableFile(
   denseBigInt2D(tables.betweenSquares as Array<Array<bigint | undefined>>),
   "bigint[][]",
 );
-
-

@@ -31,13 +31,14 @@ class ChessEngine {
     return generateLegalMovesWrapper(this.position);
   }
 
-  public generateLegalMovesForFrontend(): Move[] {
+  public generateDecodedLegalMoves(): Move[] {
     const encodedMoves = generateLegalMovesWrapper(this.position);
 
     const moves: Move[] = [];
 
     encodedMoves.forEach((move) => {
       moves.push({
+        encodedMove: move,
         from: moveDecodeFrom(move),
         to: moveDecodeTo(move),
         color: moveDecodeColor(move),
@@ -51,10 +52,10 @@ class ChessEngine {
     return moves;
   }
 
-  public makeMove(move: number): void {
-    const undo = makeMove(this.position, move);
+  public makeMove(encodedMove: number): void {
+    const undo = makeMove(this.position, encodedMove);
 
-    this.history.push({ move, undo });
+    this.history.push({ move: encodedMove, undo });
   }
 
   public undoMove(): void {
