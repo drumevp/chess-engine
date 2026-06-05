@@ -1,3 +1,17 @@
 # Chess bitboard engine
 
-TODO: write me
+TODOs:
+
+1. Create makeMove method that accepts non-encoded (human readable) moves. For squares either use 0-63 or chess coords like a1->a3.
+2. Implement position to FEN and add as a method.
+3. Add logic for 50 more draw, threefold repetition, insufficient material
+4. Create helper fns or methods for generating chess notation:
+
+- UCI: Universal Chess Interface move format
+- SAN: Standard Algebraic Notation
+
+5. Export piece index constants
+6. Make position and history private so they can't be corrupted
+7. Add more methods:
+
+- board() -> to get pieceAt Int8Array
