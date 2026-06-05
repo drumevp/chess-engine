@@ -1,0 +1,43 @@
+.square {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1 / 1;
+  user-select: none;
+  min-width: 0;
+  min-height: 0;
+  container-type: inline-size;
+}
+
+.square.white {
+  background: #F0DBB4;
+}
+
+.square.black {
+  background: #BF906A;
+}
+
+.piece {
+  font-size: 90cqw;
+  height: 100%;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  line-height: 0;
+  cursor: grab;
+  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.28));
+}
+
+.piece:active {
+  cursor: grabbing;
+}
+
+.piece.white {
+  color: #F8F8F8;
+  text-shadow: 0 1px 0 #555, 0 -1px 0 #555, 1px 0 0 #555, -1px 0 0 #555;
+}
+
+.piece.black {
+  color: #111111;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.22);
+}
