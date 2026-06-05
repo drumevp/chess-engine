@@ -3,7 +3,7 @@ export const COLOR = {
   BLACK: 1,
 } as const;
 
-export type ColorType = typeof COLOR[keyof typeof COLOR];
+export type ColorType = (typeof COLOR)[keyof typeof COLOR];
 
 export const MOVE_FLAG = {
   QUIET: 0,
@@ -16,9 +16,10 @@ export const MOVE_FLAG = {
   PROMOTION_CAPTURE: 7,
 } as const;
 
-export type MoveFlagType = typeof MOVE_FLAG[keyof typeof MOVE_FLAG];
+export type MoveFlagType = (typeof MOVE_FLAG)[keyof typeof MOVE_FLAG];
 
 export type Move = {
+  encodedMove: number;
   from: number;
   to: number;
 
@@ -33,7 +34,7 @@ export type Move = {
 
 export type Position = {
   // 12 bitboards representing the state for each piece on each color
-  state: bigint[]; 
+  state: bigint[];
 
   // Occupancy
   allOccupancy: bigint;
@@ -64,4 +65,4 @@ export type Position = {
 
   // Array of 2 values. kingSquare[0] -> white, kingSquare[1] -> black
   kingSquares: Int8Array;
-}
+};

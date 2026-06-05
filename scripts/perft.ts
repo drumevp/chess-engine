@@ -2,18 +2,18 @@
  * This script tests the validity of the legal moves the engine generates by
  * initiating the engine with various position (from a FEN string) and running it
  * at from depth 1 to 4 or 5.
- * 
+ *
  * Obtained the test values from https://www.chessprogramming.org/Perft_Results
  */
 
-import ChessEngine from '../src/engine/main';
+import ChessEngine from "../src/engine/main";
 import { parseArgs } from "node:util";
 
 type PerftTestCase = {
   name: string;
   fen: string;
   nodes: number[]; // each index + 1 of the array corresponds to depth
-}
+};
 
 const PERFT_TEST_VALUES: PerftTestCase[] = [
   {
@@ -40,23 +40,25 @@ const PERFT_TEST_VALUES: PerftTestCase[] = [
     name: "Position 5",
     fen: "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
     nodes: [44, 1486, 62379, 2103487, 89941194],
-  }, 
+  },
 ];
 
 const { values } = parseArgs({
   options: {
     "max-depth": {
-      default: '4',
-      type: 'string',
-      short: 'd',
-    }
-  }
+      default: "4",
+      type: "string",
+      short: "d",
+    },
+  },
 });
 
 const maxDepth = Number(values["max-depth"]);
 
 if (!Number.isInteger(maxDepth) || maxDepth < 1 || maxDepth > 5) {
-  throw new Error("Invalid argument value for max-depth. Value must be an integer from 1 to 5");
+  throw new Error(
+    "Invalid argument value for max-depth. Value must be an integer from 1 to 5",
+  );
 }
 
 function formatDuration(ms: number): string {
@@ -67,26 +69,24 @@ function formatDuration(ms: number): string {
 
   // 1000ms * 60 = 1min
   if (ms < 1000 * 60) {
-    return `${(ms/1000).toFixed(2)}s`;
+    return `${(ms / 1000).toFixed(2)}s`;
   }
 
   // 1000ms * 60 * 60 = 1hr
   if (ms < 1000 * 60 * 60) {
-    return `${(ms/(1000*60)).toFixed(2)}m`;
+    return `${(ms / (1000 * 60)).toFixed(2)}m`;
   }
 
-  return `${(ms/(1000*60*60)).toFixed(2)}hr`;
+  return `${(ms / (1000 * 60 * 60)).toFixed(2)}hr`;
 }
 
-
-
 const main = () => {
-  console.log('--- Running perft tests ---\n');
+  console.log("--- Running perft tests ---\n");
 
-  for(const testCase of PERFT_TEST_VALUES) {
+  for (const testCase of PERFT_TEST_VALUES) {
     console.log(`Running ${testCase.name}`);
 
-    for(let depth = 0; depth < maxDepth; depth++) {
+    for (let depth = 0; depth < maxDepth; depth++) {
       const perfStart = performance.now();
       const chessEngine = new ChessEngine(testCase.fen);
       const perftResult = chessEngine.perft(depth + 1);
@@ -94,10 +94,11 @@ const main = () => {
 
       const isResultCorrect = testCase.nodes[depth] === perftResult;
 
-      console.log(`Depth: ${depth + 1} - ${perftResult} - ${isResultCorrect} - ${formatDuration(perfEnd - perfStart)}`);
+      console.log(
+        `Depth: ${depth + 1} - ${perftResult} - ${isResultCorrect} - ${formatDuration(perfEnd - perfStart)}`,
+      );
     }
-
   }
-}
+};
 
 main();

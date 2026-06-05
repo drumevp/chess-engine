@@ -1,33 +1,38 @@
 {
-  "name": "chess",
-  "private": true,
-  "version": "0.0.0",
+  "name": "@drumevp/chess-engine",
+  "version": "0.1.0",
+  "description": "A TypeScript bitboard chess move generation engine",
+  "license": "MIT",
+  "keywords": ["chess", "engine", "bitboard", "move-generation", "perft"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drumevp/chess-engine.git"
+  },
   "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "test-perft": "tsx ./scripts/perft.ts --max-depth 4",
+    "test-perft:deep": "tsx ./scripts/perft.ts --max-depth 5",
     "export-precalculated-data": "tsx ./scripts/precalculateAttackTables.ts",
-    "test-perft": "tsx ./scripts/perft.ts --max-depth 4"
+    "pack:dry": "npm pack --dry-run"
   },
-  "dependencies": {
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@types/node": "^25.9.1",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^10.3.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.6.0",
+    "tsup": "^8.0.0",
     "tsx": "^4.22.3",
-    "typescript": "~6.0.2",
-    "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "typescript": "~6.0.2"
   }
 }
