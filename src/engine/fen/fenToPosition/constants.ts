@@ -5,8 +5,8 @@ import {
   PAWN_INDEX,
   QUEEN_INDEX,
   ROOK_INDEX,
-} from "../state/initialState";
-import { COLOR, type ColorType } from "../types/main";
+} from "../../state/initialState";
+import { COLOR, type ColorType } from "../../types/main";
 
 // The ordering in the FEN string is from rank 7 to rank 0
 export const FEN_RANK_TO_INTERNAL_RANK: Record<number, number> = {

@@ -1,6 +1,7 @@
 import analyzePosition from "./analyzePosition/main";
 import { AnalyzePosition } from "./analyzePosition/types";
-import generatePositionFromFen from "./fen/generatePositionFromFen";
+import generateFenFromPosition from "./fen/fenFromPosition/generateFenFromPosition";
+import generatePositionFromFen from "./fen/fenToPosition/generatePositionToFen";
 import makeMove from "./makeMove/makeMove";
 import generateLegalMoves from "./moves/generateLegalMoves";
 import perft from "./perft/main";
@@ -47,6 +48,10 @@ class ChessEngine {
   public loadFen(fen: string): void {
     this.position = generatePositionFromFen(fen);
     this.history = [];
+  }
+
+  public exportFen(): string {
+    return generateFenFromPosition(this.position);
   }
 
   public analyzePosition(): AnalyzePosition {

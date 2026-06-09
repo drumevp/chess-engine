@@ -12,16 +12,16 @@
  * rnbqkbnr/pppppppp/8/8/8/2N5/PPPPPPPP/R1BQKBNR w KQkq - 0 1
  *
  */
-import { squareBitboards } from "../lookupTables/importedPrecalculatedData";
-import buildPieceAtArray from "../state/buildPieceAtArray";
-import getOccupiedPiecesBitboard from "../state/getPiecesOccupied";
+import { squareBitboards } from "../../lookupTables/importedPrecalculatedData";
+import buildPieceAtArray from "../../state/buildPieceAtArray";
+import getOccupiedPiecesBitboard from "../../state/getPiecesOccupied";
 import {
   calculatePieceIndex,
   KING_INDEX,
   PAWN_INDEX,
   ROOK_INDEX,
-} from "../state/initialState";
-import { COLOR, type Position } from "../types/main";
+} from "../../state/initialState";
+import { COLOR, type Position } from "../../types/main";
 import {
   FEN_COLOR_TO_INTERNAL_COLOR,
   FEN_PIECE_TO_INTERNAL_PIECE,
@@ -30,7 +30,7 @@ import {
 import parseFenCastling from "./helpers/parseFenCastling";
 import parseFenEnPassantSquare from "./helpers/parseFenEnPassantSquare";
 
-const generatePositionFromFen = (fen: string): Position => {
+const generatePositionToFen = (fen: string): Position => {
   // Init state array
   const state = new Array<bigint>(12).fill(0n);
 
@@ -168,4 +168,4 @@ const generatePositionFromFen = (fen: string): Position => {
   };
 };
 
-export default generatePositionFromFen;
+export default generatePositionToFen;

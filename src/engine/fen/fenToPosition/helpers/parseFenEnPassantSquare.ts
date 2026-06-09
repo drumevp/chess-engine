@@ -1,4 +1,4 @@
-import { getCurrentRank } from "../../helpers/main";
+import { getCurrentRank } from "../../../helpers/main";
 import parseFenFieldToSquare from "./parseFenFieldToSquare";
 
 const parseFenEnPassantSquare = (field: string) => {
