@@ -93,9 +93,10 @@ const main = () => {
       const perfEnd = performance.now();
 
       const isResultCorrect = testCase.nodes[depth] === perftResult;
+      const nps = `${(perftResult / ((perfEnd - perfStart) / 1000) / 1_000_000).toFixed(2)}M nps`;
 
       console.log(
-        `Depth: ${depth + 1} - ${perftResult} - ${isResultCorrect} - ${formatDuration(perfEnd - perfStart)}`,
+        `Depth: ${depth + 1} - ${perftResult} - ${isResultCorrect} - ${formatDuration(perfEnd - perfStart)} - ${nps}`,
       );
     }
   }
