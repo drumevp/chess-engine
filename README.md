@@ -2,8 +2,8 @@
 
 TODOs:
 
-1. Create makeMove method that accepts non-encoded (human readable) moves. For squares either use 0-63 or chess coords like a1->a3.
-2. Implement position to FEN and add as a method.
+1. Create makeMove method that accepts non-encoded (human readable) moves. For squares either use 0-63 or chess coords like a1->a3. This will probably require a cache on analyzePosition or legamMoves
+2. DONE --- Implement position to FEN and add as a method.
 3. Add logic for 50 more draw, threefold repetition, insufficient material
 4. Create helper fns or methods for generating chess notation:
 
