@@ -3,9 +3,10 @@
  * The callback function returns the index 0-63 for that bit
  */
 
-import { squareIndexByBitboard } from "../lookupTables/importedPrecalculatedData";
+import { squareIndexByBitboard } from "../tables/importTables";
+import { Bitboard } from "../types/bitboard";
 
-const forEachBitGetSquare = (bitboard: bigint, callback: (square: number) => void) => {
+const forEachBitGetSquare = (bitboard: Bitboard, callback: (square: number) => void) => {
   let bb = bitboard;
 
   while(bb !== 0n) {

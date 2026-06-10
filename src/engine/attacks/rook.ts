@@ -1,6 +1,6 @@
 import { FULL_BOARD_MASK } from "../constants/mask";
-import { rookRelevantBlockerMasks, rookMagicNumbers, rookMagicAttacks, rookShifts } from "../lookupTables/importedPrecalculatedData";
-import type { GenerateAttacksFn } from "./types";
+import { rookRelevantBlockerMasks, rookMagicNumbers, rookMagicAttacks, rookShifts } from "../tables/importTables";
+import { GenerateAttacksFn } from "../types/attacks";
 
 // occupancy here is full board occupancy
 const generateRookAttacks: GenerateAttacksFn = (square, occupancy) => {

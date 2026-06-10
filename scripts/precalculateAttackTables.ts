@@ -1,9 +1,9 @@
 import { mkdirSync, writeFileSync } from "fs";
 import * as path from "path";
 import { inspect } from "util";
-import tables from "../src/engine/lookupTables/main";
+import tables from "../src/engine/tables/generate/generateTables";
 
-const OUT_DIR = path.join(process.cwd(), "/src/precalculatedData/");
+const OUT_DIR = path.join(process.cwd(), "/src/engine/tables/generated");
 
 function denseBigInt2D(table: Array<Array<bigint | undefined>>): bigint[][] {
   return Array.from({ length: table.length }, (_, outerIndex) => {

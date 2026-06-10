@@ -1,5 +1,5 @@
-import { blackPawnAttacks as blackPawnAttacksTable } from "../lookupTables/importedPrecalculatedData";
-import type { GenerateAttacksFn } from "./types";
+import { blackPawnAttacks as blackPawnAttacksTable } from "../tables/importTables";
+import { GenerateAttacksFn } from "../types/attacks";
 
 const generateBlackPawnAttacks: GenerateAttacksFn = (square, _occupancy) => {
   return blackPawnAttacksTable[square];

@@ -1,8 +1,13 @@
-export { default as ChessEngine } from "./engine/main";
+export { default as ChessEngine } from "./engine/ChessEngine";
 
-export { COLOR, MOVE_FLAG, MoveFlagType, ColorType } from "./engine/types/main";
-export type { Move, Position } from "./engine/types/main";
-export type { AnalyzePosition } from "./engine/analyzePosition/types";
+export { COLOR } from "./engine/constants/color";
+export { MOVE_FLAG } from "./engine/constants/move";
+
+export type { MoveFlagType } from "./engine/types/move";
+export type { ColorType } from "./engine/types/color";
+export type { Move } from "./engine/types/move";
+export type { AnalyzePosition } from "./engine/types/analyzePosition";
+export type { Position } from "./engine/types/position";
 
 export {
   encodeMove,
@@ -13,4 +18,4 @@ export {
   moveDecodeFlag,
   moveDecodeCapturedPiece,
   moveDecodePromotionPiece,
-} from "./engine/packedMove/main";
+} from "./engine/position/moves/packedMove";

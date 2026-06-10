@@ -13,8 +13,8 @@
  *
  */
 
-import type { Position } from "../../types/main";
-import { INTERNAL_COLOR_TO_FEN_COLOR } from "./constants";
+import { INTERNAL_COLOR_TO_FEN_COLOR } from "../../constants/fen";
+import { Position } from "../../types/position";
 import getFenCastlingFromPosition from "./helpers/getFenCastlingFromPosition";
 import getFenEnPassantSquareFromPosition from "./helpers/getFenEnPassantSquareFromPosition";
 import getFenPiecesFromPosition from "./helpers/getFenPiecesFromPosition";

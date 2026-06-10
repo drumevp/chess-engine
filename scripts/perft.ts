@@ -6,7 +6,7 @@
  * Obtained the test values from https://www.chessprogramming.org/Perft_Results
  */
 
-import ChessEngine from "../src/engine/main";
+import ChessEngine from "../src/engine/ChessEngine";
 import { parseArgs } from "node:util";
 
 type PerftTestCase = {

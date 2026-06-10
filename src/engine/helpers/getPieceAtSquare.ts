@@ -6,9 +6,9 @@
  * we infer what type & color the piece is on that square if the result isnt 0n
  */
 
-import { squareBitboards } from "../lookupTables/importedPrecalculatedData";
-import { NUMBER_OF_PIECE_CATEGORIES } from "../state/initialState";
-import type { ColorType } from "../types/main";
+import { NUMBER_OF_PIECE_CATEGORIES } from "../constants/piece";
+import { squareBitboards } from "../tables/importTables";
+import { ColorType } from "../types/color";
 
 export type PieceOnSquare = {
   color: ColorType;

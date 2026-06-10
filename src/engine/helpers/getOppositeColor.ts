@@ -1,4 +1,6 @@
-import { COLOR, type ColorType } from "../types/main"
+import { COLOR } from "../constants/color";
+import { ColorType } from "../types/color";
+
 
 const getOppositeColor = (color: ColorType): ColorType => {
   if (color === COLOR.WHITE) {
