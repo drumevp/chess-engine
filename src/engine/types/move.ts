@@ -4,7 +4,6 @@ import { ColorType } from "./color";
 export type MoveFlagType = (typeof MOVE_FLAG)[keyof typeof MOVE_FLAG];
 
 export type Move = {
-  encodedMove: number;
   from: number;
   to: number;
 
