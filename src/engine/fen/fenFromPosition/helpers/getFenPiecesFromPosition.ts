@@ -1,6 +1,6 @@
+import { INTERNAL_PIECE_TO_FEN_PIECE } from "../../../constants/fen";
 import { getCurrentIndex } from "../../../helpers/main";
-import { Position } from "../../../types/main";
-import { INTERNAL_PIECE_TO_FEN_PIECE } from "../constants";
+import { Position } from "../../../types/position";
 
 const getFenPiecesFromPosition = (position: Position): string => {
   let boardStateFen = '';

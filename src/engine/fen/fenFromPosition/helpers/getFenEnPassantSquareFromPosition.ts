@@ -1,6 +1,6 @@
+import { INTERNAL_FILE_TO_FEN_FILE } from "../../../constants/fen";
 import { getCurrentFile, getCurrentRank } from "../../../helpers/main";
-import { Position } from "../../../types/main";
-import { INTERNAL_FILE_TO_FEN_FILE } from "../constants";
+import { Position } from "../../../types/position";
 /**
   * '-' for null
   * normal chess notation for a value: ex e1 or h5

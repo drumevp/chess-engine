@@ -1,6 +1,3 @@
-import { CASTLING_RIGHTS } from "../../../state/initialState";
-import { Position } from "../../../types/main";
-
 /**
  * 
   * K Q - white kingside and queenside
@@ -8,6 +5,9 @@ import { Position } from "../../../types/main";
   * all castling allowed string = KQkq
   * of no castling allowed -> '-'
  */
+
+import { CASTLING_RIGHTS } from "../../../constants/castling";
+import { Position } from "../../../types/position";
 
 const getFenCastlingFromPosition = (position: Position): string => {
   if (position.castlingRights === 0) {

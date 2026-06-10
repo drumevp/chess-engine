@@ -1,4 +1,5 @@
-import { CASTLING_RIGHTS } from "../../../state/initialState";
+import { CASTLING_RIGHTS } from "../../../constants/castling";
+
 
 const parseFenCastling = (castling: string): number => {
   if (castling === "-") {

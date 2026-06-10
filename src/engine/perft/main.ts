@@ -3,13 +3,14 @@
  * Updated this so we don't create any new array objects on each iteration for performance.
  */
 
-import makeMove from "../makeMove/makeMove";
-import generateAttackInfo from "../moves/attackInfo/main";
-import generateLegalMovesFromContext from "../moves/generateLegalMovesFromContext";
-import generateMoveGenerationContext from "../moves/generateMoveGenerationContext";
-import { createMoveList, type MoveList } from "../moves/moveList";
-import type { Position } from "../types/main";
-import undoMove from "../undoMove/main";
+import makeMove from "../position/moves/makeMove/makeMove";
+import generateAttackInfo from "../movegen/attackInfo/main";
+import generateLegalMovesFromContext from "../movegen/generateLegalMovesFromContext";
+import getMoveGenerationContext from "../movegen/getMoveGenerationContext";
+import { createMoveList } from "../movegen/moveList";
+import { Position } from "../types/position";
+import { MoveList } from "../types/move";
+import undoMove from "../position/moves/undoMove/undoMove";
 
 const perftRecursive = (
   position: Position,
@@ -22,7 +23,7 @@ const perftRecursive = (
   }
 
   const moveList = moveLists[ply];
-  const ctx = generateMoveGenerationContext(position, moveList);
+  const ctx = getMoveGenerationContext(position, moveList);
   const attackInfo = generateAttackInfo(ctx);
   const count = generateLegalMovesFromContext(ctx, attackInfo);
 

@@ -1,4 +1,4 @@
-import type { ColorType } from "./main";
+import { ColorType } from "./color";
 
 export type Undo = {
   previousColor: ColorType;

@@ -1,4 +1,6 @@
-export const countRelevantBits = (bitboard: bigint): number => {
+import { Bitboard } from "../types/bitboard";
+
+export const countRelevantBits = (bitboard: Bitboard): number => {
   let relevantBitCount = 0;
   let bb = bitboard;
 

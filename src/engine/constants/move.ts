@@ -1,0 +1,10 @@
+export const MOVE_FLAG = {
+  QUIET: 0,
+  CAPTURE: 1,
+  DOUBLE_PAWN_PUSH: 2,
+  KING_CASTLE: 3,
+  QUEEN_CASTLE: 4,
+  EN_PASSANT: 5,
+  PROMOTION: 6,
+  PROMOTION_CAPTURE: 7,
+} as const;
