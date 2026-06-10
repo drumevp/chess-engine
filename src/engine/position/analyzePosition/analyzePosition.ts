@@ -21,7 +21,6 @@ const analyzePosition = (position: Position): AnalyzePosition => {
     const move = moveList.moves[i];
 
     legalMoves.push({
-      encodedMove: move,
       from: moveDecodeFrom(move),
       to: moveDecodeTo(move),
       color: moveDecodeColor(move),
@@ -37,6 +36,7 @@ const analyzePosition = (position: Position): AnalyzePosition => {
   const isStalemate = legalMovesCount === 0 && !isCheck;
 
   return {
+    encodedLegalMoves: moveList.moves.slice(0, moveList.count),
     legalMoves,
     legalMovesCount,
     sideToMove: position.color,

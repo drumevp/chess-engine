@@ -2,6 +2,7 @@ import { ColorType } from "./color";
 import { Move } from "./move";
 
 export type AnalyzePosition = {
+  encodedLegalMoves: Uint32Array;
   legalMoves: Move[];
   legalMovesCount: number;
   sideToMove: ColorType;
