@@ -157,3 +157,33 @@ writeTableFile(
   denseBigInt2D(tables.betweenSquares as Array<Array<bigint | undefined>>),
   "bigint[][]",
 );
+
+writeTableFile(
+  "zobristPieceSquareKeys.ts",
+  "zobristPieceSquareKeys",
+  denseBigInt2D(
+    tables.zobristPieceSquareKeys as Array<Array<bigint | undefined>>,
+  ),
+  "bigint[][]",
+);
+
+writeTableFile(
+  "zobristCastlingMaskKeys.ts",
+  "zobristCastlingMaskKeys",
+  tables.zobristCastlingMaskKeys,
+  "bigint[]",
+);
+
+writeTableFile(
+  "zobristEnPassantFileKeys.ts",
+  "zobristEnPassantFileKeys",
+  tables.zobristEnPassantFileKeys,
+  "bigint[]",
+);
+
+writeTableFile(
+  "zobristBlackToMoveKey.ts",
+  "zobristBlackToMoveKey",
+  tables.zobristBlackToMoveKey,
+  "bigint",
+);

@@ -1,13 +1,14 @@
+import { Bitboard } from "./bitboard";
 import { ColorType } from "./color";
 
 export type Position = {
   // 12 bitboards representing the state for each piece on each color
-  state: bigint[];
+  state: Bitboard[];
 
   // Occupancy
-  allOccupancy: bigint;
-  whiteOccupancy: bigint;
-  blackOccupancy: bigint;
+  allOccupancy: Bitboard;
+  whiteOccupancy: Bitboard;
+  blackOccupancy: Bitboard;
 
   // Side to move
   color: ColorType;

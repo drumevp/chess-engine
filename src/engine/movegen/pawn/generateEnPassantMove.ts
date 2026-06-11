@@ -1,16 +1,14 @@
-import generateBishopAttacks from "../../attacks/bishop";
-import generateRookAttacks from "../../attacks/rook";
-import { FULL_BOARD_MASK } from "../../constants/mask";
 import getOppositeColor from "../../helpers/getOppositeColor";
 import { squareBitboards } from "../../tables/importTables";
 import { encodeMove } from "../../position/moves/packedMove";
 import { addMove } from "../moveList";
 import calculatePieceIndex from "../../helpers/calculatePieceIndex";
-import { BISHOP_INDEX, PAWN_INDEX, QUEEN_INDEX, ROOK_INDEX } from "../../constants/piece";
+import { PAWN_INDEX } from "../../constants/piece";
 import { Bitboard } from "../../types/bitboard";
 import { MoveGenerationContext } from "../../types/move";
 import { COLOR } from "../../constants/color";
 import { MOVE_FLAG } from "../../constants/move";
+import isOwnKingSafeAfterEnPassant from "./isOwnKingSafeAfterEnPassant";
 
 const generateEnPassantMove = (
   ctx: MoveGenerationContext,
@@ -61,30 +59,15 @@ const generateEnPassantMove = (
     return;
   }
 
-  // Remove the origin pawn, target en pessant pawn and add the new pawn position
-  // To generate new occupancy for king legality check
-  const occupancyAfterEnPassant =
-    (ctx.allOccupancy &
-      (FULL_BOARD_MASK ^ originSquareBitboard) &
-      (FULL_BOARD_MASK ^ targetEnPassantPawnBitboard)) |
-    enPassantBitboard;
-
-  const rookAttacks = generateRookAttacks(
+  const isEnPassantMoveLegal = isOwnKingSafeAfterEnPassant(
+    ctx.allOccupancy,
+    ctx.state,
+    originSquareBitboard,
+    targetEnPassantPawnBitboard,
+    enPassantBitboard,
     ctx.ownKingSquare,
-    occupancyAfterEnPassant,
+    enemyColor,
   );
-  const bishopAttacks = generateBishopAttacks(
-    ctx.ownKingSquare,
-    occupancyAfterEnPassant,
-  );
-
-  const enemyRooks = ctx.state[calculatePieceIndex(enemyColor, ROOK_INDEX)];
-  const enemyBishops = ctx.state[calculatePieceIndex(enemyColor, BISHOP_INDEX)];
-  const enemyQueens = ctx.state[calculatePieceIndex(enemyColor, QUEEN_INDEX)];
-
-  const rookExposure = (rookAttacks & (enemyRooks | enemyQueens)) === 0n;
-  const bishopExposure = (bishopAttacks & (enemyBishops | enemyQueens)) === 0n;
-  const isEnPassantMoveLegal = rookExposure && bishopExposure;
 
   if (!isEnPassantMoveLegal) {
     return;
