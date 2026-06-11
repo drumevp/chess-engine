@@ -36,7 +36,7 @@ const perftRecursive = (
   for (let i = 0; i < count; i++) {
     const move = moveList.moves[i];
 
-    const undo = makeMove(position, move);
+    const undo = makeMove(position, move, { updateZobristHash: false });
     nodes += perftRecursive(position, depth - 1, ply + 1, moveLists);
     undoMove(position, move, undo);
   }

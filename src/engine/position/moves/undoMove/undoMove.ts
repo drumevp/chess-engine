@@ -4,7 +4,18 @@
  * - from the Undo type, we update, color, castling rights, en passant square, half move clock, full move number, king squares
  * - for captures, the Undo types has the captured piece state index & the piece square so we can place it back
  */
-import { BLACK_KING_ORIGIN_SQUARE, BLACK_KINGSIDE_ROOK_ORIGIN_SQUARE, BLACK_QUEENSIDE_ROOK_ORIGIN_SQUARE, BLACK_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE, BLACK_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE, WHITE_KING_ORIGIN_SQUARE, WHITE_KINGSIDE_ROOK_ORIGIN_SQUARE, WHITE_QUEENSIDE_ROOK_ORIGIN_SQUARE, WHITE_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE, WHITE_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE } from "../../../constants/castling";
+import {
+  BLACK_KING_ORIGIN_SQUARE,
+  BLACK_KINGSIDE_ROOK_ORIGIN_SQUARE,
+  BLACK_QUEENSIDE_ROOK_ORIGIN_SQUARE,
+  BLACK_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE,
+  BLACK_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE,
+  WHITE_KING_ORIGIN_SQUARE,
+  WHITE_KINGSIDE_ROOK_ORIGIN_SQUARE,
+  WHITE_QUEENSIDE_ROOK_ORIGIN_SQUARE,
+  WHITE_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE,
+  WHITE_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE,
+} from "../../../constants/castling";
 import { COLOR } from "../../../constants/color";
 import { MOVE_FLAG } from "../../../constants/move";
 import { KING_INDEX, ROOK_INDEX } from "../../../constants/piece";
@@ -13,7 +24,13 @@ import { Undo } from "../../../types/history";
 import { Position } from "../../../types/position";
 import clearSquare from "../occupancyHelpers/clearSquare";
 import setSquare from "../occupancyHelpers/setSquare";
-import { moveDecodeColor, moveDecodeFlag, moveDecodeFrom, moveDecodePiece, moveDecodeTo } from "../packedMove";
+import {
+  moveDecodeColor,
+  moveDecodeFlag,
+  moveDecodeFrom,
+  moveDecodePiece,
+  moveDecodeTo,
+} from "../packedMove";
 
 const undoMove = (position: Position, move: number, undo: Undo): void => {
   const moveColor = moveDecodeColor(move);
@@ -37,8 +54,11 @@ const undoMove = (position: Position, move: number, undo: Undo): void => {
       clearSquare(position, moveTo);
       setSquare(position, moveFrom, movingPieceStateIndex);
 
-      if (undo.capturedSquare === null || undo.capturedPieceStateIndex === null) {
-        throw new Error('No valid captured piece to undo');
+      if (
+        undo.capturedSquare === null ||
+        undo.capturedPieceStateIndex === null
+      ) {
+        throw new Error("No valid captured piece to undo");
       }
 
       setSquare(position, undo.capturedSquare, undo.capturedPieceStateIndex);
@@ -54,19 +74,35 @@ const undoMove = (position: Position, move: number, undo: Undo): void => {
       if (moveColor === COLOR.WHITE) {
         // reset white king
         clearSquare(position, moveTo);
-        setSquare(position, WHITE_KING_ORIGIN_SQUARE, calculatePieceIndex(COLOR.WHITE, KING_INDEX));
+        setSquare(
+          position,
+          WHITE_KING_ORIGIN_SQUARE,
+          calculatePieceIndex(COLOR.WHITE, KING_INDEX),
+        );
 
         // reset white rook
         clearSquare(position, WHITE_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE);
-        setSquare(position, WHITE_KINGSIDE_ROOK_ORIGIN_SQUARE, calculatePieceIndex(COLOR.WHITE, ROOK_INDEX));
+        setSquare(
+          position,
+          WHITE_KINGSIDE_ROOK_ORIGIN_SQUARE,
+          calculatePieceIndex(COLOR.WHITE, ROOK_INDEX),
+        );
       } else {
         // reset black king
         clearSquare(position, moveTo);
-        setSquare(position, BLACK_KING_ORIGIN_SQUARE, calculatePieceIndex(COLOR.BLACK, KING_INDEX));
+        setSquare(
+          position,
+          BLACK_KING_ORIGIN_SQUARE,
+          calculatePieceIndex(COLOR.BLACK, KING_INDEX),
+        );
 
         // reset black rook
         clearSquare(position, BLACK_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE);
-        setSquare(position, BLACK_KINGSIDE_ROOK_ORIGIN_SQUARE, calculatePieceIndex(COLOR.BLACK, ROOK_INDEX));
+        setSquare(
+          position,
+          BLACK_KINGSIDE_ROOK_ORIGIN_SQUARE,
+          calculatePieceIndex(COLOR.BLACK, ROOK_INDEX),
+        );
       }
       break;
 
@@ -75,19 +111,35 @@ const undoMove = (position: Position, move: number, undo: Undo): void => {
       if (moveColor === COLOR.WHITE) {
         // reset white king
         clearSquare(position, moveTo);
-        setSquare(position, WHITE_KING_ORIGIN_SQUARE, calculatePieceIndex(COLOR.WHITE, KING_INDEX));
+        setSquare(
+          position,
+          WHITE_KING_ORIGIN_SQUARE,
+          calculatePieceIndex(COLOR.WHITE, KING_INDEX),
+        );
 
         // reset white rook
         clearSquare(position, WHITE_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE);
-        setSquare(position, WHITE_QUEENSIDE_ROOK_ORIGIN_SQUARE, calculatePieceIndex(COLOR.WHITE, ROOK_INDEX));
+        setSquare(
+          position,
+          WHITE_QUEENSIDE_ROOK_ORIGIN_SQUARE,
+          calculatePieceIndex(COLOR.WHITE, ROOK_INDEX),
+        );
       } else {
         // reset black king
         clearSquare(position, moveTo);
-        setSquare(position, BLACK_KING_ORIGIN_SQUARE, calculatePieceIndex(COLOR.BLACK, KING_INDEX));
+        setSquare(
+          position,
+          BLACK_KING_ORIGIN_SQUARE,
+          calculatePieceIndex(COLOR.BLACK, KING_INDEX),
+        );
 
         // reset black rook
         clearSquare(position, BLACK_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE);
-        setSquare(position, BLACK_QUEENSIDE_ROOK_ORIGIN_SQUARE, calculatePieceIndex(COLOR.BLACK, ROOK_INDEX));
+        setSquare(
+          position,
+          BLACK_QUEENSIDE_ROOK_ORIGIN_SQUARE,
+          calculatePieceIndex(COLOR.BLACK, ROOK_INDEX),
+        );
       }
       break;
   }
@@ -99,7 +151,7 @@ const undoMove = (position: Position, move: number, undo: Undo): void => {
   position.kingSquares[COLOR.WHITE] = undo.previousKingSquares[COLOR.WHITE];
   position.kingSquares[COLOR.BLACK] = undo.previousKingSquares[COLOR.BLACK];
   position.castlingRights = undo.previousCastlingRights;
-}
-
+  position.zobristHash = undo.previousZobristHash;
+};
 
 export default undoMove;

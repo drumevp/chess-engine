@@ -1,4 +1,5 @@
 import { ColorType } from "./color";
+import { GameEndReason, GameState } from "./gameState";
 import { Move } from "./move";
 
 export type AnalyzePosition = {
@@ -7,6 +8,6 @@ export type AnalyzePosition = {
   legalMovesCount: number;
   sideToMove: ColorType;
   isCheck: boolean;
-  isCheckmate: boolean;
-  isStalemate: boolean;
+  gameState: GameState;
+  gameEndReason: GameEndReason | null;
 };

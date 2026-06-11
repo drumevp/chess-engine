@@ -18,10 +18,15 @@ import getOccupiedPiecesBitboard from "../../helpers/getPiecesOccupied";
 import parseFenCastling from "./helpers/parseFenCastling";
 import parseFenEnPassantSquare from "./helpers/parseFenEnPassantSquare";
 import { Position } from "../../types/position";
-import { FEN_COLOR_TO_INTERNAL_COLOR, FEN_PIECE_TO_INTERNAL_PIECE, FEN_RANK_TO_INTERNAL_RANK } from "../../constants/fen";
+import {
+  FEN_COLOR_TO_INTERNAL_COLOR,
+  FEN_PIECE_TO_INTERNAL_PIECE,
+  FEN_RANK_TO_INTERNAL_RANK,
+} from "../../constants/fen";
 import calculatePieceIndex from "../../helpers/calculatePieceIndex";
 import { KING_INDEX, PAWN_INDEX, ROOK_INDEX } from "../../constants/piece";
 import { COLOR } from "../../constants/color";
+import hashPosition from "../../hash/zobrist";
 
 const generateFenToPosition = (fen: string): Position => {
   // Init state array
@@ -146,7 +151,7 @@ const generateFenToPosition = (fen: string): Position => {
 
   const castlingRights = parseFenCastling(castling);
 
-  return {
+  const position: Position = {
     state,
     allOccupancy,
     blackOccupancy,
@@ -158,7 +163,12 @@ const generateFenToPosition = (fen: string): Position => {
     kingSquares,
     pieceAt,
     whiteOccupancy,
+    zobristHash: 0n,
   };
+
+  position.zobristHash = hashPosition(position);
+
+  return position;
 };
 
 export default generateFenToPosition;
