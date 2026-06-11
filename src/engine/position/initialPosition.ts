@@ -2,6 +2,7 @@ import { CASTLING_RIGHTS } from "../constants/castling";
 import { COLOR } from "../constants/color";
 import { KING_INDEX, PAWN_INDEX, ROOK_INDEX } from "../constants/piece";
 import { INITIAL_STATE } from "../constants/position";
+import hashPosition from "../hash/zobrist";
 import buildPieceAtArray from "../helpers/buildPieceAtArray";
 import calculatePieceIndex from "../helpers/calculatePieceIndex";
 import getOccupiedPiecesBitboard from "../helpers/getPiecesOccupied";
@@ -41,7 +42,7 @@ export const createInitialPosition = (): Position => {
     CASTLING_RIGHTS.BLACK_KINGSIDE |
     CASTLING_RIGHTS.BLACK_QUEENSIDE;
 
-  return {
+  const position: Position = {
     state,
     allOccupancy,
     whiteOccupancy,
@@ -53,5 +54,10 @@ export const createInitialPosition = (): Position => {
     fullMoveNumber: 1,
     pieceAt: pieceAtInitial,
     kingSquares: kingSquares,
+    zobristHash: 0n,
   };
+
+  position.zobristHash = hashPosition(position);
+
+  return position;
 };

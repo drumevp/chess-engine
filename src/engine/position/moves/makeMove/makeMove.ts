@@ -11,7 +11,7 @@
  * - kingSquares
  * - castling rights
  */
- 
+
 import quietMoveHandler from "./moveFlagHandlers/quietMoveHandler";
 import getEnPassantSquare from "./helpers/getEnPassantSquare";
 import captureMoveHandler from "./moveFlagHandlers/captureMoveHandler";
@@ -26,13 +26,30 @@ import updateFullMoveNumber from "./positionUpdates/updateFullMoveNumber";
 import updateCastlingRights from "./positionUpdates/updateCastlingRights";
 import type { Undo } from "../../../types/history";
 import getOppositeColor from "../../../helpers/getOppositeColor";
-import { moveDecodeCapturedPiece, moveDecodeColor, moveDecodeFlag, moveDecodeFrom, moveDecodePiece, moveDecodePromotionPiece, moveDecodeTo } from "../packedMove";
+import {
+  moveDecodeCapturedPiece,
+  moveDecodeColor,
+  moveDecodeFlag,
+  moveDecodeFrom,
+  moveDecodePiece,
+  moveDecodePromotionPiece,
+  moveDecodeTo,
+} from "../packedMove";
 import { Position } from "../../../types/position";
 import calculatePieceIndex from "../../../helpers/calculatePieceIndex";
 import { MOVE_FLAG } from "../../../constants/move";
 import { COLOR } from "../../../constants/color";
+import hashPosition from "../../../hash/zobrist";
 
-const makeMove = (position: Position, move: number): Undo => {
+type MakeMoveOptions = {
+  updateZobristHash?: boolean;
+};
+
+const makeMove = (
+  position: Position,
+  move: number,
+  options: MakeMoveOptions = { updateZobristHash: true },
+): Undo => {
   const undo: Undo = {
     previousColor: position.color,
     previousCastlingRights: position.castlingRights,
@@ -40,10 +57,11 @@ const makeMove = (position: Position, move: number): Undo => {
     previousFullMoveNumber: position.fullMoveNumber,
     previousHalfMoveClock: position.halfMoveClock,
     previousKingSquares: new Int8Array(position.kingSquares),
+    previousZobristHash: position.zobristHash,
 
     capturedPieceStateIndex: null,
     capturedSquare: null,
-  }
+  };
 
   position.enPassantSquare = null;
 
@@ -53,7 +71,7 @@ const makeMove = (position: Position, move: number): Undo => {
   const movePiece = moveDecodePiece(move);
   const moveFlag = moveDecodeFlag(move);
   const moveCapturedPiece = moveDecodeCapturedPiece(move);
-  const movePromotionPiece = moveDecodePromotionPiece(move); 
+  const movePromotionPiece = moveDecodePromotionPiece(move);
 
   switch (moveFlag) {
     case MOVE_FLAG.QUIET:
@@ -70,11 +88,23 @@ const makeMove = (position: Position, move: number): Undo => {
       break;
 
     case MOVE_FLAG.PROMOTION:
-      promotionMoveHandler(position, moveFrom, moveTo, moveColor, movePromotionPiece);
+      promotionMoveHandler(
+        position,
+        moveFrom,
+        moveTo,
+        moveColor,
+        movePromotionPiece,
+      );
       break;
 
     case MOVE_FLAG.PROMOTION_CAPTURE:
-      promotionCaptureMoveHandler(position, moveFrom, moveTo, moveColor, movePromotionPiece);
+      promotionCaptureMoveHandler(
+        position,
+        moveFrom,
+        moveTo,
+        moveColor,
+        movePromotionPiece,
+      );
       break;
 
     case MOVE_FLAG.EN_PASSANT:
@@ -90,21 +120,35 @@ const makeMove = (position: Position, move: number): Undo => {
       break;
   }
 
-  updateCastlingRights(position, moveFrom, moveTo, moveColor, movePiece, moveFlag, moveCapturedPiece);
+  updateCastlingRights(
+    position,
+    moveFrom,
+    moveTo,
+    moveColor,
+    movePiece,
+    moveFlag,
+    moveCapturedPiece,
+  );
   updateHalfMoveClock(position, moveFlag, movePiece);
   updateFullMoveNumber(position);
   updateSideToMove(position);
 
   if (moveCapturedPiece !== null) {
-    undo.capturedPieceStateIndex = calculatePieceIndex(getOppositeColor(moveColor), moveCapturedPiece);
-    
+    undo.capturedPieceStateIndex = calculatePieceIndex(
+      getOppositeColor(moveColor),
+      moveCapturedPiece,
+    );
+
     if (moveFlag === MOVE_FLAG.EN_PASSANT) {
       undo.capturedSquare = moveColor === COLOR.WHITE ? moveTo - 8 : moveTo + 8;
     } else {
       undo.capturedSquare = moveTo;
     }
   }
-  
+
+  if (options?.updateZobristHash === true) {
+    position.zobristHash = hashPosition(position);
+  }
 
   return undo;
 };

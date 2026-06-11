@@ -34,4 +34,7 @@ export type Position = {
 
   // Array of 2 values. kingSquare[0] -> white, kingSquare[1] -> black
   kingSquares: Int8Array;
+
+  // Zobrist hash for the current position
+  zobristHash: bigint;
 };

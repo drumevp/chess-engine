@@ -5,10 +5,21 @@ import { createMoveList } from "../../movegen/moveList";
 import { AnalyzePosition } from "../../types/analyzePosition";
 import { Move } from "../../types/move";
 import { Position } from "../../types/position";
-import { moveDecodeCapturedPiece, moveDecodeColor, moveDecodeFlag, moveDecodeFrom, moveDecodePiece, moveDecodePromotionPiece, moveDecodeTo } from "../moves/packedMove";
+import {
+  moveDecodeCapturedPiece,
+  moveDecodeColor,
+  moveDecodeFlag,
+  moveDecodeFrom,
+  moveDecodePiece,
+  moveDecodePromotionPiece,
+  moveDecodeTo,
+} from "../moves/packedMove";
+import determineGameState from "./determineGameState";
 
-
-const analyzePosition = (position: Position): AnalyzePosition => {
+const analyzePosition = (
+  position: Position,
+  repetitionCounts: Map<bigint, number>,
+): AnalyzePosition => {
   const moveList = createMoveList();
   const ctx = getMoveGenerationContext(position, moveList);
   const attackInfo = generateAttackInfo(ctx);
@@ -32,8 +43,13 @@ const analyzePosition = (position: Position): AnalyzePosition => {
   }
 
   const isCheck = attackInfo.checkCount > 0;
-  const isCheckmate = legalMovesCount === 0 && isCheck;
-  const isStalemate = legalMovesCount === 0 && !isCheck;
+
+  const { gameState, gameEndReason } = determineGameState(
+    position,
+    repetitionCounts,
+    legalMovesCount,
+    isCheck,
+  );
 
   return {
     encodedLegalMoves: moveList.moves.slice(0, moveList.count),
@@ -41,8 +57,8 @@ const analyzePosition = (position: Position): AnalyzePosition => {
     legalMovesCount,
     sideToMove: position.color,
     isCheck,
-    isCheckmate,
-    isStalemate,
+    gameState,
+    gameEndReason,
   };
 };
 
