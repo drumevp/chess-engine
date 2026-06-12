@@ -26,17 +26,6 @@ export const INTERNAL_COLOR_TO_FEN_COLOR: Record<ColorType, string> = {
   [COLOR.BLACK]: 'b',
 };
 
-export const INTERNAL_FILE_TO_FEN_FILE: Record<number, string> = {
-  0: 'a',
-  1: 'b',
-  2: 'c',
-  3: 'd',
-  4: 'e',
-  5: 'f',
-  6: 'g',
-  7: 'h',
-}
-
 // The ordering in the FEN string is from rank 7 to rank 0
 export const FEN_RANK_TO_INTERNAL_RANK: Record<number, number> = {
   0: 7,

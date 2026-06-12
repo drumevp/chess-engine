@@ -1,12 +1,12 @@
 import { getCurrentRank } from "../../../helpers/main";
-import parseFenFieldToSquare from "./parseFenFieldToSquare";
+import { standardNotationSquareToInternalSquare } from "../../../notation/converters/square";
 
 const parseFenEnPassantSquare = (field: string) => {
   if (field === "-") {
     return null;
   }
 
-  const enPassantSquare = parseFenFieldToSquare(field);
+  const enPassantSquare = standardNotationSquareToInternalSquare(field);
   const rank = getCurrentRank(enPassantSquare);
 
   if (rank !== 2 && rank !== 5) {

@@ -1,9 +1,8 @@
-import { INTERNAL_FILE_TO_FEN_FILE } from "../../../constants/fen";
-import { getCurrentFile, getCurrentRank } from "../../../helpers/main";
+import { internalSquareToStandardNotationSquare } from "../../../notation/converters/square";
 import { Position } from "../../../types/position";
 /**
   * '-' for null
-  * normal chess notation for a value: ex e1 or h5
+  * standard chess notation for a value: ex e1 or h5
  */
 
 const getFenEnPassantSquareFromPosition = (position: Position): string => {
@@ -11,10 +10,7 @@ const getFenEnPassantSquareFromPosition = (position: Position): string => {
     return '-';
   }
 
-  const rank = getCurrentRank(position.enPassantSquare);
-  const file = getCurrentFile(position.enPassantSquare);
-
-  return `${INTERNAL_FILE_TO_FEN_FILE[file]}${rank + 1}`;
+  return internalSquareToStandardNotationSquare(position.enPassantSquare);
 }
 
 export default getFenEnPassantSquareFromPosition;

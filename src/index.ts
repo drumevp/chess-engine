@@ -13,9 +13,8 @@ export {
 export { calculatePieceIndex } from "./engine/helpers/calculatePieceIndex";
 export { GAME_STATE, GAME_END_REASON } from "./engine/constants/gameState";
 
-export type { MoveFlagType } from "./engine/types/move";
+export type { MoveFlagType, Move, SimpleMove } from "./engine/types/move";
 export type { ColorType } from "./engine/types/color";
-export type { Move } from "./engine/types/move";
 export type { AnalyzePosition } from "./engine/types/analyzePosition";
 export type { Position } from "./engine/types/position";
 export type { GameState, GameEndReason } from "./engine/types/gameState";
