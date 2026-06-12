@@ -11,6 +11,9 @@ import undoMove from "./position/moves/undoMove/undoMove";
 import makeMoveWrapper from "./position/moves/makeMove/makeMoveWrapper";
 import { GAME_END_REASON, GAME_STATE } from "./constants/gameState";
 import { ColorType } from "./types/color";
+import { SimpleMove } from "./types/move";
+import internalToUci from "./notation/uci/internalToUci";
+import uciToInternal from "./notation/uci/uciToInternal";
 
 class ChessEngine {
   private position: Position;
@@ -44,14 +47,12 @@ class ChessEngine {
     return this.legalMovesCache;
   }
 
-  public makeMove(from: number, to: number, promotionPiece?: number): void {
+  public makeMove(move: SimpleMove): void {
     const legalMoves = this.generateLegalMoves();
     const appliedMove = makeMoveWrapper(
       this.position,
       legalMoves,
-      from,
-      to,
-      promotionPiece,
+      move,
     );
 
     // History update
@@ -65,6 +66,12 @@ class ChessEngine {
     const currentHashCount =
       this.repetitionCounts.get(this.position.zobristHash) ?? 0;
     this.repetitionCounts.set(this.position.zobristHash, currentHashCount + 1);
+  }
+
+  public makeUciMove(uciMove: string): void {
+    const internalMove = uciToInternal(uciMove);
+
+    this.makeMove(internalMove);
   }
 
   public undoMove(): void {
@@ -186,6 +193,10 @@ class ChessEngine {
     const positionAnalysis = this.analyzePosition();
 
     return positionAnalysis.gameEndReason === GAME_END_REASON.HALFMOVE_CLOCK;
+  }
+
+  public formatUciMove(move: SimpleMove): string {
+    return internalToUci(move);
   }
 }
 

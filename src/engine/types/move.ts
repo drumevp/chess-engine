@@ -16,6 +16,12 @@ export type Move = {
   flag: MoveFlagType;
 };
 
+export type SimpleMove = {
+  from: number;
+  to: number;
+  promotionPiece: number | null;
+}
+
 export type MoveList = {
   moves: Uint32Array;
   count: number;

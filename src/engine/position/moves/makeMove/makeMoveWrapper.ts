@@ -1,29 +1,30 @@
 import { History } from "../../../types/history";
+import { SimpleMove } from "../../../types/move";
 import { Position } from "../../../types/position";
 import { moveDecodeFrom, moveDecodePromotionPiece, moveDecodeTo } from "../packedMove";
 import makeMove from "./makeMove";
 
-const makeMoveWrapper = (position: Position, legalMoves: Uint32Array, from: number, to: number, promotionPiece?: number): History => {
+const makeMoveWrapper = (position: Position, legalMoves: Uint32Array, move: SimpleMove): History => {
   let foundMove: number | null = null;
 
   for(let i = 0; i < legalMoves.length; i++) {
     const encodedMove = legalMoves[i];
     const decodedFrom = moveDecodeFrom(encodedMove);
 
-    if (from !== decodedFrom) {
+    if (move.from !== decodedFrom) {
       continue;
     }
 
     const decodedTo = moveDecodeTo(encodedMove);
 
-    if (to !== decodedTo) {
+    if (move.to !== decodedTo) {
       continue;
     }
 
-    if(promotionPiece !== undefined) {
+    if(move.promotionPiece !== undefined) {
       const decodedPromotionPiece = moveDecodePromotionPiece(encodedMove);
 
-      if (promotionPiece !== decodedPromotionPiece) {
+      if (move.promotionPiece !== decodedPromotionPiece) {
         continue;
       }
     }
