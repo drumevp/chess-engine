@@ -1,13 +1,21 @@
-import { Bitboard } from "../types/bitboard";
+const getOccupiedPiecesBitboard = (
+  stateLo: Uint32Array,
+  stateHi: Uint32Array,
+  start = 0,
+  end = stateLo.length,
+): { occupancyLo: number; occupancyHi: number } => {
+  let occupancyLo: number = 0;
+  let occupancyHi: number = 0;
 
-const getOccupiedPiecesBitboard = (bitboardArray: Bitboard[]) => {
-  let occupancy: Bitboard = 0n;
-
-  for (let i = 0; i < bitboardArray.length; i++) {
-    occupancy = occupancy | bitboardArray[i];
+  for (let i = start; i < end; i++) {
+    occupancyLo |= stateLo[i];
+    occupancyHi |= stateHi[i];
   }
 
-  return occupancy;
-}
+  return {
+    occupancyLo,
+    occupancyHi,
+  };
+};
 
 export default getOccupiedPiecesBitboard;

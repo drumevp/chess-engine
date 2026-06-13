@@ -15,55 +15,80 @@
  * This directly translates to 1000 0001 in binary
  */
 
-import { Bitboard } from "../types/bitboard";
-
 // Rooks on A1 and H1
-const whiteRookBitboard: Bitboard = 0x0000000000000081n;
+const whiteRookBitboardLo: number = 0x00000081;
+const whiteRookBitboardHi: number = 0x00000000;
 
 // knight on B1 and G1
-const whiteKnightBitboard: Bitboard = 0x0000000000000042n;
+const whiteKnightBitboardLo: number = 0x00000042;
+const whiteKnightBitboardHi: number = 0x00000000;
 
 // Bishops on C1 and F1
-const whiteBishopBitboard: Bitboard = 0x0000000000000024n;
+const whiteBishopBitboardLo: number = 0x00000024;
+const whiteBishopBitboardHi: number = 0x00000000;
 
 // Queen on D1
-const whiteQueenBitboard: Bitboard = 0x0000000000000008n;
+const whiteQueenBitboardLo: number = 0x00000008;
+const whiteQueenBitboardHi: number = 0x00000000;
 
 // King on E1
-const whiteKingBitboard: Bitboard = 0x0000000000000010n;
+const whiteKingBitboardLo: number = 0x00000010;
+const whiteKingBitboardHi: number = 0x00000000;
 
 // Pawns on A2-H2
-const whitePawnsBitboard: Bitboard = 0x000000000000ff00n;
+const whitePawnsBitboardLo: number = 0x0000ff00;
+const whitePawnsBitboardHi: number = 0x00000000;
 
 // Rooks on A8 and H8
-const blackRookBitboard: Bitboard = 0x8100000000000000n;
+const blackRookBitboardLo: number = 0x00000000;
+const blackRookBitboardHi: number = 0x81000000;
 
 // Knight on B8 and G8
-const blackKnightBitboard: Bitboard = 0x4200000000000000n;
+const blackKnightBitboardLo: number = 0x00000000;
+const blackKnightBitboardHi: number = 0x42000000;
 
 // Bishops on C8 and F8
-const blackBishopBitboard: Bitboard = 0x2400000000000000n;
+const blackBishopBitboardLo: number = 0x00000000;
+const blackBishopBitboardHi: number = 0x24000000;
 
 // Queen on D8
-const blackQueenBitboard: Bitboard = 0x0800000000000000n;
+const blackQueenBitboardLo: number = 0x00000000;
+const blackQueenBitboardHi: number = 0x08000000;
 
 // King on E8
-const blackKingBitboard: Bitboard = 0x1000000000000000n;
+const blackKingBitboardLo: number = 0x00000000;
+const blackKingBitboardHi: number = 0x10000000;
 
 // Pawns on A7-H7
-const blackPawnsBitboard: Bitboard = 0x00ff000000000000n;
+const blackPawnsBitboardLo: number = 0x00000000;
+const blackPawnsBitboardHi: number = 0x00ff0000;
 
-export const INITIAL_STATE: Bitboard[] = [
-  whiteRookBitboard,
-  whiteKnightBitboard,
-  whiteBishopBitboard,
-  whiteQueenBitboard,
-  whiteKingBitboard,
-  whitePawnsBitboard,
-  blackRookBitboard,
-  blackKnightBitboard,
-  blackBishopBitboard,
-  blackQueenBitboard,
-  blackKingBitboard,
-  blackPawnsBitboard,
-];
+export const INITIAL_STATE_LO: Uint32Array = new Uint32Array([
+  whiteRookBitboardLo,
+  whiteKnightBitboardLo,
+  whiteBishopBitboardLo,
+  whiteQueenBitboardLo,
+  whiteKingBitboardLo,
+  whitePawnsBitboardLo,
+  blackRookBitboardLo,
+  blackKnightBitboardLo,
+  blackBishopBitboardLo,
+  blackQueenBitboardLo,
+  blackKingBitboardLo,
+  blackPawnsBitboardLo,
+]);
+
+export const INITIAL_STATE_HI: Uint32Array = new Uint32Array([
+  whiteRookBitboardHi,
+  whiteKnightBitboardHi,
+  whiteBishopBitboardHi,
+  whiteQueenBitboardHi,
+  whiteKingBitboardHi,
+  whitePawnsBitboardHi,
+  blackRookBitboardHi,
+  blackKnightBitboardHi,
+  blackBishopBitboardHi,
+  blackQueenBitboardHi,
+  blackKingBitboardHi,
+  blackPawnsBitboardHi,
+]);

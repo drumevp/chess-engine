@@ -12,7 +12,10 @@
  * rnbqkbnr/pppppppp/8/8/8/2N5/PPPPPPPP/R1BQKBNR w KQkq - 0 1
  *
  */
-import { squareBitboards } from "../../tables/importTables";
+import {
+  squareBitboardsLo,
+  squareBitboardsHi,
+} from "../../tables/importTables";
 import buildPieceAtArray from "../../helpers/buildPieceAtArray";
 import getOccupiedPiecesBitboard from "../../helpers/getPiecesOccupied";
 import parseFenCastling from "./helpers/parseFenCastling";
@@ -30,7 +33,8 @@ import hashPosition from "../../hash/zobrist";
 
 const generateFenToPosition = (fen: string): Position => {
   // Init state array
-  const state = new Array<bigint>(12).fill(0n);
+  const stateLo = new Uint32Array(12);
+  const stateHi = new Uint32Array(12);
 
   // Split string into base sections
   // We trim and split on /\s+/ -> 1 or more white spaces
@@ -80,14 +84,16 @@ const generateFenToPosition = (fen: string): Position => {
         piece.pieceIndex,
       );
       const pieceSquare = rank * 8 + file;
-      const pieceSquareBit = squareBitboards[pieceSquare];
+      const pieceSquareBitLo = squareBitboardsLo[pieceSquare];
+      const pieceSquareBitHi = squareBitboardsHi[pieceSquare];
 
       // In case it is outside the 0-63 range
-      if (pieceSquareBit === undefined) {
+      if (pieceSquareBitLo === undefined || pieceSquareBitHi === undefined) {
         throw new Error("Invalid FEN string");
       }
 
-      state[statePieceIndex] |= pieceSquareBit;
+      stateLo[statePieceIndex] |= pieceSquareBitLo;
+      stateHi[statePieceIndex] |= pieceSquareBitHi;
 
       file += 1;
     }
@@ -97,7 +103,7 @@ const generateFenToPosition = (fen: string): Position => {
     }
   });
 
-  const pieceAt = buildPieceAtArray(state);
+  const pieceAt = buildPieceAtArray(stateLo, stateHi);
   const whiteKingSquare = pieceAt.findIndex((value) => value === KING_INDEX);
   const blackKingSquare = pieceAt.findIndex(
     (value) => value === calculatePieceIndex(COLOR.BLACK, KING_INDEX),
@@ -109,16 +115,26 @@ const generateFenToPosition = (fen: string): Position => {
 
   const kingSquares = new Int8Array([whiteKingSquare, blackKingSquare]);
 
-  const allOccupancy = getOccupiedPiecesBitboard(state);
-  const whiteOccupancy = getOccupiedPiecesBitboard(
-    state.slice(ROOK_INDEX, PAWN_INDEX + 1),
-  );
-  const blackOccupancy = getOccupiedPiecesBitboard(
-    state.slice(
-      calculatePieceIndex(COLOR.BLACK, ROOK_INDEX),
-      calculatePieceIndex(COLOR.BLACK, PAWN_INDEX) + 1,
-    ),
-  );
+  const { occupancyLo: allOccupancyLo, occupancyHi: allOccupancyHi } =
+    getOccupiedPiecesBitboard(stateLo, stateHi);
+
+  const { occupancyLo: whiteOccupancyLo, occupancyHi: whiteOccupancyHi } =
+    getOccupiedPiecesBitboard(
+      stateLo.slice(ROOK_INDEX, PAWN_INDEX + 1),
+      stateHi.slice(ROOK_INDEX, PAWN_INDEX + 1),
+    );
+
+  const { occupancyLo: blackOccupancyLo, occupancyHi: blackOccupancyHi } =
+    getOccupiedPiecesBitboard(
+      stateLo.slice(
+        calculatePieceIndex(COLOR.BLACK, ROOK_INDEX),
+        calculatePieceIndex(COLOR.BLACK, PAWN_INDEX) + 1,
+      ),
+      stateHi.slice(
+        calculatePieceIndex(COLOR.BLACK, ROOK_INDEX),
+        calculatePieceIndex(COLOR.BLACK, PAWN_INDEX) + 1,
+      ),
+    );
 
   const halfMoveClock = Number(halfmove);
 
@@ -152,9 +168,14 @@ const generateFenToPosition = (fen: string): Position => {
   const castlingRights = parseFenCastling(castling);
 
   const position: Position = {
-    state,
-    allOccupancy,
-    blackOccupancy,
+    stateLo,
+    stateHi,
+    allOccupancyLo,
+    allOccupancyHi,
+    whiteOccupancyLo,
+    whiteOccupancyHi,
+    blackOccupancyLo,
+    blackOccupancyHi,
     castlingRights,
     color,
     enPassantSquare,
@@ -162,7 +183,6 @@ const generateFenToPosition = (fen: string): Position => {
     halfMoveClock,
     kingSquares,
     pieceAt,
-    whiteOccupancy,
     zobristHash: 0n,
   };
 
