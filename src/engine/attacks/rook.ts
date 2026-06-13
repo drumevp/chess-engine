@@ -1,13 +1,38 @@
-import { FULL_BOARD_MASK } from "../constants/mask";
-import { rookRelevantBlockerMasks, rookMagicNumbers, rookMagicAttacks, rookShifts } from "../tables/importTables";
+import calculateMagicIndex from "../bitboard32/calculateMagicIndex";
+import {
+  rookMagicAttackOffsets,
+  rookMagicAttacksHi,
+  rookMagicAttacksLo,
+  rookMagicNumbersHi,
+  rookMagicNumbersLo,
+  rookRelevantBlockerMasksHi,
+  rookRelevantBlockerMasksLo,
+  rookShifts,
+} from "../tables/importTables";
 import { GenerateAttacksFn } from "../types/attacks";
 
 // occupancy here is full board occupancy
-const generateRookAttacks: GenerateAttacksFn = (square, occupancy) => {
-  const blockers = occupancy & rookRelevantBlockerMasks[square];
-  const magicIndex = ((blockers * rookMagicNumbers[square]) & FULL_BOARD_MASK) >> BigInt(rookShifts[square]);
+const generateRookAttacks: GenerateAttacksFn = (
+  square,
+  occupancyLo,
+  occupancyHi,
+  out,
+) => {
+  const blockersLo = occupancyLo & rookRelevantBlockerMasksLo[square];
+  const blockersHi = occupancyHi & rookRelevantBlockerMasksHi[square];
 
-  return rookMagicAttacks[square][Number(magicIndex)];
-}
+  const magicIndex = calculateMagicIndex(
+    blockersLo,
+    blockersHi,
+    rookMagicNumbersLo[square],
+    rookMagicNumbersHi[square],
+    rookShifts[square],
+  );
+
+  const tableIndex = rookMagicAttackOffsets[square] + magicIndex;
+
+  out.lo = rookMagicAttacksLo[tableIndex];
+  out.hi = rookMagicAttacksHi[tableIndex];
+};
 
 export default generateRookAttacks;
