@@ -66,12 +66,14 @@ import {
   getCurrentRank,
   random64bit,
 } from "../../helpers/main";
-import { LOWER_32_BITS_MASK } from "../../constants/mask";
+import { LOWER_32_BITS_MASK_BIGINT } from "../../constants/mask";
 
+// >>> 0 to force it into an unsigned 32bit integer.
+// preventing the value from becoming negative
 const splitBitboard = (bitboard: Bitboard): { lo: number; hi: number } => {
   return {
-    lo: Number(bitboard & LOWER_32_BITS_MASK) >>> 0,
-    hi: Number((bitboard >> 32n) & LOWER_32_BITS_MASK) >>> 0,
+    lo: Number(bitboard & LOWER_32_BITS_MASK_BIGINT) >>> 0,
+    hi: Number((bitboard >> 32n) & LOWER_32_BITS_MASK_BIGINT) >>> 0,
   };
 };
 
