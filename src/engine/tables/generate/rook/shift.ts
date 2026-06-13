@@ -6,7 +6,7 @@
 import countRelevantBits from "../../../helpers/countRelevantBits";
 import { rookRelevantBlockerMask } from "./relevantBlockerMask";
 
-export const rookShift: number[] = [];
+export const rookShift: Uint8Array = new Uint8Array(64);
 
 rookRelevantBlockerMask.forEach((bitboard, i) => {
   const relevantBitCount = countRelevantBits(bitboard);

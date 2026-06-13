@@ -15,33 +15,7 @@ function denseBigInt2D(table: Array<Array<bigint | undefined>>): bigint[][] {
   });
 }
 
-function mapToCode<K, V>(map: Map<K, V>): string {
-  const entries = Array.from(map.entries())
-    .map(([key, value]) => {
-      const keyCode = inspect(key, {
-        depth: null,
-        maxArrayLength: null,
-        breakLength: 120,
-      });
-
-      const valueCode = inspect(value, {
-        depth: null,
-        maxArrayLength: null,
-        breakLength: 120,
-      });
-
-      return `  [${keyCode}, ${valueCode}],`;
-    })
-    .join("\n");
-
-  return `new Map([\n${entries}\n])`;
-}
-
 function valueToCode(value: unknown): string {
-  if (value instanceof Map) {
-    return mapToCode(value);
-  }
-
   return inspect(value, {
     depth: null,
     maxArrayLength: null,
@@ -142,13 +116,6 @@ writeTableFile(
   "squareBitboards",
   tables.squareBitboards,
   "bigint[]",
-);
-
-writeTableFile(
-  "squareIndexByBitboard.ts",
-  "squareIndexByBitboard",
-  tables.squareIndexByBitboard,
-  "Map<bigint, number>",
 );
 
 writeTableFile(
