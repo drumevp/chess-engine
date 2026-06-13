@@ -5,17 +5,18 @@ import tables from "../src/engine/tables/generate/generateTables";
 
 const OUT_DIR = path.join(process.cwd(), "/src/engine/tables/generated");
 
-function denseBigInt2D(table: Array<Array<bigint | undefined>>): bigint[][] {
-  return Array.from({ length: table.length }, (_, outerIndex) => {
-    const inner = table[outerIndex] ?? [];
-
-    return Array.from({ length: inner.length }, (_, innerIndex) => {
-      return inner[innerIndex] ?? 0n;
-    });
-  });
-}
-
 function valueToCode(value: unknown): string {
+  if (ArrayBuffer.isView(value) && !(value instanceof DataView)) {
+    const constructorName = value.constructor.name;
+    const values = Array.from(value as unknown as ArrayLike<number>);
+
+    return `new ${constructorName}(${inspect(values, {
+      depth: null,
+      maxArrayLength: null,
+      breakLength: 120,
+    })})`;
+  }
+
   return inspect(value, {
     depth: null,
     maxArrayLength: null,
@@ -41,104 +42,186 @@ export const ${exportName}${type} = ${valueToCode(table)};
   writeFileSync(path.join(OUT_DIR, fileName), code, "utf8");
 }
 
-writeTableFile("kingAttacks.ts", "kingAttacks", tables.kingAttacks, "bigint[]");
 writeTableFile(
-  "knightAttacks.ts",
-  "knightAttacks",
-  tables.knightAttacks,
-  "bigint[]",
-);
-
-writeTableFile(
-  "whitePawnAttacks.ts",
-  "whitePawnAttacks",
-  tables.whitePawnAttacks,
-  "bigint[]",
+  "kingAttacksLo.ts",
+  "kingAttacksLo",
+  tables.kingAttacksLo,
+  "Uint32Array",
 );
 writeTableFile(
-  "blackPawnAttacks.ts",
-  "blackPawnAttacks",
-  tables.blackPawnAttacks,
-  "bigint[]",
+  "kingAttacksHi.ts",
+  "kingAttacksHi",
+  tables.kingAttacksHi,
+  "Uint32Array",
 );
-
 writeTableFile(
-  "rookRelevantBlockerMasks.ts",
-  "rookRelevantBlockerMasks",
-  tables.rookRelevantBlockerMasks,
-  "bigint[]",
+  "knightAttacksLo.ts",
+  "knightAttacksLo",
+  tables.knightAttacksLo,
+  "Uint32Array",
 );
-
-writeTableFile("rookShifts.ts", "rookShifts", tables.rookShifts, "number[]");
 writeTableFile(
-  "rookMagicNumbers.ts",
-  "rookMagicNumbers",
-  tables.rookMagicNumbers,
-  "bigint[]",
+  "knightAttacksHi.ts",
+  "knightAttacksHi",
+  tables.knightAttacksHi,
+  "Uint32Array",
 );
-
 writeTableFile(
-  "rookMagicAttacks.ts",
-  "rookMagicAttacks",
-  denseBigInt2D(tables.rookMagicAttacks as Array<Array<bigint | undefined>>),
-  "bigint[][]",
+  "whitePawnAttacksLo.ts",
+  "whitePawnAttacksLo",
+  tables.whitePawnAttacksLo,
+  "Uint32Array",
 );
-
 writeTableFile(
-  "bishopRelevantBlockerMasks.ts",
-  "bishopRelevantBlockerMasks",
-  tables.bishopRelevantBlockerMasks,
-  "bigint[]",
+  "whitePawnAttacksHi.ts",
+  "whitePawnAttacksHi",
+  tables.whitePawnAttacksHi,
+  "Uint32Array",
 );
-
+writeTableFile(
+  "blackPawnAttacksLo.ts",
+  "blackPawnAttacksLo",
+  tables.blackPawnAttacksLo,
+  "Uint32Array",
+);
+writeTableFile(
+  "blackPawnAttacksHi.ts",
+  "blackPawnAttacksHi",
+  tables.blackPawnAttacksHi,
+  "Uint32Array",
+);
+writeTableFile(
+  "rookRelevantBlockerMasksLo.ts",
+  "rookRelevantBlockerMasksLo",
+  tables.rookRelevantBlockerMasksLo,
+  "Uint32Array",
+);
+writeTableFile(
+  "rookRelevantBlockerMasksHi.ts",
+  "rookRelevantBlockerMasksHi",
+  tables.rookRelevantBlockerMasksHi,
+  "Uint32Array",
+);
+writeTableFile(
+  "rookShifts.ts",
+  "rookShifts",
+  new Uint8Array(tables.rookShifts),
+  "Uint8Array",
+);
+writeTableFile(
+  "rookMagicNumbersLo.ts",
+  "rookMagicNumbersLo",
+  tables.rookMagicNumbersLo,
+  "Uint32Array",
+);
+writeTableFile(
+  "rookMagicNumbersHi.ts",
+  "rookMagicNumbersHi",
+  tables.rookMagicNumbersHi,
+  "Uint32Array",
+);
+writeTableFile(
+  "rookMagicAttackOffsets.ts",
+  "rookMagicAttackOffsets",
+  tables.rookMagicAttackOffsets,
+  "Uint32Array",
+);
+writeTableFile(
+  "rookMagicAttacksLo.ts",
+  "rookMagicAttacksLo",
+  tables.rookMagicAttacksLo,
+  "Uint32Array",
+);
+writeTableFile(
+  "rookMagicAttacksHi.ts",
+  "rookMagicAttacksHi",
+  tables.rookMagicAttacksHi,
+  "Uint32Array",
+);
+writeTableFile(
+  "bishopRelevantBlockerMasksLo.ts",
+  "bishopRelevantBlockerMasksLo",
+  tables.bishopRelevantBlockerMasksLo,
+  "Uint32Array",
+);
+writeTableFile(
+  "bishopRelevantBlockerMasksHi.ts",
+  "bishopRelevantBlockerMasksHi",
+  tables.bishopRelevantBlockerMasksHi,
+  "Uint32Array",
+);
 writeTableFile(
   "bishopShifts.ts",
   "bishopShifts",
-  tables.bishopShifts,
-  "number[]",
+  new Uint8Array(tables.bishopShifts),
+  "Uint8Array",
 );
 writeTableFile(
-  "bishopMagicNumbers.ts",
-  "bishopMagicNumbers",
-  tables.bishopMagicNumbers,
-  "bigint[]",
+  "bishopMagicNumbersLo.ts",
+  "bishopMagicNumbersLo",
+  tables.bishopMagicNumbersLo,
+  "Uint32Array",
 );
-
 writeTableFile(
-  "bishopMagicAttacks.ts",
-  "bishopMagicAttacks",
-  denseBigInt2D(tables.bishopMagicAttacks as Array<Array<bigint | undefined>>),
-  "bigint[][]",
+  "bishopMagicNumbersHi.ts",
+  "bishopMagicNumbersHi",
+  tables.bishopMagicNumbersHi,
+  "Uint32Array",
 );
-
 writeTableFile(
-  "squareBitboards.ts",
-  "squareBitboards",
-  tables.squareBitboards,
-  "bigint[]",
+  "bishopMagicAttackOffsets.ts",
+  "bishopMagicAttackOffsets",
+  tables.bishopMagicAttackOffsets,
+  "Uint32Array",
 );
-
 writeTableFile(
-  "betweenSquares.ts",
-  "betweenSquares",
-  denseBigInt2D(tables.betweenSquares as Array<Array<bigint | undefined>>),
-  "bigint[][]",
+  "bishopMagicAttacksLo.ts",
+  "bishopMagicAttacksLo",
+  tables.bishopMagicAttacksLo,
+  "Uint32Array",
 );
-
 writeTableFile(
-  "zobristPieceSquareKeys.ts",
-  "zobristPieceSquareKeys",
-  denseBigInt2D(
-    tables.zobristPieceSquareKeys as Array<Array<bigint | undefined>>,
-  ),
-  "bigint[][]",
+  "bishopMagicAttacksHi.ts",
+  "bishopMagicAttacksHi",
+  tables.bishopMagicAttacksHi,
+  "Uint32Array",
 );
-
+writeTableFile(
+  "squareBitboardsLo.ts",
+  "squareBitboardsLo",
+  tables.squareBitboardsLo,
+  "Uint32Array",
+);
+writeTableFile(
+  "squareBitboardsHi.ts",
+  "squareBitboardsHi",
+  tables.squareBitboardsHi,
+  "Uint32Array",
+);
+writeTableFile(
+  "betweenSquaresLo.ts",
+  "betweenSquaresLo",
+  tables.betweenSquaresLo,
+  "Uint32Array",
+);
+writeTableFile(
+  "betweenSquaresHi.ts",
+  "betweenSquaresHi",
+  tables.betweenSquaresHi,
+  "Uint32Array",
+);
 writeTableFile(
   "zobristCastlingMaskKeys.ts",
   "zobristCastlingMaskKeys",
   tables.zobristCastlingMaskKeys,
   "bigint[]",
+);
+
+writeTableFile(
+  "zobristPieceSquareKeys.ts",
+  "zobristPieceSquareKeys",
+  tables.zobristPieceSquareKeys,
+  "bigint[][]",
 );
 
 writeTableFile(
