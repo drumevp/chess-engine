@@ -1,16 +1,23 @@
-import { Bitboard } from "../types/bitboard";
-
-export const countRelevantBits = (bitboard: Bitboard): number => {
+export const countRelevantBits = (
+  bitboardLo: number,
+  bitboardHi: number,
+): number => {
   let relevantBitCount = 0;
-  let bb = bitboard;
+  let bbLo = bitboardLo;
+  let bbHi = bitboardHi;
 
   // Remove 1s until the bitboard is empty
-  while(bb !== 0n) {
-    bb = bb & (bb - 1n);
-    relevantBitCount ++;
+  while (bbLo !== 0) {
+    bbLo = (bbLo & (bbLo - 1)) >>> 0;
+    relevantBitCount++;
+  }
+
+  while (bbHi !== 0) {
+    bbHi = (bbHi & (bbHi - 1)) >>> 0;
+    relevantBitCount++;
   }
 
   return relevantBitCount;
-}
+};
 
 export default countRelevantBits;
