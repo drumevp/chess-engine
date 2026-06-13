@@ -35,7 +35,6 @@
  * The performance of the bigint engine was lowered by the performance cost of accessing 2D arrays, it adds overhead.
  */
 
-import generateBetweenSquaresTable from "./generateBetweenSquaresTable";
 import {
   E,
   moveEEN,
@@ -62,7 +61,11 @@ import { rookRelevantBlockerMask } from "./rook/relevantBlockerMask";
 import { rookShift } from "./rook/shift";
 import { Bitboard } from "../../types/bitboard";
 import { NUMBER_OF_PIECE_CATEGORIES } from "../../constants/piece";
-import { random64bit } from "../../helpers/main";
+import {
+  getCurrentFile,
+  getCurrentRank,
+  random64bit,
+} from "../../helpers/main";
 import { LOWER_32_BITS_MASK } from "../../constants/mask";
 
 const splitBitboard = (bitboard: Bitboard): { lo: number; hi: number } => {
@@ -149,22 +152,68 @@ for (let i = 0; i < 64; i++) {
 
 // Square bitboards to target specific squares
 
-const squareBitboards: Bitboard[] = new Array(64);
+const squareBitboardsLo: Uint32Array = new Uint32Array(64);
+const squareBitboardsHi: Uint32Array = new Uint32Array(64);
 
 for (let i = 0; i < 64; i++) {
   const value = 1n << BigInt(i);
 
-  squareBitboards[i] = value;
+  const { lo, hi } = splitBitboard(value);
+
+  squareBitboardsLo[i] = lo;
+  squareBitboardsHi[i] = hi;
 }
 
-// inverted squareBitboards
-export const squareIndexByBitboard = new Map<Bitboard, number>();
+/**
+ * Create a table that is accessed by square indexes.
+ * table[0][2] will return the bits between a1 and c1
+ */
 
-for (let i = 0; i < 64; i++) {
-  squareIndexByBitboard.set(squareBitboards[i], i);
+const betweenSquaresLo: Uint32Array = new Uint32Array(64 * 64);
+const betweenSquaresHi: Uint32Array = new Uint32Array(64 * 64);
+
+for (let from = 0; from < 64; from++) {
+  const fromFile = getCurrentFile(from);
+  const fromRank = getCurrentRank(from);
+
+  for (let to = 0; to < 64; to++) {
+    const index = from * 64 + to;
+
+    const toFile = getCurrentFile(to);
+    const toRank = getCurrentRank(to);
+
+    const fileDiff = toFile - fromFile;
+    const rankDiff = toRank - fromRank;
+
+    const sameFile = fileDiff === 0;
+    const sameRank = rankDiff === 0;
+    const sameDiagonal = Math.abs(fileDiff) === Math.abs(rankDiff);
+
+    if (!sameFile && !sameRank && !sameDiagonal) {
+      betweenSquaresLo[index] = 0;
+      betweenSquaresHi[index] = 0;
+      continue;
+    }
+
+    const fileStep = Math.sign(fileDiff);
+    const rankStep = Math.sign(rankDiff);
+
+    const squareStep = rankStep * 8 + fileStep;
+
+    let current = from + squareStep;
+    let mask = 0n;
+
+    while (current !== to) {
+      mask |= 1n << BigInt(current);
+      current += squareStep;
+    }
+
+    const { lo, hi } = splitBitboard(mask);
+
+    betweenSquaresLo[index] = lo;
+    betweenSquaresHi[index] = hi;
+  }
 }
-
-const betweenSquares = generateBetweenSquaresTable();
 
 /**
  * Zobrist hashing tables
@@ -290,7 +339,7 @@ for (let square = 0; square < 64; square++) {
   const attacks = rookMagicIndexedAttackTable[square];
 
   for (let attackIndex = 0; attackIndex < attacks.length; attackIndex++) {
-    const attackBitboard = attacks[attackIndex];
+    const attackBitboard = attacks[attackIndex] ?? 0n;
 
     const { lo: attackBitboardLo, hi: attackBitboardHi } =
       splitBitboard(attackBitboard);
@@ -321,7 +370,7 @@ for (let square = 0; square < 64; square++) {
   const attacks = bishopMagicIndexedAttackTable[square];
 
   for (let attackIndex = 0; attackIndex < attacks.length; attackIndex++) {
-    const attackBitboard = attacks[attackIndex];
+    const attackBitboard = attacks[attackIndex] ?? 0n;
 
     const { lo: attackBitboardLo, hi: attackBitboardHi } =
       splitBitboard(attackBitboard);
@@ -356,11 +405,12 @@ export default {
   bishopMagicAttackOffsets: bishopMagicAttackOffsets,
   bishopMagicAttacksLo: bishopMagicAttacksLo,
   bishopMagicAttacksHi: bishopMagicAttacksHi,
+  squareBitboardsLo,
+  squareBitboardsHi,
+  betweenSquaresLo,
+  betweenSquaresHi,
 
-  // TODO:
-  squareBitboards,
-  squareIndexByBitboard,
-  betweenSquares,
+  // Keep these as bigints for now. Will update later.
   zobristPieceSquareKeys,
   zobristBlackToMoveKey,
   zobristCastlingMaskKeys,
