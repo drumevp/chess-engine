@@ -1,26 +1,30 @@
 /**
- * Loop through each bit on a bitboard, extracting the lowest bit first
- * The callback function returns the index 0-63 for that bit
+ * Loops through each set bit in a bitboard, lowest square first.
+ * Calls callback with square index 0-63.
  */
 
-import { squareIndexByBitboard } from "../tables/importTables";
+import { LOWER_32_BITS_MASK } from "../constants/mask";
 import { Bitboard } from "../types/bitboard";
 
-const forEachBitGetSquare = (bitboard: Bitboard, callback: (square: number) => void) => {
-  let bb = bitboard;
+const forEachBitGetSquare = (
+  bitboard: Bitboard,
+  callback: (square: number) => void,
+) => {
+  let bits = Number(bitboard & LOWER_32_BITS_MASK);
 
-  while(bb !== 0n) {
-    const leastSignificantBit = bb & -bb;
-    const square = squareIndexByBitboard.get(leastSignificantBit);
-
-    if (square === undefined) {
-      throw new Error('Invalid bitboard state');
-    }
-
-    callback(square);
-
-    bb = bb & (bb - 1n);
+  while (bits !== 0) {
+    const lsb = bits & -bits;
+    callback(31 - Math.clz32(lsb));
+    bits = (bits & (bits - 1)) >>> 0;
   }
-}
+
+  bits = Number(bitboard >> 32n);
+
+  while (bits !== 0) {
+    const lsb = bits & -bits;
+    callback(63 - Math.clz32(lsb));
+    bits = (bits & (bits - 1)) >>> 0;
+  }
+};
 
 export default forEachBitGetSquare;
