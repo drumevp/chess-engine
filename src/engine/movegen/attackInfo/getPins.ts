@@ -2,11 +2,11 @@
  * To generate pinners, we first look at pinner candidates.
  * We take the king position and generate rays for slider pieces (rooks, bishops) - inherently includes the queens
  * We check if there are enemy bishops, rooks or queens along those rays.
- * 
+ *
  * Then to check if there is a pin, we must know how many pieces are between the king and the sliding piece.
  * This could be on a RANK, FILE or DIAGONAL.
  * Generating the 'between' bitboard, we AND it to the allOccupancy bitboard -> this gives us how many blockers are present along this ray
- * 
+ *
  * IF there are no blockers, the king is directly in check. This is handled by the checkers bitboard.
  * If there are two or more blockers, there are no pinned pieces.
  * If there is exactly one blocker, we must check if it is our piece by comparing it to ownOccupancy.
@@ -18,62 +18,104 @@ import { BISHOP_INDEX, QUEEN_INDEX, ROOK_INDEX } from "../../constants/piece";
 import calculatePieceIndex from "../../helpers/calculatePieceIndex";
 import forEachBitGetSquare from "../../helpers/forEachBitGetSquare";
 import getOppositeColor from "../../helpers/getOppositeColor";
+import getSingleBitSquare from "../../helpers/getSingleBitSquare";
 import hasExactlyOneBit from "../../helpers/hasExactlyOneBit";
-import { betweenSquares, squareBitboards, squareIndexByBitboard } from "../../tables/importTables";
-import { Bitboard } from "../../types/bitboard";
+import {
+  betweenSquaresHi,
+  betweenSquaresLo,
+  squareBitboardsHi,
+  squareBitboardsLo,
+} from "../../tables/importTables";
+import { AttackInfo } from "../../types/attackInfo";
 import { MoveGenerationContext } from "../../types/move";
 
-const getPins = (ctx: MoveGenerationContext): {pinnedPieces: Bitboard, pinRaysBySquare: Bitboard[]}  => {
-  let pinnedPieces: Bitboard = 0n;
-  const pinRaysBySquare: Bitboard[] = new Array(64).fill(0n);
+const rookAttackScratch = { lo: 0, hi: 0 };
+const bishopAttackScratch = { lo: 0, hi: 0 };
 
+const getPins = (ctx: MoveGenerationContext, attackInfo: AttackInfo): void => {
   // Get slider candidates
   const enemyColor = getOppositeColor(ctx.color);
-  const enemyRooks = ctx.state[calculatePieceIndex(enemyColor, ROOK_INDEX)];
-  const enemyBishops = ctx.state[calculatePieceIndex(enemyColor, BISHOP_INDEX)];
-  const enemyQueens = ctx.state[calculatePieceIndex(enemyColor, QUEEN_INDEX)];
 
-  const rookPinnerCandidates = generateRookAttacks(ctx.ownKingSquare, 0n) & (enemyRooks | enemyQueens);
-  const bishopPinnerCandidates = generateBishopAttacks(ctx.ownKingSquare, 0n) & (enemyBishops | enemyQueens);
-  const pinnerCandidates = rookPinnerCandidates | bishopPinnerCandidates;
+  const enemyRooksLo = ctx.stateLo[calculatePieceIndex(enemyColor, ROOK_INDEX)];
+  const enemyRooksHi = ctx.stateHi[calculatePieceIndex(enemyColor, ROOK_INDEX)];
 
-  if (pinnerCandidates === 0n) {
-    return {
-      pinnedPieces,
-      pinRaysBySquare,
-    }
+  const enemyBishopsLo =
+    ctx.stateLo[calculatePieceIndex(enemyColor, BISHOP_INDEX)];
+  const enemyBishopsHi =
+    ctx.stateHi[calculatePieceIndex(enemyColor, BISHOP_INDEX)];
+
+  const enemyQueensLo =
+    ctx.stateLo[calculatePieceIndex(enemyColor, QUEEN_INDEX)];
+  const enemyQueensHi =
+    ctx.stateHi[calculatePieceIndex(enemyColor, QUEEN_INDEX)];
+
+  generateRookAttacks(ctx.ownKingSquare, 0, 0, rookAttackScratch);
+
+  const rookPinnerCandidatesLo =
+    rookAttackScratch.lo & (enemyRooksLo | enemyQueensLo);
+  const rookPinnerCandidatesHi =
+    rookAttackScratch.hi & (enemyRooksHi | enemyQueensHi);
+
+  generateBishopAttacks(ctx.ownKingSquare, 0, 0, bishopAttackScratch);
+
+  const bishopPinnerCandidatesLo =
+    bishopAttackScratch.lo & (enemyBishopsLo | enemyQueensLo);
+  const bishopPinnerCandidatesHi =
+    bishopAttackScratch.hi & (enemyBishopsHi | enemyQueensHi);
+
+  const pinnerCandidatesLo = rookPinnerCandidatesLo | bishopPinnerCandidatesLo;
+  const pinnerCandidatesHi = rookPinnerCandidatesHi | bishopPinnerCandidatesHi;
+
+  if (pinnerCandidatesLo === 0 && pinnerCandidatesHi === 0) {
+    return;
   }
 
-  forEachBitGetSquare(pinnerCandidates, (pinnerCandidateSquare) => {
-    const betweenBitboard = betweenSquares[ctx.ownKingSquare][pinnerCandidateSquare];
-    const blockersBetween = betweenBitboard & ctx.allOccupancy;
+  forEachBitGetSquare(
+    pinnerCandidatesLo,
+    pinnerCandidatesHi,
+    (pinnerCandidateSquare) => {
+      const betweenIndex = ctx.ownKingSquare * 64 + pinnerCandidateSquare;
 
-    if (!hasExactlyOneBit(blockersBetween)) {
-      return;
-    }
+      const betweenLo = betweenSquaresLo[betweenIndex];
+      const betweenHi = betweenSquaresHi[betweenIndex];
 
-    const pinnedSquareBitboard = blockersBetween & ctx.ownOccupancy;
+      const blockersBetweenLo = betweenLo & ctx.allOccupancyLo;
+      const blockersBetweenHi = betweenHi & ctx.allOccupancyHi;
 
-    if (pinnedSquareBitboard === 0n) {
-      return;
-    }
+      if ((blockersBetweenLo | blockersBetweenHi) === 0) {
+        attackInfo.checkersLo =
+          (attackInfo.checkersLo | squareBitboardsLo[pinnerCandidateSquare]) >>>
+          0;
+        attackInfo.checkersHi =
+          (attackInfo.checkersHi | squareBitboardsHi[pinnerCandidateSquare]) >>>
+          0;
+        return;
+      }
 
-    pinnedPieces = pinnedPieces | pinnedSquareBitboard;
-    const ownBlockerSquare = squareIndexByBitboard.get(pinnedSquareBitboard);
+      if (!hasExactlyOneBit(blockersBetweenLo, blockersBetweenHi)) {
+        return;
+      }
 
-    if (ownBlockerSquare === undefined) {
-      throw new Error('Invalid blocker square');
-    }
+      const pinnedSquareLo = blockersBetweenLo & ctx.ownOccupancyLo;
+      const pinnedSquareHi = blockersBetweenHi & ctx.ownOccupancyHi;
 
-    const pinnerSquareBitboard = squareBitboards[pinnerCandidateSquare];
-    pinRaysBySquare[ownBlockerSquare] = betweenBitboard | pinnerSquareBitboard;
-  });
+      if ((pinnedSquareLo | pinnedSquareHi) === 0) {
+        return;
+      }
 
+      attackInfo.pinnedPiecesLo =
+        (attackInfo.pinnedPiecesLo | pinnedSquareLo) >>> 0;
+      attackInfo.pinnedPiecesHi =
+        (attackInfo.pinnedPiecesHi | pinnedSquareHi) >>> 0;
 
-  return {
-    pinnedPieces,
-    pinRaysBySquare,
-  }
-}
+      const pinnedSquare = getSingleBitSquare(pinnedSquareLo, pinnedSquareHi);
+
+      attackInfo.pinRaysBySquareLo[pinnedSquare] =
+        (betweenLo | squareBitboardsLo[pinnerCandidateSquare]) >>> 0;
+      attackInfo.pinRaysBySquareHi[pinnedSquare] =
+        (betweenHi | squareBitboardsHi[pinnerCandidateSquare]) >>> 0;
+    },
+  );
+};
 
 export default getPins;

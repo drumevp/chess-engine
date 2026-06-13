@@ -6,30 +6,48 @@
  * all the legal squares a piece must go to to resolve the check
  */
 
-import { FULL_BOARD_MASK } from "../../constants/mask";
-import { betweenSquares, squareIndexByBitboard } from "../../tables/importTables";
-import { Bitboard } from "../../types/bitboard";
+import { LOWER_32_BITS_MASK } from "../../constants/mask";
+import getSingleBitSquare from "../../helpers/getSingleBitSquare";
+import { betweenSquaresHi, betweenSquaresLo } from "../../tables/importTables";
+import { AttackInfo } from "../../types/attackInfo";
 
-const getCheckMask = (ownKingSquare: number, checkers: Bitboard, checkCount: number) => {
-  if (checkCount < 0) {
-    throw new Error('Invalid check count');
+const getCheckMask = (
+  ownKingSquare: number,
+  attackInfo: AttackInfo,
+) => {
+  if (attackInfo.checkCount < 0) {
+    throw new Error("Invalid check count");
   }
 
-  if (checkCount === 0) {
-    return FULL_BOARD_MASK;
+  if (attackInfo.checkCount === 0) {
+    attackInfo.checkMaskLo = LOWER_32_BITS_MASK;
+    attackInfo.checkMaskHi = LOWER_32_BITS_MASK;
+
+    return;
   }
 
-  if (checkCount >= 2) {
-    return 0n;
+  if (attackInfo.checkCount >= 2) {
+    attackInfo.checkMaskLo = 0;
+    attackInfo.checkMaskHi = 0;
+
+    return;
   }
 
-  const checkerSquare = squareIndexByBitboard.get(checkers);
+  const checkerSquare = getSingleBitSquare(
+    attackInfo.checkersLo,
+    attackInfo.checkersHi,
+  );
 
   if (checkerSquare === undefined) {
-    throw new Error('Invalid checker square');
+    throw new Error("Invalid checker square");
   }
 
-  return betweenSquares[ownKingSquare][checkerSquare] | checkers;
-}
+  const index = ownKingSquare * 64 + checkerSquare;
+
+  attackInfo.checkMaskLo =
+    (betweenSquaresLo[index] | attackInfo.checkersLo) >>> 0;
+  attackInfo.checkMaskHi =
+    (betweenSquaresHi[index] | attackInfo.checkersHi) >>> 0;
+};
 
 export default getCheckMask;

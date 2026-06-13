@@ -1,45 +1,56 @@
 /**
- * This generates a bitboard with every piece that is currently checking the king
- * We derive this by genearting an attack for each piece type with the king as the base square
- 
- * When we perform an AND operation on the position bitboard for that enemy piece (with allOccupancy)
- * we see if the king is checked by any of those pieces
- * 
- * Enemy king excluded, since a king can't check another king
+ * Adds non-slider enemy pieces currently checking the king.
  */
 
-import generateBishopAttacks from "../../attacks/bishop";
 import generateBlackPawnAttacks from "../../attacks/blackPawn";
 import generateKnightAttacks from "../../attacks/knight";
-import generateRookAttacks from "../../attacks/rook";
 import generateWhitePawnAttacks from "../../attacks/whitePawn";
 import { COLOR } from "../../constants/color";
-import { BISHOP_INDEX, KNIGHT_INDEX, PAWN_INDEX, QUEEN_INDEX, ROOK_INDEX } from "../../constants/piece";
+import { KNIGHT_INDEX, PAWN_INDEX } from "../../constants/piece";
 import calculatePieceIndex from "../../helpers/calculatePieceIndex";
 import getOppositeColor from "../../helpers/getOppositeColor";
-import { Bitboard } from "../../types/bitboard";
+import { AttackInfo } from "../../types/attackInfo";
 import { MoveGenerationContext } from "../../types/move";
 
-const getCheckers = (ctx: MoveGenerationContext): Bitboard => {
+const attackScratch = { lo: 0, hi: 0 };
+
+const getCheckers = (
+  ctx: MoveGenerationContext,
+  attackInfo: AttackInfo,
+): void => {
   const enemyColor = getOppositeColor(ctx.color);
-  
-  const enemyKnights = ctx.state[calculatePieceIndex(enemyColor, KNIGHT_INDEX)];
-  const enemyKnightCheckers = generateKnightAttacks(ctx.ownKingSquare, ctx.allOccupancy) & enemyKnights;
 
-  const enemyRooks = ctx.state[calculatePieceIndex(enemyColor, ROOK_INDEX)];
-  const enemyQueens = ctx.state[calculatePieceIndex(enemyColor, QUEEN_INDEX)];
+  const enemyKnightsIndex = calculatePieceIndex(enemyColor, KNIGHT_INDEX);
 
-  // To save compute, we include the queen in the rook and bishop calculation. Unecessary to do this separately for queens
-  const enemyRookCheckers = generateRookAttacks(ctx.ownKingSquare, ctx.allOccupancy) & (enemyRooks | enemyQueens);
+  generateKnightAttacks(
+    ctx.ownKingSquare,
+    ctx.allOccupancyLo,
+    ctx.allOccupancyHi,
+    attackScratch,
+  );
 
-  const enemyBishops = ctx.state[calculatePieceIndex(enemyColor, BISHOP_INDEX)];
-  const enemyBishopCheckers = generateBishopAttacks(ctx.ownKingSquare, ctx.allOccupancy) & (enemyBishops | enemyQueens);
+  const enemyKnightCheckersLo =
+    attackScratch.lo & ctx.stateLo[enemyKnightsIndex];
+  const enemyKnightCheckersHi =
+    attackScratch.hi & ctx.stateHi[enemyKnightsIndex];
 
-  const enemyPawns = ctx.state[calculatePieceIndex(enemyColor, PAWN_INDEX)];
-  let pawnAttackFn = ctx.color === COLOR.WHITE ? generateWhitePawnAttacks : generateBlackPawnAttacks;
-  const enemyPawnCheckers = pawnAttackFn(ctx.ownKingSquare, ctx.allOccupancy) & enemyPawns;
+  const enemyPawnsIndex = calculatePieceIndex(enemyColor, PAWN_INDEX);
+  const pawnAttackFn =
+    ctx.color === COLOR.WHITE
+      ? generateWhitePawnAttacks
+      : generateBlackPawnAttacks;
 
-  return enemyKnightCheckers | enemyRookCheckers | enemyBishopCheckers | enemyPawnCheckers;
-}
+  pawnAttackFn(
+    ctx.ownKingSquare,
+    ctx.allOccupancyLo,
+    ctx.allOccupancyHi,
+    attackScratch,
+  );
+  const enemyPawnCheckersLo = attackScratch.lo & ctx.stateLo[enemyPawnsIndex];
+  const enemyPawnCheckersHi = attackScratch.hi & ctx.stateHi[enemyPawnsIndex];
+
+  attackInfo.checkersLo = (enemyKnightCheckersLo | enemyPawnCheckersLo) >>> 0;
+  attackInfo.checkersHi = (enemyKnightCheckersHi | enemyPawnCheckersHi) >>> 0;
+};
 
 export default getCheckers;

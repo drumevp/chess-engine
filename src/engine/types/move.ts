@@ -20,7 +20,7 @@ export type SimpleMove = {
   from: number;
   to: number;
   promotionPiece: number | null;
-}
+};
 
 export type MoveList = {
   moves: Uint32Array;
@@ -28,11 +28,17 @@ export type MoveList = {
 };
 
 export type MoveGenerationContext = {
-  state: bigint[];
+  stateLo: Uint32Array;
+  stateHi: Uint32Array;
+
+  allOccupancyLo: number;
+  allOccupancyHi: number;
+  ownOccupancyLo: number;
+  ownOccupancyHi: number;
+  enemyOccupancyLo: number;
+  enemyOccupancyHi: number;
+
   color: ColorType;
-  ownOccupancy: bigint;
-  enemyOccupancy: bigint;
-  allOccupancy: bigint;
   pieceAt: Int8Array;
   ownKingSquare: number;
   enemyKingSquare: number;

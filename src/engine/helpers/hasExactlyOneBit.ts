@@ -2,10 +2,18 @@
  * We do bitboard & (bitboard - 1n) to clear the least significant bit
  */
 
-import { Bitboard } from "../types/bitboard";
+const hasExactlyOneBit = (bitboardLo: number, bitboardHi: number): boolean => {
+  if (bitboardLo !== 0 && bitboardHi !== 0) {
+    return false;
+  }
 
-const hasExactlyOneBit = (bitboard: Bitboard): boolean => {
-  return (bitboard !== 0n && (bitboard & (bitboard - 1n)) === 0n);
-}
+  const bits = bitboardLo | bitboardHi;
+
+  if (bits === 0) {
+    return false;
+  }
+
+  return (bits & (bits - 1)) === 0;
+};
 
 export default hasExactlyOneBit;
