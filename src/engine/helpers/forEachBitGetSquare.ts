@@ -3,27 +3,25 @@
  * Calls callback with square index 0-63.
  */
 
-import { LOWER_32_BITS_MASK } from "../constants/mask";
-import { Bitboard } from "../types/bitboard";
-
 const forEachBitGetSquare = (
-  bitboard: Bitboard,
+  bitboardLo: number,
+  bitboardHi: number,
   callback: (square: number) => void,
 ) => {
-  let bits = Number(bitboard & LOWER_32_BITS_MASK);
+  let bitsLo = Number(bitboardLo);
 
-  while (bits !== 0) {
-    const lsb = bits & -bits;
+  while (bitsLo !== 0) {
+    const lsb = bitsLo & -bitsLo;
     callback(31 - Math.clz32(lsb));
-    bits = (bits & (bits - 1)) >>> 0;
+    bitsLo = (bitsLo & (bitsLo - 1)) >>> 0;
   }
 
-  bits = Number(bitboard >> 32n);
+  let bitsHi = Number(bitboardHi);
 
-  while (bits !== 0) {
-    const lsb = bits & -bits;
+  while (bitsHi !== 0) {
+    const lsb = bitsHi & -bitsHi;
     callback(63 - Math.clz32(lsb));
-    bits = (bits & (bits - 1)) >>> 0;
+    bitsHi = (bitsHi & (bitsHi - 1)) >>> 0;
   }
 };
 

@@ -1,14 +1,17 @@
-import { Bitboard } from "./bitboard";
 import { ColorType } from "./color";
 
 export type Position = {
   // 12 bitboards representing the state for each piece on each color
-  state: Bitboard[];
+  stateLo: Uint32Array;
+  stateHi: Uint32Array;
 
   // Occupancy
-  allOccupancy: Bitboard;
-  whiteOccupancy: Bitboard;
-  blackOccupancy: Bitboard;
+  allOccupancyLo: number;
+  allOccupancyHi: number;
+  whiteOccupancyLo: number;
+  whiteOccupancyHi: number;
+  blackOccupancyLo: number;
+  blackOccupancyHi: number;
 
   // Side to move
   color: ColorType;
@@ -29,7 +32,7 @@ export type Position = {
   fullMoveNumber: number;
 
   // Represents the position of each piece on the board for quick lookups
-  // White pieces are 0-6, black pieces are 7-12. -1 are empty squares
+  // White pieces are 0-5, black pieces are 6-11. -1 are empty squares
   pieceAt: Int8Array;
 
   // Array of 2 values. kingSquare[0] -> white, kingSquare[1] -> black

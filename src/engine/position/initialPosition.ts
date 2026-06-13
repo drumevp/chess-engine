@@ -1,7 +1,7 @@
 import { CASTLING_RIGHTS } from "../constants/castling";
 import { COLOR } from "../constants/color";
 import { KING_INDEX, PAWN_INDEX, ROOK_INDEX } from "../constants/piece";
-import { INITIAL_STATE } from "../constants/position";
+import { INITIAL_STATE_LO, INITIAL_STATE_HI } from "../constants/position";
 import hashPosition from "../hash/zobrist";
 import buildPieceAtArray from "../helpers/buildPieceAtArray";
 import calculatePieceIndex from "../helpers/calculatePieceIndex";
@@ -9,9 +9,10 @@ import getOccupiedPiecesBitboard from "../helpers/getPiecesOccupied";
 import { Position } from "../types/position";
 
 export const createInitialPosition = (): Position => {
-  const state = [...INITIAL_STATE];
+  const stateLo = new Uint32Array(INITIAL_STATE_LO);
+  const stateHi = new Uint32Array(INITIAL_STATE_HI);
 
-  const pieceAtInitial = buildPieceAtArray(INITIAL_STATE);
+  const pieceAtInitial = buildPieceAtArray(stateLo, stateHi);
   const whiteKingSquare = pieceAtInitial.findIndex(
     (value) => value === KING_INDEX,
   );
@@ -25,16 +26,26 @@ export const createInitialPosition = (): Position => {
 
   const kingSquares = new Int8Array([whiteKingSquare, blackKingSquare]);
 
-  const allOccupancy = getOccupiedPiecesBitboard(state);
-  const whiteOccupancy = getOccupiedPiecesBitboard(
-    state.slice(ROOK_INDEX, PAWN_INDEX + 1),
-  );
-  const blackOccupancy = getOccupiedPiecesBitboard(
-    state.slice(
-      calculatePieceIndex(COLOR.BLACK, ROOK_INDEX),
-      calculatePieceIndex(COLOR.BLACK, PAWN_INDEX) + 1,
-    ),
-  );
+  const { occupancyLo: allOccupancyLo, occupancyHi: allOccupancyHi } =
+    getOccupiedPiecesBitboard(stateLo, stateHi);
+
+  const { occupancyLo: whiteOccupancyLo, occupancyHi: whiteOccupancyHi } =
+    getOccupiedPiecesBitboard(
+      stateLo.slice(ROOK_INDEX, PAWN_INDEX + 1),
+      stateHi.slice(ROOK_INDEX, PAWN_INDEX + 1),
+    );
+
+  const { occupancyLo: blackOccupancyLo, occupancyHi: blackOccupancyHi } =
+    getOccupiedPiecesBitboard(
+      stateLo.slice(
+        calculatePieceIndex(COLOR.BLACK, ROOK_INDEX),
+        calculatePieceIndex(COLOR.BLACK, PAWN_INDEX) + 1,
+      ),
+      stateHi.slice(
+        calculatePieceIndex(COLOR.BLACK, ROOK_INDEX),
+        calculatePieceIndex(COLOR.BLACK, PAWN_INDEX) + 1,
+      ),
+    );
 
   const castlingRights =
     CASTLING_RIGHTS.WHITE_KINGSIDE |
@@ -43,10 +54,14 @@ export const createInitialPosition = (): Position => {
     CASTLING_RIGHTS.BLACK_QUEENSIDE;
 
   const position: Position = {
-    state,
-    allOccupancy,
-    whiteOccupancy,
-    blackOccupancy,
+    stateLo,
+    stateHi,
+    allOccupancyLo,
+    allOccupancyHi,
+    whiteOccupancyLo,
+    whiteOccupancyHi,
+    blackOccupancyLo,
+    blackOccupancyHi,
     color: COLOR.WHITE,
     castlingRights,
     enPassantSquare: null,
