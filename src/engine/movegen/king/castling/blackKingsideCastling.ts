@@ -19,6 +19,22 @@ import { Bitboard32 } from "../../../types/bitboard";
 import { MoveGenerationContext } from "../../../types/move";
 import { addMove } from "../../moveList";
 
+const attackScratch: Bitboard32 = { lo: 0, hi: 0 };
+const h8BitboardLo = squareBitboardsLo[BLACK_KINGSIDE_ROOK_ORIGIN_SQUARE];
+const h8BitboardHi = squareBitboardsHi[BLACK_KINGSIDE_ROOK_ORIGIN_SQUARE];
+const e8BitboardLo = squareBitboardsLo[BLACK_KING_ORIGIN_SQUARE];
+const e8BitboardHi = squareBitboardsHi[BLACK_KING_ORIGIN_SQUARE];
+const f8BitboardLo =
+  squareBitboardsLo[BLACK_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE];
+const f8BitboardHi =
+  squareBitboardsHi[BLACK_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE];
+const g8BitboardLo =
+  squareBitboardsLo[BLACK_KING_KINGSIDE_CASTLE_DESTINATION_SQUARE];
+const g8BitboardHi =
+  squareBitboardsHi[BLACK_KING_KINGSIDE_CASTLE_DESTINATION_SQUARE];
+const emptySafeMaskLo = (f8BitboardLo | g8BitboardLo) >>> 0;
+const emptySafeMaskHi = (f8BitboardHi | g8BitboardHi) >>> 0;
+
 const blackKingsideCastling = (ctx: MoveGenerationContext): void => {
   const isBlackKingsideCastlingAllowed =
     (ctx.castlingRights & CASTLING_RIGHTS.BLACK_KINGSIDE) !== 0;
@@ -33,8 +49,6 @@ const blackKingsideCastling = (ctx: MoveGenerationContext): void => {
     return;
   }
 
-  const h8BitboardLo = squareBitboardsLo[BLACK_KINGSIDE_ROOK_ORIGIN_SQUARE];
-  const h8BitboardHi = squareBitboardsHi[BLACK_KINGSIDE_ROOK_ORIGIN_SQUARE];
   const rooksIndex = calculatePieceIndex(COLOR.BLACK, ROOK_INDEX);
   const isRookOnH8 =
     (((h8BitboardLo & ctx.stateLo[rooksIndex]) |
@@ -46,20 +60,6 @@ const blackKingsideCastling = (ctx: MoveGenerationContext): void => {
     return;
   }
 
-  const e8BitboardLo = squareBitboardsLo[BLACK_KING_ORIGIN_SQUARE];
-  const e8BitboardHi = squareBitboardsHi[BLACK_KING_ORIGIN_SQUARE];
-  const f8BitboardLo =
-    squareBitboardsLo[BLACK_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE];
-  const f8BitboardHi =
-    squareBitboardsHi[BLACK_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE];
-  const g8BitboardLo =
-    squareBitboardsLo[BLACK_KING_KINGSIDE_CASTLE_DESTINATION_SQUARE];
-  const g8BitboardHi =
-    squareBitboardsHi[BLACK_KING_KINGSIDE_CASTLE_DESTINATION_SQUARE];
-
-  const emptySafeMaskLo = (f8BitboardLo | g8BitboardLo) >>> 0;
-  const emptySafeMaskHi = (f8BitboardHi | g8BitboardHi) >>> 0;
-
   const isPathEmpty =
     (((ctx.allOccupancyLo & emptySafeMaskLo) |
       (ctx.allOccupancyHi & emptySafeMaskHi)) >>>
@@ -70,7 +70,6 @@ const blackKingsideCastling = (ctx: MoveGenerationContext): void => {
     return;
   }
 
-  const attackScratch: Bitboard32 = { lo: 0, hi: 0 };
   const occupancyOnF8Lo =
     ((ctx.allOccupancyLo & ~e8BitboardLo) | f8BitboardLo) >>> 0;
   const occupancyOnF8Hi =

@@ -17,6 +17,8 @@ import { MOVE_FLAG } from "../constants/move";
 import { Bitboard32 } from "../types/bitboard";
 import { squareBitboardsHi, squareBitboardsLo } from "../tables/importTables";
 
+const attackScratch: Bitboard32 = { lo: 0, hi: 0 };
+
 const generateMove = (
   ctx: MoveGenerationContext,
   attackInfo: AttackInfo,
@@ -29,8 +31,6 @@ const generateMove = (
   const stateIndex = calculatePieceIndex(ctx.color, pieceIndex);
   const piecesLo = ctx.stateLo[stateIndex];
   const piecesHi = ctx.stateHi[stateIndex];
-
-  const attackScratch: Bitboard32 = { lo: 0, hi: 0 };
 
   forEachBitGetSquare(piecesLo, piecesHi, (originSquare) => {
     generateAttacksFn(
@@ -46,14 +46,18 @@ const generateMove = (
     let targetsLo = (pseudoTargetsLo & attackInfo.checkMaskLo) >>> 0;
     let targetsHi = (pseudoTargetsHi & attackInfo.checkMaskHi) >>> 0;
 
+    const originLo = squareBitboardsLo[originSquare];
+    const originHi = squareBitboardsHi[originSquare];
     const isPinned =
-      ((attackInfo.pinnedPiecesLo & squareBitboardsLo[originSquare]) |
-        (attackInfo.pinnedPiecesHi & squareBitboardsHi[originSquare])) !==
+      ((attackInfo.pinnedPiecesLo & originLo) |
+        (attackInfo.pinnedPiecesHi & originHi)) !==
       0;
 
     if (isPinned) {
-      targetsLo = (targetsLo & attackInfo.pinRaysBySquareLo[originSquare]) >>> 0;
-      targetsHi = (targetsHi & attackInfo.pinRaysBySquareHi[originSquare]) >>> 0;
+      targetsLo =
+        (targetsLo & attackInfo.pinRaysBySquareLo[originSquare]) >>> 0;
+      targetsHi =
+        (targetsHi & attackInfo.pinRaysBySquareHi[originSquare]) >>> 0;
     }
 
     const captureTargetsLo = (targetsLo & ctx.enemyOccupancyLo) >>> 0;

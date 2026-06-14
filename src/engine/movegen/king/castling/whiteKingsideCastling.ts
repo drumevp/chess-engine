@@ -19,6 +19,22 @@ import { Bitboard32 } from "../../../types/bitboard";
 import { MoveGenerationContext } from "../../../types/move";
 import { addMove } from "../../moveList";
 
+const attackScratch: Bitboard32 = { lo: 0, hi: 0 };
+const h1BitboardLo = squareBitboardsLo[WHITE_KINGSIDE_ROOK_ORIGIN_SQUARE];
+const h1BitboardHi = squareBitboardsHi[WHITE_KINGSIDE_ROOK_ORIGIN_SQUARE];
+const e1BitboardLo = squareBitboardsLo[WHITE_KING_ORIGIN_SQUARE];
+const e1BitboardHi = squareBitboardsHi[WHITE_KING_ORIGIN_SQUARE];
+const f1BitboardLo =
+  squareBitboardsLo[WHITE_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE];
+const f1BitboardHi =
+  squareBitboardsHi[WHITE_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE];
+const g1BitboardLo =
+  squareBitboardsLo[WHITE_KING_KINGSIDE_CASTLE_DESTINATION_SQUARE];
+const g1BitboardHi =
+  squareBitboardsHi[WHITE_KING_KINGSIDE_CASTLE_DESTINATION_SQUARE];
+const emptySafeMaskLo = (f1BitboardLo | g1BitboardLo) >>> 0;
+const emptySafeMaskHi = (f1BitboardHi | g1BitboardHi) >>> 0;
+
 const whiteKingsideCastling = (ctx: MoveGenerationContext): void => {
   const isWhiteKingsideCastlingAllowed =
     (ctx.castlingRights & CASTLING_RIGHTS.WHITE_KINGSIDE) !== 0;
@@ -33,8 +49,6 @@ const whiteKingsideCastling = (ctx: MoveGenerationContext): void => {
     return;
   }
 
-  const h1BitboardLo = squareBitboardsLo[WHITE_KINGSIDE_ROOK_ORIGIN_SQUARE];
-  const h1BitboardHi = squareBitboardsHi[WHITE_KINGSIDE_ROOK_ORIGIN_SQUARE];
   const rooksIndex = calculatePieceIndex(COLOR.WHITE, ROOK_INDEX);
   const isRookOnH1 =
     (((h1BitboardLo & ctx.stateLo[rooksIndex]) |
@@ -46,21 +60,6 @@ const whiteKingsideCastling = (ctx: MoveGenerationContext): void => {
     return;
   }
 
-  const e1BitboardLo = squareBitboardsLo[WHITE_KING_ORIGIN_SQUARE];
-  const e1BitboardHi = squareBitboardsHi[WHITE_KING_ORIGIN_SQUARE];
-  const f1BitboardLo =
-    squareBitboardsLo[WHITE_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE];
-  const f1BitboardHi =
-    squareBitboardsHi[WHITE_ROOK_KINGSIDE_CASTLE_DESTINATION_SQUARE];
-  const g1BitboardLo =
-    squareBitboardsLo[WHITE_KING_KINGSIDE_CASTLE_DESTINATION_SQUARE];
-  const g1BitboardHi =
-    squareBitboardsHi[WHITE_KING_KINGSIDE_CASTLE_DESTINATION_SQUARE];
-
-  // Between e1 and h1, the only squares are g1 and f1. So this mask handles both empty & safety
-  const emptySafeMaskLo = (f1BitboardLo | g1BitboardLo) >>> 0;
-  const emptySafeMaskHi = (f1BitboardHi | g1BitboardHi) >>> 0;
-
   const isPathEmpty =
     (((ctx.allOccupancyLo & emptySafeMaskLo) |
       (ctx.allOccupancyHi & emptySafeMaskHi)) >>>
@@ -71,7 +70,6 @@ const whiteKingsideCastling = (ctx: MoveGenerationContext): void => {
     return;
   }
 
-  const attackScratch: Bitboard32 = { lo: 0, hi: 0 };
   const occupancyOnF1Lo =
     ((ctx.allOccupancyLo & ~e1BitboardLo) | f1BitboardLo) >>> 0;
   const occupancyOnF1Hi =

@@ -8,55 +8,87 @@ import {
   ROOK_INDEX,
 } from "../../constants/piece";
 import calculatePieceIndex from "../../helpers/calculatePieceIndex";
+import { hi32FromBigint, lo32FromBigint } from "../../helpers/bitboard32";
 import countRelevantBits from "../../helpers/countRelevantBits";
+import { ColorType } from "../../types/color";
 import { Position } from "../../types/position";
+
+const LIGHT_SQUARES_MASK_LO = lo32FromBigint(LIGHT_SQUARES_MASK);
+const LIGHT_SQUARES_MASK_HI = hi32FromBigint(LIGHT_SQUARES_MASK);
+const DARK_SQUARES_MASK_LO = lo32FromBigint(DARK_SQUARES_MASK);
+const DARK_SQUARES_MASK_HI = hi32FromBigint(DARK_SQUARES_MASK);
+
+const getPieceLo = (
+  position: Position,
+  color: ColorType,
+  piece: number,
+): number => position.stateLo[calculatePieceIndex(color, piece)];
+
+const getPieceHi = (
+  position: Position,
+  color: ColorType,
+  piece: number,
+): number => position.stateHi[calculatePieceIndex(color, piece)];
+
+const hasAnyPiece = (lo: number, hi: number): boolean => (lo | hi) !== 0;
 
 const isInsufficientMaterial = (position: Position): boolean => {
   // If any pawns exist, it is not insufficient material
-  const whitePawns =
-    position.state[calculatePieceIndex(COLOR.WHITE, PAWN_INDEX)];
-  const blackPawns =
-    position.state[calculatePieceIndex(COLOR.BLACK, PAWN_INDEX)];
+  const whitePawnsLo = getPieceLo(position, COLOR.WHITE, PAWN_INDEX);
+  const whitePawnsHi = getPieceHi(position, COLOR.WHITE, PAWN_INDEX);
+  const blackPawnsLo = getPieceLo(position, COLOR.BLACK, PAWN_INDEX);
+  const blackPawnsHi = getPieceHi(position, COLOR.BLACK, PAWN_INDEX);
 
-  if (whitePawns !== 0n || blackPawns !== 0n) {
+  if (
+    hasAnyPiece(whitePawnsLo, whitePawnsHi) ||
+    hasAnyPiece(blackPawnsLo, blackPawnsHi)
+  ) {
     return false;
   }
 
   // If any rooks are present, return false
-  const whiteRooks =
-    position.state[calculatePieceIndex(COLOR.WHITE, ROOK_INDEX)];
-  const blackRooks =
-    position.state[calculatePieceIndex(COLOR.BLACK, ROOK_INDEX)];
+  const whiteRooksLo = getPieceLo(position, COLOR.WHITE, ROOK_INDEX);
+  const whiteRooksHi = getPieceHi(position, COLOR.WHITE, ROOK_INDEX);
+  const blackRooksLo = getPieceLo(position, COLOR.BLACK, ROOK_INDEX);
+  const blackRooksHi = getPieceHi(position, COLOR.BLACK, ROOK_INDEX);
 
-  if (whiteRooks !== 0n || blackRooks !== 0n) {
+  if (
+    hasAnyPiece(whiteRooksLo, whiteRooksHi) ||
+    hasAnyPiece(blackRooksLo, blackRooksHi)
+  ) {
     return false;
   }
 
   // If any queens are present, return false
-  const whiteQueens =
-    position.state[calculatePieceIndex(COLOR.WHITE, QUEEN_INDEX)];
-  const blackQueens =
-    position.state[calculatePieceIndex(COLOR.BLACK, QUEEN_INDEX)];
+  const whiteQueensLo = getPieceLo(position, COLOR.WHITE, QUEEN_INDEX);
+  const whiteQueensHi = getPieceHi(position, COLOR.WHITE, QUEEN_INDEX);
+  const blackQueensLo = getPieceLo(position, COLOR.BLACK, QUEEN_INDEX);
+  const blackQueensHi = getPieceHi(position, COLOR.BLACK, QUEEN_INDEX);
 
-  if (whiteQueens !== 0n || blackQueens !== 0n) {
+  if (
+    hasAnyPiece(whiteQueensLo, whiteQueensHi) ||
+    hasAnyPiece(blackQueensLo, blackQueensHi)
+  ) {
     return false;
   }
 
   // Minor pieces (knights & bishops)
-  const whiteKnights =
-    position.state[calculatePieceIndex(COLOR.WHITE, KNIGHT_INDEX)];
-  const blackKnights =
-    position.state[calculatePieceIndex(COLOR.BLACK, KNIGHT_INDEX)];
+  const whiteKnightsLo = getPieceLo(position, COLOR.WHITE, KNIGHT_INDEX);
+  const whiteKnightsHi = getPieceHi(position, COLOR.WHITE, KNIGHT_INDEX);
+  const blackKnightsLo = getPieceLo(position, COLOR.BLACK, KNIGHT_INDEX);
+  const blackKnightsHi = getPieceHi(position, COLOR.BLACK, KNIGHT_INDEX);
 
-  const whiteBishops =
-    position.state[calculatePieceIndex(COLOR.WHITE, BISHOP_INDEX)];
-  const blackBishops =
-    position.state[calculatePieceIndex(COLOR.BLACK, BISHOP_INDEX)];
+  const whiteBishopsLo = getPieceLo(position, COLOR.WHITE, BISHOP_INDEX);
+  const whiteBishopsHi = getPieceHi(position, COLOR.WHITE, BISHOP_INDEX);
+  const blackBishopsLo = getPieceLo(position, COLOR.BLACK, BISHOP_INDEX);
+  const blackBishopsHi = getPieceHi(position, COLOR.BLACK, BISHOP_INDEX);
 
   const knightsCount =
-    countRelevantBits(whiteKnights) + countRelevantBits(blackKnights);
+    countRelevantBits(whiteKnightsLo, whiteKnightsHi) +
+    countRelevantBits(blackKnightsLo, blackKnightsHi);
   const bishopsCount =
-    countRelevantBits(whiteBishops) + countRelevantBits(blackBishops);
+    countRelevantBits(whiteBishopsLo, whiteBishopsHi) +
+    countRelevantBits(blackBishopsLo, blackBishopsHi);
 
   const minorsCount = knightsCount + bishopsCount;
 
@@ -80,9 +112,16 @@ const isInsufficientMaterial = (position: Position): boolean => {
 
   // If there are opposite colored bishops (either B+B+K vs K or B+K vs B+K), mate is theoretically possible
   if (knightsCount === 0) {
-    const bishops = whiteBishops | blackBishops;
-    const hasLightSquareBishops = (bishops & LIGHT_SQUARES_MASK) !== 0n;
-    const hasDarkSquareBishops = (bishops & DARK_SQUARES_MASK) !== 0n;
+    const bishopsLo = (whiteBishopsLo | blackBishopsLo) >>> 0;
+    const bishopsHi = (whiteBishopsHi | blackBishopsHi) >>> 0;
+    const hasLightSquareBishops =
+      ((bishopsLo & LIGHT_SQUARES_MASK_LO) |
+        (bishopsHi & LIGHT_SQUARES_MASK_HI)) !==
+      0;
+    const hasDarkSquareBishops =
+      ((bishopsLo & DARK_SQUARES_MASK_LO) |
+        (bishopsHi & DARK_SQUARES_MASK_HI)) !==
+      0;
 
     if (hasLightSquareBishops && hasDarkSquareBishops) {
       return false;

@@ -3,13 +3,13 @@
  * Example for a1 (index 0). Shift = 64 - 12 = 52
  */
 
-import countRelevantBits from "../../../helpers/countRelevantBits";
+import countRelevantBitsBigint from "../../../helpers/countRelevantBitsBigint";
 import { rookRelevantBlockerMask } from "./relevantBlockerMask";
 
 export const rookShift: Uint8Array = new Uint8Array(64);
 
 rookRelevantBlockerMask.forEach((bitboard, i) => {
-  const relevantBitCount = countRelevantBits(bitboard);
+  const relevantBitCount = countRelevantBitsBigint(bitboard);
 
   rookShift[i] = 64 - relevantBitCount;
 });
