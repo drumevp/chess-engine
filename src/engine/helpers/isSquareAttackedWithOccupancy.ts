@@ -1,19 +1,40 @@
-import generateBishopAttacks from "../attacks/bishop";
-import generateBlackPawnAttacks from "../attacks/blackPawn";
-import generateKingAttacks from "../attacks/king";
-import generateKnightAttacks from "../attacks/knight";
-import generateRookAttacks from "../attacks/rook";
-import generateWhitePawnAttacks from "../attacks/whitePawn";
+import calculateMagicIndex from "../bitboard32/calculateMagicIndex";
 import { COLOR } from "../constants/color";
 import {
   BISHOP_INDEX,
   KING_INDEX,
   KNIGHT_INDEX,
+  NUMBER_OF_PIECE_CATEGORIES,
   PAWN_INDEX,
   QUEEN_INDEX,
   ROOK_INDEX,
 } from "../constants/piece";
-import calculatePieceIndex from "./calculatePieceIndex";
+import {
+  blackPawnAttacksHi,
+  blackPawnAttacksLo,
+  bishopMagicAttackOffsets,
+  bishopMagicAttacksHi,
+  bishopMagicAttacksLo,
+  bishopMagicNumbersHi,
+  bishopMagicNumbersLo,
+  bishopRelevantBlockerMasksHi,
+  bishopRelevantBlockerMasksLo,
+  bishopShifts,
+  kingAttacksHi,
+  kingAttacksLo,
+  knightAttacksHi,
+  knightAttacksLo,
+  rookMagicAttackOffsets,
+  rookMagicAttacksHi,
+  rookMagicAttacksLo,
+  rookMagicNumbersHi,
+  rookMagicNumbersLo,
+  rookRelevantBlockerMasksHi,
+  rookRelevantBlockerMasksLo,
+  rookShifts,
+  whitePawnAttacksHi,
+  whitePawnAttacksLo,
+} from "../tables/importTables";
 import { Bitboard32 } from "../types/bitboard";
 import { ColorType } from "../types/color";
 
@@ -24,86 +45,99 @@ const isSquareAttackedWithOccupancy = (
   stateHi: Uint32Array,
   occupancyLo: number,
   occupancyHi: number,
-  out: Bitboard32,
-  ignoredAttackerLo = 0,
-  ignoredAttackerHi = 0,
+  _out: Bitboard32,
+  _ignoredAttackerLo = 0,
+  _ignoredAttackerHi = 0,
 ): boolean => {
-  const hasIgnoredAttacker = (ignoredAttackerLo | ignoredAttackerHi) !== 0;
+  const colorOffset = attackingColor * NUMBER_OF_PIECE_CATEGORIES;
+  const pawnsIndex = colorOffset + PAWN_INDEX;
+  const knightsIndex = colorOffset + KNIGHT_INDEX;
+  const bishopsIndex = colorOffset + BISHOP_INDEX;
+  const rooksIndex = colorOffset + ROOK_INDEX;
+  const queensIndex = colorOffset + QUEEN_INDEX;
+  const kingIndex = colorOffset + KING_INDEX;
 
-  const pawnsIndex = calculatePieceIndex(attackingColor, PAWN_INDEX);
-  const knightsIndex = calculatePieceIndex(attackingColor, KNIGHT_INDEX);
-  const bishopsIndex = calculatePieceIndex(attackingColor, BISHOP_INDEX);
-  const rooksIndex = calculatePieceIndex(attackingColor, ROOK_INDEX);
-  const queensIndex = calculatePieceIndex(attackingColor, QUEEN_INDEX);
-  const kingIndex = calculatePieceIndex(attackingColor, KING_INDEX);
-
-  const pawnAttackFn =
+  const pawnAttacksLo =
     attackingColor === COLOR.WHITE
-      ? generateBlackPawnAttacks
-      : generateWhitePawnAttacks;
+      ? blackPawnAttacksLo[square]
+      : whitePawnAttacksLo[square];
+  const pawnAttacksHi =
+    attackingColor === COLOR.WHITE
+      ? blackPawnAttacksHi[square]
+      : whitePawnAttacksHi[square];
 
-  pawnAttackFn(square, occupancyLo, occupancyHi, out);
-
-  const pawnsLo = hasIgnoredAttacker
-    ? stateLo[pawnsIndex] & ~ignoredAttackerLo
-    : stateLo[pawnsIndex];
-  const pawnsHi = hasIgnoredAttacker
-    ? stateHi[pawnsIndex] & ~ignoredAttackerHi
-    : stateHi[pawnsIndex];
-
-  if (((out.lo & pawnsLo) | (out.hi & pawnsHi)) >>> 0 !== 0) {
+  if (
+    ((pawnAttacksLo & stateLo[pawnsIndex]) |
+      (pawnAttacksHi & stateHi[pawnsIndex])) !==
+    0
+  ) {
     return true;
   }
 
-  generateKnightAttacks(square, occupancyLo, occupancyHi, out);
-
-  const knightsLo = hasIgnoredAttacker
-    ? stateLo[knightsIndex] & ~ignoredAttackerLo
-    : stateLo[knightsIndex];
-  const knightsHi = hasIgnoredAttacker
-    ? stateHi[knightsIndex] & ~ignoredAttackerHi
-    : stateHi[knightsIndex];
-
-  if (((out.lo & knightsLo) | (out.hi & knightsHi)) !== 0) {
+  if (
+    ((knightAttacksLo[square] & stateLo[knightsIndex]) |
+      (knightAttacksHi[square] & stateHi[knightsIndex])) !==
+    0
+  ) {
     return true;
   }
 
-  generateKingAttacks(square, occupancyLo, occupancyHi, out);
-
-  const kingLo = hasIgnoredAttacker
-    ? stateLo[kingIndex] & ~ignoredAttackerLo
-    : stateLo[kingIndex];
-  const kingHi = hasIgnoredAttacker
-    ? stateHi[kingIndex] & ~ignoredAttackerHi
-    : stateHi[kingIndex];
-
-  if (((out.lo & kingLo) | (out.hi & kingHi)) !== 0) {
+  if (
+    ((kingAttacksLo[square] & stateLo[kingIndex]) |
+      (kingAttacksHi[square] & stateHi[kingIndex])) !==
+    0
+  ) {
     return true;
   }
 
-  generateRookAttacks(square, occupancyLo, occupancyHi, out);
+  const rooksOrQueensLo = stateLo[rooksIndex] | stateLo[queensIndex];
+  const rooksOrQueensHi = stateHi[rooksIndex] | stateHi[queensIndex];
 
-  const rooksOrQueensLo = hasIgnoredAttacker
-    ? (stateLo[rooksIndex] | stateLo[queensIndex]) & ~ignoredAttackerLo
-    : stateLo[rooksIndex] | stateLo[queensIndex];
-  const rooksOrQueensHi = hasIgnoredAttacker
-    ? (stateHi[rooksIndex] | stateHi[queensIndex]) & ~ignoredAttackerHi
-    : stateHi[rooksIndex] | stateHi[queensIndex];
+  if ((rooksOrQueensLo | rooksOrQueensHi) !== 0) {
+    const rookBlockersLo = occupancyLo & rookRelevantBlockerMasksLo[square];
+    const rookBlockersHi = occupancyHi & rookRelevantBlockerMasksHi[square];
+    const rookMagicIndex = calculateMagicIndex(
+      rookBlockersLo,
+      rookBlockersHi,
+      rookMagicNumbersLo[square],
+      rookMagicNumbersHi[square],
+      rookShifts[square],
+    );
+    const rookTableIndex = rookMagicAttackOffsets[square] + rookMagicIndex;
 
-  if (((out.lo & rooksOrQueensLo) | (out.hi & rooksOrQueensHi)) !== 0) {
-    return true;
+    if (
+      ((rookMagicAttacksLo[rookTableIndex] & rooksOrQueensLo) |
+        (rookMagicAttacksHi[rookTableIndex] & rooksOrQueensHi)) !==
+      0
+    ) {
+      return true;
+    }
   }
 
-  generateBishopAttacks(square, occupancyLo, occupancyHi, out);
+  const bishopsOrQueensLo = stateLo[bishopsIndex] | stateLo[queensIndex];
+  const bishopsOrQueensHi = stateHi[bishopsIndex] | stateHi[queensIndex];
 
-  const bishopsOrQueensLo = hasIgnoredAttacker
-    ? (stateLo[bishopsIndex] | stateLo[queensIndex]) & ~ignoredAttackerLo
-    : stateLo[bishopsIndex] | stateLo[queensIndex];
-  const bishopsOrQueensHi = hasIgnoredAttacker
-    ? (stateHi[bishopsIndex] | stateHi[queensIndex]) & ~ignoredAttackerHi
-    : stateHi[bishopsIndex] | stateHi[queensIndex];
+  if ((bishopsOrQueensLo | bishopsOrQueensHi) === 0) {
+    return false;
+  }
 
-  return ((out.lo & bishopsOrQueensLo) | (out.hi & bishopsOrQueensHi)) !== 0;
+  const bishopBlockersLo = occupancyLo & bishopRelevantBlockerMasksLo[square];
+  const bishopBlockersHi = occupancyHi & bishopRelevantBlockerMasksHi[square];
+  const bishopMagicIndex = calculateMagicIndex(
+    bishopBlockersLo,
+    bishopBlockersHi,
+    bishopMagicNumbersLo[square],
+    bishopMagicNumbersHi[square],
+    bishopShifts[square],
+  );
+  const bishopTableIndex =
+    bishopMagicAttackOffsets[square] + bishopMagicIndex;
+
+  return (
+    ((bishopMagicAttacksLo[bishopTableIndex] & bishopsOrQueensLo) |
+      (bishopMagicAttacksHi[bishopTableIndex] & bishopsOrQueensHi)) !==
+    0
+  );
 };
 
 export default isSquareAttackedWithOccupancy;

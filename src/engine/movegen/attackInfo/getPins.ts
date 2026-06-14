@@ -16,10 +16,7 @@ import generateBishopAttacks from "../../attacks/bishop";
 import generateRookAttacks from "../../attacks/rook";
 import { BISHOP_INDEX, QUEEN_INDEX, ROOK_INDEX } from "../../constants/piece";
 import calculatePieceIndex from "../../helpers/calculatePieceIndex";
-import forEachBitGetSquare from "../../helpers/forEachBitGetSquare";
 import getOppositeColor from "../../helpers/getOppositeColor";
-import getSingleBitSquare from "../../helpers/getSingleBitSquare";
-import hasExactlyOneBit from "../../helpers/hasExactlyOneBit";
 import {
   betweenSquaresHi,
   betweenSquaresLo,
@@ -70,10 +67,13 @@ const getPins = (ctx: MoveGenerationContext, attackInfo: AttackInfo): void => {
     return;
   }
 
-  forEachBitGetSquare(
-    pinnerCandidatesLo,
-    pinnerCandidatesHi,
-    (pinnerCandidateSquare) => {
+  let pinnerBits = pinnerCandidatesLo;
+  let squareOffset = 0;
+
+  while (true) {
+    while (pinnerBits !== 0) {
+      const pinnerLsb = pinnerBits & -pinnerBits;
+      const pinnerCandidateSquare = squareOffset + 31 - Math.clz32(pinnerLsb);
       const betweenIndex = ctx.ownKingSquare * 64 + pinnerCandidateSquare;
 
       const betweenLo = betweenSquaresLo[betweenIndex];
@@ -89,18 +89,26 @@ const getPins = (ctx: MoveGenerationContext, attackInfo: AttackInfo): void => {
         attackInfo.checkersHi =
           (attackInfo.checkersHi | squareBitboardsHi[pinnerCandidateSquare]) >>>
           0;
-        return;
+        pinnerBits = (pinnerBits & (pinnerBits - 1)) >>> 0;
+        continue;
       }
 
-      if (!hasExactlyOneBit(blockersBetweenLo, blockersBetweenHi)) {
-        return;
+      if (
+        (blockersBetweenLo !== 0 && blockersBetweenHi !== 0) ||
+        ((blockersBetweenLo | blockersBetweenHi) &
+          ((blockersBetweenLo | blockersBetweenHi) - 1)) !==
+          0
+      ) {
+        pinnerBits = (pinnerBits & (pinnerBits - 1)) >>> 0;
+        continue;
       }
 
       const pinnedSquareLo = blockersBetweenLo & ctx.ownOccupancyLo;
       const pinnedSquareHi = blockersBetweenHi & ctx.ownOccupancyHi;
 
       if ((pinnedSquareLo | pinnedSquareHi) === 0) {
-        return;
+        pinnerBits = (pinnerBits & (pinnerBits - 1)) >>> 0;
+        continue;
       }
 
       attackInfo.pinnedPiecesLo =
@@ -108,14 +116,26 @@ const getPins = (ctx: MoveGenerationContext, attackInfo: AttackInfo): void => {
       attackInfo.pinnedPiecesHi =
         (attackInfo.pinnedPiecesHi | pinnedSquareHi) >>> 0;
 
-      const pinnedSquare = getSingleBitSquare(pinnedSquareLo, pinnedSquareHi);
+      const pinnedSquare =
+        pinnedSquareLo !== 0
+          ? 31 - Math.clz32(pinnedSquareLo)
+          : 63 - Math.clz32(pinnedSquareHi);
 
       attackInfo.pinRaysBySquareLo[pinnedSquare] =
         (betweenLo | squareBitboardsLo[pinnerCandidateSquare]) >>> 0;
       attackInfo.pinRaysBySquareHi[pinnedSquare] =
         (betweenHi | squareBitboardsHi[pinnerCandidateSquare]) >>> 0;
-    },
-  );
+
+      pinnerBits = (pinnerBits & (pinnerBits - 1)) >>> 0;
+    }
+
+    if (squareOffset !== 0) {
+      break;
+    }
+
+    pinnerBits = pinnerCandidatesHi;
+    squareOffset = 32;
+  }
 };
 
 export default getPins;
