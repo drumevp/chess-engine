@@ -1,10 +1,10 @@
-import countRelevantBits from "../../../helpers/countRelevantBits";
+import countRelevantBitsBigint from "../../../helpers/countRelevantBitsBigint";
 import { bishopRelevantBlockerMask } from "./relevantBlockerMask";
 
 export const bishopShift: Uint8Array = new Uint8Array(64);
 
 bishopRelevantBlockerMask.forEach((bitboard, i) => {
-  const relevantBitCount = countRelevantBits(bitboard);
+  const relevantBitCount = countRelevantBitsBigint(bitboard);
 
   bishopShift[i] = 64 - relevantBitCount;
 });

@@ -25,8 +25,6 @@ const resetAttackInfo = (attackInfo: AttackInfo): void => {
   attackInfo.pinnedPiecesHi = 0;
   attackInfo.checkMaskLo = 0;
   attackInfo.checkMaskHi = 0;
-  attackInfo.pinRaysBySquareLo.fill(0);
-  attackInfo.pinRaysBySquareHi.fill(0);
 };
 
 const generateAttackInfo = (

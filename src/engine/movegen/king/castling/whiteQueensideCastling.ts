@@ -19,6 +19,24 @@ import { Bitboard32 } from "../../../types/bitboard";
 import { MoveGenerationContext } from "../../../types/move";
 import { addMove } from "../../moveList";
 
+const attackScratch: Bitboard32 = { lo: 0, hi: 0 };
+const a1BitboardLo = squareBitboardsLo[WHITE_QUEENSIDE_ROOK_ORIGIN_SQUARE];
+const a1BitboardHi = squareBitboardsHi[WHITE_QUEENSIDE_ROOK_ORIGIN_SQUARE];
+const e1BitboardLo = squareBitboardsLo[WHITE_KING_ORIGIN_SQUARE];
+const e1BitboardHi = squareBitboardsHi[WHITE_KING_ORIGIN_SQUARE];
+const b1BitboardLo = squareBitboardsLo[1];
+const b1BitboardHi = squareBitboardsHi[1];
+const c1BitboardLo =
+  squareBitboardsLo[WHITE_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
+const c1BitboardHi =
+  squareBitboardsHi[WHITE_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
+const d1BitboardLo =
+  squareBitboardsLo[WHITE_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
+const d1BitboardHi =
+  squareBitboardsHi[WHITE_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
+const emptyMaskLo = (b1BitboardLo | c1BitboardLo | d1BitboardLo) >>> 0;
+const emptyMaskHi = (b1BitboardHi | c1BitboardHi | d1BitboardHi) >>> 0;
+
 const whiteQueenCastling = (ctx: MoveGenerationContext): void => {
   const isWhiteQueensideCastlingAllowed =
     (ctx.castlingRights & CASTLING_RIGHTS.WHITE_QUEENSIDE) !== 0;
@@ -33,8 +51,6 @@ const whiteQueenCastling = (ctx: MoveGenerationContext): void => {
     return;
   }
 
-  const a1BitboardLo = squareBitboardsLo[WHITE_QUEENSIDE_ROOK_ORIGIN_SQUARE];
-  const a1BitboardHi = squareBitboardsHi[WHITE_QUEENSIDE_ROOK_ORIGIN_SQUARE];
   const rooksIndex = calculatePieceIndex(COLOR.WHITE, ROOK_INDEX);
   const isRookOnA1 =
     (((a1BitboardLo & ctx.stateLo[rooksIndex]) |
@@ -46,24 +62,6 @@ const whiteQueenCastling = (ctx: MoveGenerationContext): void => {
     return;
   }
 
-  const e1BitboardLo = squareBitboardsLo[WHITE_KING_ORIGIN_SQUARE];
-  const e1BitboardHi = squareBitboardsHi[WHITE_KING_ORIGIN_SQUARE];
-  const b1BitboardLo = squareBitboardsLo[1];
-  const b1BitboardHi = squareBitboardsHi[1];
-  const c1BitboardLo =
-    squareBitboardsLo[WHITE_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
-  const c1BitboardHi =
-    squareBitboardsHi[WHITE_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
-  const d1BitboardLo =
-    squareBitboardsLo[WHITE_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
-  const d1BitboardHi =
-    squareBitboardsHi[WHITE_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
-
-  // The path the king travels is from e1 to c1
-  // The squares in between the rook (a1) and the king (e1) are b1, c1, d1
-  const emptyMaskLo = (b1BitboardLo | c1BitboardLo | d1BitboardLo) >>> 0;
-  const emptyMaskHi = (b1BitboardHi | c1BitboardHi | d1BitboardHi) >>> 0;
-
   const isPathEmpty =
     (((ctx.allOccupancyLo & emptyMaskLo) |
       (ctx.allOccupancyHi & emptyMaskHi)) >>>
@@ -74,7 +72,6 @@ const whiteQueenCastling = (ctx: MoveGenerationContext): void => {
     return;
   }
 
-  const attackScratch: Bitboard32 = { lo: 0, hi: 0 };
   const occupancyOnD1Lo =
     ((ctx.allOccupancyLo & ~e1BitboardLo) | d1BitboardLo) >>> 0;
   const occupancyOnD1Hi =

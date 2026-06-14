@@ -87,8 +87,8 @@ const main = () => {
     console.log(`Running ${testCase.name}`);
 
     for (let depth = 0; depth < maxDepth; depth++) {
-      const perfStart = performance.now();
       const chessEngine = new ChessEngine(testCase.fen);
+      const perfStart = performance.now();
       const perftResult = chessEngine.perft(depth + 1);
       const perfEnd = performance.now();
 

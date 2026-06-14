@@ -24,7 +24,7 @@ import updateSideToMove from "./positionUpdates/updateSideToMove";
 import updateHalfMoveClock from "./positionUpdates/updateHalfMoveClock";
 import updateFullMoveNumber from "./positionUpdates/updateFullMoveNumber";
 import updateCastlingRights from "./positionUpdates/updateCastlingRights";
-import type { Undo } from "../../../types/history";
+import { createUndo, type Undo } from "../../../types/history";
 import getOppositeColor from "../../../helpers/getOppositeColor";
 import {
   moveDecodeCapturedPiece,
@@ -45,23 +45,22 @@ type MakeMoveOptions = {
   updateZobristHash?: boolean;
 };
 
-const makeMove = (
+export const makeMoveWithUndo = (
   position: Position,
   move: number,
+  undo: Undo,
   options: MakeMoveOptions = { updateZobristHash: true },
 ): Undo => {
-  const undo: Undo = {
-    previousColor: position.color,
-    previousCastlingRights: position.castlingRights,
-    previousEnPassantSquare: position.enPassantSquare,
-    previousFullMoveNumber: position.fullMoveNumber,
-    previousHalfMoveClock: position.halfMoveClock,
-    previousKingSquares: new Int8Array(position.kingSquares),
-    previousZobristHash: position.zobristHash,
-
-    capturedPieceStateIndex: null,
-    capturedSquare: null,
-  };
+  undo.previousColor = position.color;
+  undo.previousCastlingRights = position.castlingRights;
+  undo.previousEnPassantSquare = position.enPassantSquare;
+  undo.previousFullMoveNumber = position.fullMoveNumber;
+  undo.previousHalfMoveClock = position.halfMoveClock;
+  undo.previousWhiteKingSquare = position.kingSquares[COLOR.WHITE];
+  undo.previousBlackKingSquare = position.kingSquares[COLOR.BLACK];
+  undo.previousZobristHash = position.zobristHash;
+  undo.capturedPieceStateIndex = null;
+  undo.capturedSquare = null;
 
   position.enPassantSquare = null;
 
@@ -151,6 +150,14 @@ const makeMove = (
   }
 
   return undo;
+};
+
+const makeMove = (
+  position: Position,
+  move: number,
+  options: MakeMoveOptions = { updateZobristHash: true },
+): Undo => {
+  return makeMoveWithUndo(position, move, createUndo(), options);
 };
 
 export default makeMove;
