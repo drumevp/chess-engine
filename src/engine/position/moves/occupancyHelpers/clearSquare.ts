@@ -15,11 +15,6 @@ import { Position } from "../../../types/position";
 
 const clearSquare = (position: Position, square: number): void => {
   const pieceStateIndex = position.pieceAt[square];
-
-  if (pieceStateIndex === -1) {
-    throw new Error(`No piece of square ${square}`);
-  }
-
   const bitLo = squareBitboardsLo[square];
   const bitHi = squareBitboardsHi[square];
 

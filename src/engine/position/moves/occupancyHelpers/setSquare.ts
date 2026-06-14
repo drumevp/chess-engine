@@ -18,10 +18,6 @@ const setSquare = (
   square: number,
   pieceStateIndex: number,
 ): void => {
-  if (position.pieceAt[square] !== -1) {
-    throw new Error(`Square ${square} is not empty`);
-  }
-
   const bitLo = squareBitboardsLo[square];
   const bitHi = squareBitboardsHi[square];
 
