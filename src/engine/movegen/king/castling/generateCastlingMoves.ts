@@ -18,24 +18,27 @@ import blackQueenCastling from "./blackQueensideCastling";
 import whiteKingsideCastling from "./whiteKingsideCastling";
 import whiteQueenCastling from "./whiteQueensideCastling";
 
-const generateCastlingMoves = (ctx: MoveGenerationContext, attackInfo: AttackInfo): void => {
+const generateCastlingMoves = (
+  ctx: MoveGenerationContext,
+  attackInfo: AttackInfo,
+): void => {
   if (attackInfo.checkCount !== 0) {
     return;
   }
 
   // White castling
   if (ctx.color === COLOR.WHITE) {
-    whiteKingsideCastling(ctx, attackInfo);
-    whiteQueenCastling(ctx, attackInfo);
+    whiteKingsideCastling(ctx);
+    whiteQueenCastling(ctx);
 
     return;
   }
 
   // Black castling
-  blackKingsideCastling(ctx, attackInfo);
-  blackQueenCastling(ctx, attackInfo);
+  blackKingsideCastling(ctx);
+  blackQueenCastling(ctx);
 
   return;
-}
+};
 
 export default generateCastlingMoves;

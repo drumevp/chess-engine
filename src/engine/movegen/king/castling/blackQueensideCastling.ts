@@ -1,18 +1,25 @@
-import { squareBitboards } from "../../../tables/importTables";
-import { encodeMove } from "../../../position/moves/packedMove";
-import { addMove } from "../../moveList";
-import { AttackInfo } from "../../../types/attackInfo";
-import { BLACK_KING_ORIGIN_SQUARE, BLACK_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE, BLACK_QUEENSIDE_ROOK_ORIGIN_SQUARE, BLACK_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE, CASTLING_RIGHTS } from "../../../constants/castling";
-import calculatePieceIndex from "../../../helpers/calculatePieceIndex";
-import { KING_INDEX, ROOK_INDEX } from "../../../constants/piece";
-import { MoveGenerationContext } from "../../../types/move";
 import { COLOR } from "../../../constants/color";
+import {
+  BLACK_KING_ORIGIN_SQUARE,
+  BLACK_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE,
+  BLACK_QUEENSIDE_ROOK_ORIGIN_SQUARE,
+  BLACK_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE,
+  CASTLING_RIGHTS,
+} from "../../../constants/castling";
 import { MOVE_FLAG } from "../../../constants/move";
+import { KING_INDEX, ROOK_INDEX } from "../../../constants/piece";
+import calculatePieceIndex from "../../../helpers/calculatePieceIndex";
+import isSquareAttackedWithOccupancy from "../../../helpers/isSquareAttackedWithOccupancy";
+import { encodeMove } from "../../../position/moves/packedMove";
+import {
+  squareBitboardsHi,
+  squareBitboardsLo,
+} from "../../../tables/importTables";
+import { Bitboard32 } from "../../../types/bitboard";
+import { MoveGenerationContext } from "../../../types/move";
+import { addMove } from "../../moveList";
 
-const blackQueenCastling = (
-  ctx: MoveGenerationContext,
-  attackInfo: AttackInfo,
-): void => {
+const blackQueenCastling = (ctx: MoveGenerationContext): void => {
   const isBlackQueensideCastlingAllowed =
     (ctx.castlingRights & CASTLING_RIGHTS.BLACK_QUEENSIDE) !== 0;
 
@@ -26,31 +33,85 @@ const blackQueenCastling = (
     return;
   }
 
-  const a8Bitboard = squareBitboards[BLACK_QUEENSIDE_ROOK_ORIGIN_SQUARE];
-  const rooksBitboard = ctx.state[calculatePieceIndex(COLOR.BLACK, ROOK_INDEX)];
-  const isRookOnA8 = (a8Bitboard & rooksBitboard) !== 0n;
+  const a8BitboardLo = squareBitboardsLo[BLACK_QUEENSIDE_ROOK_ORIGIN_SQUARE];
+  const a8BitboardHi = squareBitboardsHi[BLACK_QUEENSIDE_ROOK_ORIGIN_SQUARE];
+  const rooksIndex = calculatePieceIndex(COLOR.BLACK, ROOK_INDEX);
+  const isRookOnA8 =
+    (((a8BitboardLo & ctx.stateLo[rooksIndex]) |
+      (a8BitboardHi & ctx.stateHi[rooksIndex])) >>>
+      0) !==
+    0;
 
   if (!isRookOnA8) {
     return;
   }
 
-  const c8Bitboard =
-    squareBitboards[BLACK_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
-  const d8Bitboard =
-    squareBitboards[BLACK_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
+  const e8BitboardLo = squareBitboardsLo[BLACK_KING_ORIGIN_SQUARE];
+  const e8BitboardHi = squareBitboardsHi[BLACK_KING_ORIGIN_SQUARE];
+  const b8BitboardLo = squareBitboardsLo[57];
+  const b8BitboardHi = squareBitboardsHi[57];
+  const c8BitboardLo =
+    squareBitboardsLo[BLACK_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
+  const c8BitboardHi =
+    squareBitboardsHi[BLACK_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
+  const d8BitboardLo =
+    squareBitboardsLo[BLACK_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
+  const d8BitboardHi =
+    squareBitboardsHi[BLACK_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE];
 
-  const safeMask = c8Bitboard | d8Bitboard;
-  const emptyMask = squareBitboards[57] | c8Bitboard | d8Bitboard;
+  const emptyMaskLo = (b8BitboardLo | c8BitboardLo | d8BitboardLo) >>> 0;
+  const emptyMaskHi = (b8BitboardHi | c8BitboardHi | d8BitboardHi) >>> 0;
 
-  const isPathEmpty = (ctx.allOccupancy & emptyMask) === 0n;
+  const isPathEmpty =
+    (((ctx.allOccupancyLo & emptyMaskLo) |
+      (ctx.allOccupancyHi & emptyMaskHi)) >>>
+      0) ===
+    0;
 
   if (!isPathEmpty) {
     return;
   }
 
-  const isPathSafe = (attackInfo.enemyAttackedSquares & safeMask) === 0n;
+  const attackScratch: Bitboard32 = { lo: 0, hi: 0 };
+  const occupancyOnD8Lo =
+    ((ctx.allOccupancyLo & ~e8BitboardLo) | d8BitboardLo) >>> 0;
+  const occupancyOnD8Hi =
+    ((ctx.allOccupancyHi & ~e8BitboardHi) | d8BitboardHi) >>> 0;
+  const isD8Safe = !isSquareAttackedWithOccupancy(
+    BLACK_ROOK_QUEENSIDE_CASTLE_DESTINATION_SQUARE,
+    COLOR.WHITE,
+    ctx.stateLo,
+    ctx.stateHi,
+    occupancyOnD8Lo,
+    occupancyOnD8Hi,
+    attackScratch,
+  );
 
-  if (!isPathSafe) {
+  if (!isD8Safe) {
+    return;
+  }
+
+  const finalOccupancyLo =
+    ((ctx.allOccupancyLo & ~e8BitboardLo & ~a8BitboardLo) |
+      c8BitboardLo |
+      d8BitboardLo) >>>
+    0;
+  const finalOccupancyHi =
+    ((ctx.allOccupancyHi & ~e8BitboardHi & ~a8BitboardHi) |
+      c8BitboardHi |
+      d8BitboardHi) >>>
+    0;
+  const isC8Safe = !isSquareAttackedWithOccupancy(
+    BLACK_KING_QUEENSIDE_CASTLE_DESTINATION_SQUARE,
+    COLOR.WHITE,
+    ctx.stateLo,
+    ctx.stateHi,
+    finalOccupancyLo,
+    finalOccupancyHi,
+    attackScratch,
+  );
+
+  if (!isC8Safe) {
     return;
   }
 

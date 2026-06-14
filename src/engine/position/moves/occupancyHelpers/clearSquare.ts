@@ -7,8 +7,10 @@
  * pieceAt
  */
 
-import { FULL_BOARD_MASK } from "../../../constants/mask";
-import { squareBitboards } from "../../../tables/importTables";
+import {
+  squareBitboardsHi,
+  squareBitboardsLo,
+} from "../../../tables/importTables";
 import { Position } from "../../../types/position";
 
 const clearSquare = (position: Position, square: number): void => {
@@ -18,17 +20,26 @@ const clearSquare = (position: Position, square: number): void => {
     throw new Error(`No piece of square ${square}`);
   }
 
-  const bit = squareBitboards[square];
+  const bitLo = squareBitboardsLo[square];
+  const bitHi = squareBitboardsHi[square];
 
-  position.state[pieceStateIndex] &= FULL_BOARD_MASK ^ bit;
+  const clearLo = ~bitLo;
+  const clearHi = ~bitHi;
+
+  position.stateLo[pieceStateIndex] &= clearLo;
+  position.stateHi[pieceStateIndex] &= clearHi;
 
   if (pieceStateIndex < 6) {
-    position.whiteOccupancy = position.whiteOccupancy & (FULL_BOARD_MASK ^ bit);
+    position.whiteOccupancyLo &= clearLo;
+    position.whiteOccupancyHi &= clearHi;
   } else {
-    position.blackOccupancy = position.blackOccupancy & (FULL_BOARD_MASK ^ bit);
+    position.blackOccupancyLo &= clearLo;
+    position.blackOccupancyHi &= clearHi;
   }
 
-  position.allOccupancy = position.allOccupancy & (FULL_BOARD_MASK ^ bit);
+  position.allOccupancyLo &= clearLo;
+  position.allOccupancyHi &= clearHi;
+
   position.pieceAt[square] = -1;
 };
 
