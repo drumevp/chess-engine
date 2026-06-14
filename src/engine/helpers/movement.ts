@@ -1,5 +1,5 @@
 import {NOT_A_B_FILE_MASK, NOT_A_FILE_MASK, NOT_H_FILE_MASK, NOT_H_G_FILE_MASK, NOT_RANK_1_2_MASK, NOT_RANK_1_MASK, NOT_RANK_7_8_MASK, NOT_RANK_8_MASK } from "../constants/mask";
-import { Bitboard } from "../types/bitboard";
+import { Bitboard, Bitboard32 } from "../types/bitboard";
 
 /**
  * One square movement definitions - typically used for king & pawns
@@ -18,6 +18,43 @@ export const N = (bitboard: Bitboard):Bitboard => (bitboard & NOT_RANK_8_MASK) <
 export const NN = (bitboard: Bitboard): Bitboard => (bitboard & NOT_RANK_7_8_MASK) << 16n;
 export const S = (bitboard: Bitboard):Bitboard => (bitboard & NOT_RANK_1_MASK) >> 8n;
 export const SS = (bitboard: Bitboard):Bitboard => (bitboard & NOT_RANK_1_2_MASK) >> 16n;
+
+export const N32 = (
+  bitboardLo: number,
+  bitboardHi: number,
+  out: Bitboard32,
+): void => {
+  out.lo = (bitboardLo << 8) >>> 0;
+  out.hi = ((bitboardHi << 8) | (bitboardLo >>> 24)) >>> 0;
+};
+
+export const NN32 = (
+  bitboardLo: number,
+  bitboardHi: number,
+  out: Bitboard32,
+): void => {
+  out.lo = (bitboardLo << 16) >>> 0;
+  out.hi = ((bitboardHi << 16) | (bitboardLo >>> 16)) >>> 0;
+};
+
+export const S32 = (
+  bitboardLo: number,
+  bitboardHi: number,
+  out: Bitboard32,
+): void => {
+  out.lo = ((bitboardLo >>> 8) | (bitboardHi << 24)) >>> 0;
+  out.hi = bitboardHi >>> 8;
+};
+
+export const SS32 = (
+  bitboardLo: number,
+  bitboardHi: number,
+  out: Bitboard32,
+): void => {
+  out.lo = ((bitboardLo >>> 16) | (bitboardHi << 16)) >>> 0;
+  out.hi = bitboardHi >>> 16;
+};
+
 export const E = (bitboard: Bitboard):Bitboard => (bitboard & NOT_H_FILE_MASK)  << 1n;
 export const W = (bitboard: Bitboard):Bitboard => (bitboard & NOT_A_FILE_MASK) >> 1n;
 export const NE = (bitboard: Bitboard):Bitboard => (bitboard & NOT_H_FILE_MASK & NOT_RANK_8_MASK) << 9n;

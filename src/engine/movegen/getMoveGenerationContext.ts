@@ -10,11 +10,15 @@ const getMoveGenerationContext = (
 
   if (position.color === COLOR.WHITE) {
     ctx = {
-      state: position.state,
+      stateLo: position.stateLo,
+      stateHi: position.stateHi,
+      allOccupancyLo: position.allOccupancyLo,
+      allOccupancyHi: position.allOccupancyHi,
+      ownOccupancyLo: position.whiteOccupancyLo,
+      ownOccupancyHi: position.whiteOccupancyHi,
+      enemyOccupancyLo: position.blackOccupancyLo,
+      enemyOccupancyHi: position.blackOccupancyHi,
       color: position.color,
-      ownOccupancy: position.whiteOccupancy,
-      enemyOccupancy: position.blackOccupancy,
-      allOccupancy: position.allOccupancy,
       ownKingSquare: position.kingSquares[COLOR.WHITE],
       enemyKingSquare: position.kingSquares[COLOR.BLACK],
       pieceAt: position.pieceAt,
@@ -24,11 +28,15 @@ const getMoveGenerationContext = (
     };
   } else {
     ctx = {
-      state: position.state,
+      stateLo: position.stateLo,
+      stateHi: position.stateHi,
+      allOccupancyLo: position.allOccupancyLo,
+      allOccupancyHi: position.allOccupancyHi,
+      ownOccupancyLo: position.blackOccupancyLo,
+      ownOccupancyHi: position.blackOccupancyHi,
+      enemyOccupancyLo: position.whiteOccupancyLo,
+      enemyOccupancyHi: position.whiteOccupancyHi,
       color: position.color,
-      ownOccupancy: position.blackOccupancy,
-      enemyOccupancy: position.whiteOccupancy,
-      allOccupancy: position.allOccupancy,
       ownKingSquare: position.kingSquares[COLOR.BLACK],
       enemyKingSquare: position.kingSquares[COLOR.WHITE],
       pieceAt: position.pieceAt,

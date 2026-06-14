@@ -1,32 +1,45 @@
 import getOppositeColor from "../../helpers/getOppositeColor";
-import { squareBitboards } from "../../tables/importTables";
 import { encodeMove } from "../../position/moves/packedMove";
 import { addMove } from "../moveList";
 import calculatePieceIndex from "../../helpers/calculatePieceIndex";
 import { PAWN_INDEX } from "../../constants/piece";
-import { Bitboard } from "../../types/bitboard";
 import { MoveGenerationContext } from "../../types/move";
 import { COLOR } from "../../constants/color";
 import { MOVE_FLAG } from "../../constants/move";
 import isOwnKingSafeAfterEnPassant from "./isOwnKingSafeAfterEnPassant";
+import {
+  squareBitboardsHi,
+  squareBitboardsLo,
+} from "../../tables/importTables";
+import { Bitboard32 } from "../../types/bitboard";
 
 const generateEnPassantMove = (
   ctx: MoveGenerationContext,
-  checkMask: Bitboard,
-  checkers: Bitboard,
+  checkMaskLo: number,
+  checkMaskHi: number,
+  checkersLo: number,
+  checkersHi: number,
   checkCount: number,
-  attackTargets: Bitboard,
+  attackTargetsLo: number,
+  attackTargetsHi: number,
   pawnOriginSquare: number,
+  originSquareBitboardLo: number,
+  originSquareBitboardHi: number,
+  out: Bitboard32,
 ): void => {
-  const originSquareBitboard = squareBitboards[pawnOriginSquare];
-
   if (ctx.enPassantSquare === null) {
     return;
   }
 
-  const enPassantBitboard = squareBitboards[ctx.enPassantSquare];
+  const enPassantBitboardLo = squareBitboardsLo[ctx.enPassantSquare];
+  const enPassantBitboardHi = squareBitboardsHi[ctx.enPassantSquare];
 
-  if ((attackTargets & enPassantBitboard) === 0n) {
+  if (
+    ((attackTargetsLo & enPassantBitboardLo) |
+      (attackTargetsHi & enPassantBitboardHi)) >>>
+      0 ===
+    0
+  ) {
     return;
   }
 
@@ -34,15 +47,25 @@ const generateEnPassantMove = (
     ctx.color === COLOR.WHITE
       ? ctx.enPassantSquare - 8
       : ctx.enPassantSquare + 8;
-  const targetEnPassantPawnBitboard =
-    squareBitboards[targetEnPassantPawnSquare];
+
+  const targetEnPassantPawnBitboardLo =
+    squareBitboardsLo[targetEnPassantPawnSquare];
+
+  const targetEnPassantPawnBitboardHi =
+    squareBitboardsHi[targetEnPassantPawnSquare];
 
   if (checkCount === 1) {
     const isCapturedPawnChecker =
-      (checkers & targetEnPassantPawnBitboard) !== 0n;
+      ((checkersLo & targetEnPassantPawnBitboardLo) |
+        (checkersHi & targetEnPassantPawnBitboardHi)) >>>
+        0 !==
+      0;
 
     const enPassantTargetBlocksSliderCheck =
-      (checkMask & enPassantBitboard) !== 0n;
+      ((checkMaskLo & enPassantBitboardLo) |
+        (checkMaskHi & enPassantBitboardHi)) >>>
+        0 !==
+      0;
 
     if (!isCapturedPawnChecker && !enPassantTargetBlocksSliderCheck) {
       return;
@@ -60,13 +83,19 @@ const generateEnPassantMove = (
   }
 
   const isEnPassantMoveLegal = isOwnKingSafeAfterEnPassant(
-    ctx.allOccupancy,
-    ctx.state,
-    originSquareBitboard,
-    targetEnPassantPawnBitboard,
-    enPassantBitboard,
+    ctx.allOccupancyLo,
+    ctx.allOccupancyHi,
+    ctx.stateLo,
+    ctx.stateHi,
+    originSquareBitboardLo,
+    originSquareBitboardHi,
+    targetEnPassantPawnBitboardLo,
+    targetEnPassantPawnBitboardHi,
+    enPassantBitboardLo,
+    enPassantBitboardHi,
     ctx.ownKingSquare,
     enemyColor,
+    out,
   );
 
   if (!isEnPassantMoveLegal) {

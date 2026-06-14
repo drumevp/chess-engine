@@ -14,54 +14,89 @@
 
 import generateBlackPawnAttacks from "../../attacks/blackPawn";
 import generateWhitePawnAttacks from "../../attacks/whitePawn";
-import { FULL_BOARD_MASK } from "../../constants/mask";
 import forEachBitGetSquare from "../../helpers/forEachBitGetSquare";
 import getPieceTypeFromStateIndex from "../../helpers/getPieceTypeFromStateIndex";
 import { getCurrentRank } from "../../helpers/main";
 import {
-  squareBitboards,
-  squareIndexByBitboard,
-} from "../../tables/importTables";
-import { ENCODE_MOVE_NO_PIECE, encodeMove } from "../../position/moves/packedMove";
+  ENCODE_MOVE_NO_PIECE,
+  encodeMove,
+} from "../../position/moves/packedMove";
 import { addMove } from "../moveList";
 import generateEnPassantMove from "./generateEnPassantMove";
 import { AttackInfo } from "../../types/attackInfo";
 import calculatePieceIndex from "../../helpers/calculatePieceIndex";
-import { BISHOP_INDEX, KNIGHT_INDEX, PAWN_INDEX, QUEEN_INDEX, ROOK_INDEX } from "../../constants/piece";
+import {
+  BISHOP_INDEX,
+  KNIGHT_INDEX,
+  PAWN_INDEX,
+  QUEEN_INDEX,
+  ROOK_INDEX,
+} from "../../constants/piece";
 import { PAWN_CONFIG } from "../../constants/pawnConfig";
 import { MoveGenerationContext } from "../../types/move";
 import { MOVE_FLAG } from "../../constants/move";
 import { COLOR } from "../../constants/color";
+import {
+  squareBitboardsHi,
+  squareBitboardsLo,
+} from "../../tables/importTables";
+import { Bitboard32 } from "../../types/bitboard";
+import getSingleBitSquare from "../../helpers/getSingleBitSquare";
 
 const generatePawnMoves = (
   ctx: MoveGenerationContext,
   attackInfo: AttackInfo,
 ): void => {
-  const pawns = ctx.state[calculatePieceIndex(ctx.color, PAWN_INDEX)];
-  const pawnConfig = PAWN_CONFIG[ctx.color];
-  const emptySquares = ~ctx.allOccupancy & FULL_BOARD_MASK;
+  const pawnsLo = ctx.stateLo[calculatePieceIndex(ctx.color, PAWN_INDEX)];
+  const pawnsHi = ctx.stateHi[calculatePieceIndex(ctx.color, PAWN_INDEX)];
 
-  forEachBitGetSquare(pawns, (originSquare) => {
+  const pawnConfig = PAWN_CONFIG[ctx.color];
+  const emptySquaresLo = ~ctx.allOccupancyLo >>> 0;
+  const emptySquaresHi = ~ctx.allOccupancyHi >>> 0;
+
+  const bitboardScratch: Bitboard32 = { lo: 0, hi: 0 };
+  const enPassantScratch: Bitboard32 = { lo: 0, hi: 0 };
+  const attacksFn =
+    ctx.color === COLOR.WHITE ? generateWhitePawnAttacks : generateBlackPawnAttacks;
+
+  forEachBitGetSquare(pawnsLo, pawnsHi, (originSquare) => {
     /**
      * MOVEMENT
      */
-    const originSquareBitboard = squareBitboards[originSquare];
-    const currentRank = getCurrentRank(originSquare);
-    const oneMoveForwardBitboard =
-      pawnConfig.moveForwardOneSquareFn(originSquareBitboard);
-    const oneMoveForwardSquareIsEmpty =
-      (oneMoveForwardBitboard & emptySquares) !== 0n;
-    const oneMoveForwardSquareIsInsideCheckmask =
-      oneMoveForwardBitboard & attackInfo.checkMask;
+    const originSquareBitboardLo = squareBitboardsLo[originSquare];
+    const originSquareBitboardHi = squareBitboardsHi[originSquare];
 
-    const isPinned = (attackInfo.pinnedPieces & originSquareBitboard) !== 0n;
-    const pinRayFromOriginSquare = attackInfo.pinRaysBySquare[originSquare];
+    const currentRank = getCurrentRank(originSquare);
+
+    pawnConfig.moveForwardOneSquareFn(
+      originSquareBitboardLo,
+      originSquareBitboardHi,
+      bitboardScratch,
+    );
+
+    const oneMoveForwardSquareIsEmpty =
+      (bitboardScratch.lo & emptySquaresLo) >>> 0 !== 0 ||
+      (bitboardScratch.hi & emptySquaresHi) >>> 0 !== 0;
+
+    const oneMoveForwardSquareIsInsideCheckmask =
+      (bitboardScratch.lo & attackInfo.checkMaskLo) >>> 0 !== 0 ||
+      (bitboardScratch.hi & attackInfo.checkMaskHi) >>> 0 !== 0;
+
+    const isPinned =
+      (attackInfo.pinnedPiecesLo & originSquareBitboardLo) >>> 0 !== 0 ||
+      (attackInfo.pinnedPiecesHi & originSquareBitboardHi) >>> 0 !== 0;
+
+    const pinRayFromOriginSquareLo = attackInfo.pinRaysBySquareLo[originSquare];
+    const pinRayFromOriginSquareHi = attackInfo.pinRaysBySquareHi[originSquare];
 
     let isPinPreventingOneMoveForward: boolean = false;
 
     if (isPinned) {
       isPinPreventingOneMoveForward =
-        (oneMoveForwardBitboard & pinRayFromOriginSquare) === 0n;
+        ((bitboardScratch.lo & pinRayFromOriginSquareLo) |
+          (bitboardScratch.hi & pinRayFromOriginSquareHi)) >>>
+          0 ===
+        0;
     }
 
     // ONE SQUARE
@@ -70,7 +105,10 @@ const generatePawnMoves = (
       oneMoveForwardSquareIsInsideCheckmask &&
       !isPinPreventingOneMoveForward
     ) {
-      const targetSquare = squareIndexByBitboard.get(oneMoveForwardBitboard);
+      const targetSquare = getSingleBitSquare(
+        bitboardScratch.lo,
+        bitboardScratch.hi,
+      );
 
       if (targetSquare === undefined) {
         throw new Error("Invalid bitboard");
@@ -112,18 +150,29 @@ const generatePawnMoves = (
 
     // TWO SQUARES
     if (currentRank === pawnConfig.originRank) {
-      const twoMovesForwardBitboard =
-        pawnConfig.moveForwardTwoSquaresFn(originSquareBitboard);
+      // bitboardScratch = twoMovesForwardBitboard
+      pawnConfig.moveForwardTwoSquaresFn(
+        originSquareBitboardLo,
+        originSquareBitboardHi,
+        bitboardScratch,
+      );
+
       const twoMovesForwardSquareIsEmpty =
-        (twoMovesForwardBitboard & emptySquares) !== 0n;
+        (bitboardScratch.lo & emptySquaresLo) >>> 0 !== 0 ||
+        (bitboardScratch.hi & emptySquaresHi) >>> 0 !== 0;
+
       const twoMovesForwardSquareIsInsideCheckmask =
-        twoMovesForwardBitboard & attackInfo.checkMask;
+        (bitboardScratch.lo & attackInfo.checkMaskLo) >>> 0 !== 0 ||
+        (bitboardScratch.hi & attackInfo.checkMaskHi) >>> 0 !== 0;
 
       let isPinPreventingTwoMovesForward: boolean = false;
 
       if (isPinned) {
         isPinPreventingTwoMovesForward =
-          (twoMovesForwardBitboard & pinRayFromOriginSquare) === 0n;
+          ((bitboardScratch.lo & pinRayFromOriginSquareLo) |
+            (bitboardScratch.hi & pinRayFromOriginSquareHi)) >>>
+            0 ===
+          0;
       }
 
       if (
@@ -133,7 +182,10 @@ const generatePawnMoves = (
         !isPinPreventingOneMoveForward &&
         !isPinPreventingTwoMovesForward
       ) {
-        const targetSquare = squareIndexByBitboard.get(twoMovesForwardBitboard);
+        const targetSquare = getSingleBitSquare(
+          bitboardScratch.lo,
+          bitboardScratch.hi,
+        );
 
         if (targetSquare === undefined) {
           throw new Error("Invalid bitboard");
@@ -155,14 +207,17 @@ const generatePawnMoves = (
     /**
      * ATTACKS
      */
-    const attacksFn =
-      ctx.color === COLOR.WHITE
-        ? generateWhitePawnAttacks
-        : generateBlackPawnAttacks;
-    let targets = attacksFn(originSquare, ctx.allOccupancy);
+    // bitboardScratch = targets
+    attacksFn(
+      originSquare,
+      ctx.allOccupancyLo,
+      ctx.allOccupancyHi,
+      bitboardScratch,
+    );
 
     if (isPinned) {
-      targets = targets & pinRayFromOriginSquare;
+      bitboardScratch.lo &= pinRayFromOriginSquareLo;
+      bitboardScratch.hi &= pinRayFromOriginSquareHi;
     }
 
     /**
@@ -170,56 +225,69 @@ const generatePawnMoves = (
      */
     generateEnPassantMove(
       ctx,
-      attackInfo.checkMask,
-      attackInfo.checkers,
+      attackInfo.checkMaskLo,
+      attackInfo.checkMaskHi,
+      attackInfo.checkersLo,
+      attackInfo.checkersHi,
       attackInfo.checkCount,
-      targets,
+      bitboardScratch.lo,
+      bitboardScratch.hi,
       originSquare,
+      originSquareBitboardLo,
+      originSquareBitboardHi,
+      enPassantScratch,
     );
 
-    targets = targets & attackInfo.checkMask;
-    targets = targets & ctx.enemyOccupancy;
+    bitboardScratch.lo &= attackInfo.checkMaskLo;
+    bitboardScratch.hi &= attackInfo.checkMaskHi;
 
-    forEachBitGetSquare(targets, (targetSquare) => {
-      const capturedPiece = ctx.pieceAt[targetSquare];
+    bitboardScratch.lo &= ctx.enemyOccupancyLo;
+    bitboardScratch.hi &= ctx.enemyOccupancyHi;
 
-      if (capturedPiece === -1) {
-        throw new Error("Invalid captured piece");
-      }
+    forEachBitGetSquare(
+      bitboardScratch.lo,
+      bitboardScratch.hi,
+      (targetSquare) => {
+        const capturedPiece = ctx.pieceAt[targetSquare];
 
-      const targetSquareRank = getCurrentRank(targetSquare);
+        if (capturedPiece === -1) {
+          throw new Error("Invalid captured piece");
+        }
 
-      if (targetSquareRank === pawnConfig.promotionRank) {
-        [KNIGHT_INDEX, QUEEN_INDEX, ROOK_INDEX, BISHOP_INDEX].forEach(
-          (promotionPieceIndex) => {
-            addMove(
-              ctx.moves,
-              encodeMove(
-                originSquare,
-                targetSquare,
-                ctx.color,
-                PAWN_INDEX,
-                MOVE_FLAG.PROMOTION_CAPTURE,
-                getPieceTypeFromStateIndex(capturedPiece),
-                promotionPieceIndex,
-              ),
-            );
-          },
-        );
-      } else {
-        addMove(
-          ctx.moves,
-          encodeMove(
-            originSquare,
-            targetSquare,
-            ctx.color,
-            PAWN_INDEX,
-            MOVE_FLAG.CAPTURE,
-            getPieceTypeFromStateIndex(capturedPiece),
-          ),
-        );
-      }
-    });
+        const targetSquareRank = getCurrentRank(targetSquare);
+
+        if (targetSquareRank === pawnConfig.promotionRank) {
+          [KNIGHT_INDEX, QUEEN_INDEX, ROOK_INDEX, BISHOP_INDEX].forEach(
+            (promotionPieceIndex) => {
+              addMove(
+                ctx.moves,
+                encodeMove(
+                  originSquare,
+                  targetSquare,
+                  ctx.color,
+                  PAWN_INDEX,
+                  MOVE_FLAG.PROMOTION_CAPTURE,
+                  getPieceTypeFromStateIndex(capturedPiece),
+                  promotionPieceIndex,
+                ),
+              );
+            },
+          );
+        } else {
+          addMove(
+            ctx.moves,
+            encodeMove(
+              originSquare,
+              targetSquare,
+              ctx.color,
+              PAWN_INDEX,
+              MOVE_FLAG.CAPTURE,
+              getPieceTypeFromStateIndex(capturedPiece),
+            ),
+          );
+        }
+      },
+    );
   });
 };
 

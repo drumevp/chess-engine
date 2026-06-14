@@ -5,10 +5,8 @@
  * We differentiate between capture targets and quiet moves for move highlighting
  */
 
-import { FULL_BOARD_MASK } from "../constants/mask";
 import forEachBitGetSquare from "../helpers/forEachBitGetSquare";
 import getPieceTypeFromStateIndex from "../helpers/getPieceTypeFromStateIndex";
-import { squareBitboards } from "../tables/importTables";
 import { encodeMove } from "../position/moves/packedMove";
 import { addMove } from "./moveList";
 import { GenerateAttacksFn } from "../types/attacks";
@@ -16,6 +14,8 @@ import { AttackInfo } from "../types/attackInfo";
 import calculatePieceIndex from "../helpers/calculatePieceIndex";
 import { MoveGenerationContext } from "../types/move";
 import { MOVE_FLAG } from "../constants/move";
+import { Bitboard32 } from "../types/bitboard";
+import { squareBitboardsHi, squareBitboardsLo } from "../tables/importTables";
 
 const generateMove = (
   ctx: MoveGenerationContext,
@@ -23,48 +23,70 @@ const generateMove = (
   pieceIndex: number,
   generateAttacksFn: GenerateAttacksFn,
 ): void => {
-  const emptySquares = ~ctx.allOccupancy & FULL_BOARD_MASK;
+  const emptySquaresLo = ~ctx.allOccupancyLo >>> 0;
+  const emptySquaresHi = ~ctx.allOccupancyHi >>> 0;
 
-  const pieces = ctx.state[calculatePieceIndex(ctx.color, pieceIndex)];
+  const stateIndex = calculatePieceIndex(ctx.color, pieceIndex);
+  const piecesLo = ctx.stateLo[stateIndex];
+  const piecesHi = ctx.stateHi[stateIndex];
 
-  forEachBitGetSquare(pieces, (originSquare) => {
-    const attacks = generateAttacksFn(originSquare, ctx.allOccupancy);
-    const pseudoTargets = attacks & ~ctx.ownOccupancy;
-    let targets = pseudoTargets & attackInfo.checkMask;
+  const attackScratch: Bitboard32 = { lo: 0, hi: 0 };
 
-    // Get whether this piece is pinned
+  forEachBitGetSquare(piecesLo, piecesHi, (originSquare) => {
+    generateAttacksFn(
+      originSquare,
+      ctx.allOccupancyLo,
+      ctx.allOccupancyHi,
+      attackScratch,
+    );
+
+    const pseudoTargetsLo = (attackScratch.lo & ~ctx.ownOccupancyLo) >>> 0;
+    const pseudoTargetsHi = (attackScratch.hi & ~ctx.ownOccupancyHi) >>> 0;
+
+    let targetsLo = (pseudoTargetsLo & attackInfo.checkMaskLo) >>> 0;
+    let targetsHi = (pseudoTargetsHi & attackInfo.checkMaskHi) >>> 0;
+
     const isPinned =
-      (attackInfo.pinnedPieces & squareBitboards[originSquare]) !== 0n;
+      ((attackInfo.pinnedPiecesLo & squareBitboardsLo[originSquare]) |
+        (attackInfo.pinnedPiecesHi & squareBitboardsHi[originSquare])) !==
+      0;
 
-    // If pinned, limit the moves to moves that resolve check
     if (isPinned) {
-      targets = targets & attackInfo.pinRaysBySquare[originSquare];
+      targetsLo = (targetsLo & attackInfo.pinRaysBySquareLo[originSquare]) >>> 0;
+      targetsHi = (targetsHi & attackInfo.pinRaysBySquareHi[originSquare]) >>> 0;
     }
 
-    const captureTargets = targets & ctx.enemyOccupancy;
-    const quietTargets = targets & emptySquares;
+    const captureTargetsLo = (targetsLo & ctx.enemyOccupancyLo) >>> 0;
+    const captureTargetsHi = (targetsHi & ctx.enemyOccupancyHi) >>> 0;
 
-    forEachBitGetSquare(captureTargets, (captureTargetSquare) => {
-      const capturedPiece = ctx.pieceAt[captureTargetSquare];
+    const quietTargetsLo = (targetsLo & emptySquaresLo) >>> 0;
+    const quietTargetsHi = (targetsHi & emptySquaresHi) >>> 0;
 
-      if (capturedPiece === -1) {
-        throw new Error("Invalid captured piece");
-      }
+    forEachBitGetSquare(
+      captureTargetsLo,
+      captureTargetsHi,
+      (captureTargetSquare) => {
+        const capturedPiece = ctx.pieceAt[captureTargetSquare];
 
-      addMove(
-        ctx.moves,
-        encodeMove(
-          originSquare,
-          captureTargetSquare,
-          ctx.color,
-          pieceIndex,
-          MOVE_FLAG.CAPTURE,
-          getPieceTypeFromStateIndex(capturedPiece),
-        ),
-      );
-    });
+        if (capturedPiece === -1) {
+          throw new Error("Invalid captured piece");
+        }
 
-    forEachBitGetSquare(quietTargets, (quietTargetSquare) => {
+        addMove(
+          ctx.moves,
+          encodeMove(
+            originSquare,
+            captureTargetSquare,
+            ctx.color,
+            pieceIndex,
+            MOVE_FLAG.CAPTURE,
+            getPieceTypeFromStateIndex(capturedPiece),
+          ),
+        );
+      },
+    );
+
+    forEachBitGetSquare(quietTargetsLo, quietTargetsHi, (quietTargetSquare) => {
       addMove(
         ctx.moves,
         encodeMove(

@@ -36,18 +36,18 @@ const getPins = (ctx: MoveGenerationContext, attackInfo: AttackInfo): void => {
   // Get slider candidates
   const enemyColor = getOppositeColor(ctx.color);
 
-  const enemyRooksLo = ctx.stateLo[calculatePieceIndex(enemyColor, ROOK_INDEX)];
-  const enemyRooksHi = ctx.stateHi[calculatePieceIndex(enemyColor, ROOK_INDEX)];
+  const rookIndex = calculatePieceIndex(enemyColor, ROOK_INDEX);
+  const bishopIndex = calculatePieceIndex(enemyColor, BISHOP_INDEX);
+  const queenIndex = calculatePieceIndex(enemyColor, QUEEN_INDEX);
 
-  const enemyBishopsLo =
-    ctx.stateLo[calculatePieceIndex(enemyColor, BISHOP_INDEX)];
-  const enemyBishopsHi =
-    ctx.stateHi[calculatePieceIndex(enemyColor, BISHOP_INDEX)];
+  const enemyRooksLo = ctx.stateLo[rookIndex];
+  const enemyRooksHi = ctx.stateHi[rookIndex];
 
-  const enemyQueensLo =
-    ctx.stateLo[calculatePieceIndex(enemyColor, QUEEN_INDEX)];
-  const enemyQueensHi =
-    ctx.stateHi[calculatePieceIndex(enemyColor, QUEEN_INDEX)];
+  const enemyBishopsLo = ctx.stateLo[bishopIndex];
+  const enemyBishopsHi = ctx.stateHi[bishopIndex];
+
+  const enemyQueensLo = ctx.stateLo[queenIndex];
+  const enemyQueensHi = ctx.stateHi[queenIndex];
 
   generateRookAttacks(ctx.ownKingSquare, 0, 0, rookAttackScratch);
 
