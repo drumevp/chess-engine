@@ -94,23 +94,31 @@ const isSquareAttackedWithOccupancy = (
   const rooksOrQueensHi = stateHi[rooksIndex] | stateHi[queensIndex];
 
   if ((rooksOrQueensLo | rooksOrQueensHi) !== 0) {
-    const rookBlockersLo = occupancyLo & rookRelevantBlockerMasksLo[square];
-    const rookBlockersHi = occupancyHi & rookRelevantBlockerMasksHi[square];
-    const rookMagicIndex = calculateMagicIndex(
-      rookBlockersLo,
-      rookBlockersHi,
-      rookMagicNumbersLo[square],
-      rookMagicNumbersHi[square],
-      rookShifts[square],
-    );
-    const rookTableIndex = rookMagicAttackOffsets[square] + rookMagicIndex;
+    const emptyRookTableIndex = rookMagicAttackOffsets[square];
 
     if (
-      ((rookMagicAttacksLo[rookTableIndex] & rooksOrQueensLo) |
-        (rookMagicAttacksHi[rookTableIndex] & rooksOrQueensHi)) !==
+      ((rookMagicAttacksLo[emptyRookTableIndex] & rooksOrQueensLo) |
+        (rookMagicAttacksHi[emptyRookTableIndex] & rooksOrQueensHi)) !==
       0
     ) {
-      return true;
+      const rookBlockersLo = occupancyLo & rookRelevantBlockerMasksLo[square];
+      const rookBlockersHi = occupancyHi & rookRelevantBlockerMasksHi[square];
+      const rookMagicIndex = calculateMagicIndex(
+        rookBlockersLo,
+        rookBlockersHi,
+        rookMagicNumbersLo[square],
+        rookMagicNumbersHi[square],
+        rookShifts[square],
+      );
+      const rookTableIndex = rookMagicAttackOffsets[square] + rookMagicIndex;
+
+      if (
+        ((rookMagicAttacksLo[rookTableIndex] & rooksOrQueensLo) |
+          (rookMagicAttacksHi[rookTableIndex] & rooksOrQueensHi)) !==
+        0
+      ) {
+        return true;
+      }
     }
   }
 
@@ -118,6 +126,16 @@ const isSquareAttackedWithOccupancy = (
   const bishopsOrQueensHi = stateHi[bishopsIndex] | stateHi[queensIndex];
 
   if ((bishopsOrQueensLo | bishopsOrQueensHi) === 0) {
+    return false;
+  }
+
+  const emptyBishopTableIndex = bishopMagicAttackOffsets[square];
+
+  if (
+    ((bishopMagicAttacksLo[emptyBishopTableIndex] & bishopsOrQueensLo) |
+      (bishopMagicAttacksHi[emptyBishopTableIndex] & bishopsOrQueensHi)) ===
+    0
+  ) {
     return false;
   }
 
