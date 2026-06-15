@@ -1,6 +1,12 @@
 # Chess movegen ts
 
-A bitboard legal move generator implementation in Typescript. I started this project to learn about bitboards and how to perform bitwise operations. The goal was to achieve decent performance while maintaining full legality. I initially implemented it with `bigint`s, but after some extensive reading and performance tests I pivoted to using 2x32bit values to represent the 64bit values. This makes the codebase a bit uglier and chunkier, but a lot more performant. The original `bigint` implementation is available in the `bitboards-bigint` branch.
+A bitboard legal move generator implementation in Typescript. I started this project to learn about bitboards and how to perform bitwise operations. The goal was to achieve decent performance while maintaining full legality.
+
+# Branches
+
+- `bitboard-bigint`: This was my original implementation. Representing every bitboard as a 64bit value as a bigint. This is the cleanest implementation, but the least performant. Kiwipete depth 5 is `10.07M nps`.
+- `bitboard-32bit`: I rewrote the bigint engine to use 2x32bit values to represent the 64bit values. The calculations in javascript are much faster this way. The only downside is the codebase is larger and harder to read. Kiwipete depth 5 is `40.96M nps`.
+- `master`: This is basically just the `bitboard-32bit` branch, but a lot of the code is inlined, rather than using helper functions. This makes it very ugly to read. I go into more detail here in the Performance section below. Kiwipete depth 5 is `104.21M nps`.
 
 # Usage
 
@@ -8,7 +14,7 @@ I am using `node -v` = `v26.1.0`
 
 - `npm install` for dev dependencies. This library doesn't rely on any other dependencies.
 - `npm run build`. The perft script points at the generated `dist/index.cjs` file.
-- To test perft depth 5 on 5 position from `https://www.chessprogramming.org/Perft_Results`, run `test-perft:deep`. For depth 4 it is `test-perft`.
+- I got the node counts and position FEN strings from `https://www.chessprogramming.org/Perft_Results`. To test depth 5 run `test-perft:deep`. For depth 4 it is `test-perft`.
 
 # Features
 
