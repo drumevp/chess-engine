@@ -18,6 +18,8 @@ import { AttackInfo } from "../types/attackInfo";
 import { createUndo, Undo } from "../types/history";
 import { makeMoveWithUndo } from "../position/moves/makeMove/makeMove";
 
+const SKIP_ZOBRIST_HASH = { updateZobristHash: false };
+
 const perftRecursive = (
   position: Position,
   depth: number,
@@ -46,7 +48,7 @@ const perftRecursive = (
     const move = moveList.moves[i];
     const undo = undoStack[ply];
 
-    makeMoveWithUndo(position, move, undo, { updateZobristHash: false });
+    makeMoveWithUndo(position, move, undo, SKIP_ZOBRIST_HASH);
     nodes += perftRecursive(
       position,
       depth - 1,
