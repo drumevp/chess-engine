@@ -1,6 +1,5 @@
 import getOppositeColor from "../../helpers/getOppositeColor";
-import { encodeMove } from "../../position/moves/packedMove";
-import { addMove } from "../moveList";
+import { ENCODE_MOVE_NO_PIECE } from "../../position/moves/packedMove";
 import calculatePieceIndex from "../../helpers/calculatePieceIndex";
 import { PAWN_INDEX } from "../../constants/piece";
 import { MoveGenerationContext } from "../../types/move";
@@ -27,12 +26,14 @@ const generateEnPassantMove = (
   originSquareBitboardHi: number,
   out: Bitboard32,
 ): void => {
-  if (ctx.enPassantSquare === null) {
+  const enPassantSquare = ctx.enPassantSquare;
+
+  if (enPassantSquare === null) {
     return;
   }
 
-  const enPassantBitboardLo = squareBitboardsLo[ctx.enPassantSquare];
-  const enPassantBitboardHi = squareBitboardsHi[ctx.enPassantSquare];
+  const enPassantBitboardLo = squareBitboardsLo[enPassantSquare];
+  const enPassantBitboardHi = squareBitboardsHi[enPassantSquare];
 
   if (
     ((attackTargetsLo & enPassantBitboardLo) |
@@ -45,8 +46,8 @@ const generateEnPassantMove = (
 
   const targetEnPassantPawnSquare =
     ctx.color === COLOR.WHITE
-      ? ctx.enPassantSquare - 8
-      : ctx.enPassantSquare + 8;
+      ? enPassantSquare - 8
+      : enPassantSquare + 8;
 
   const targetEnPassantPawnBitboardLo =
     squareBitboardsLo[targetEnPassantPawnSquare];
@@ -102,17 +103,14 @@ const generateEnPassantMove = (
     return;
   }
 
-  addMove(
-    ctx.moves,
-    encodeMove(
-      pawnOriginSquare,
-      ctx.enPassantSquare,
-      ctx.color,
-      PAWN_INDEX,
-      MOVE_FLAG.EN_PASSANT,
-      PAWN_INDEX,
-    ),
-  );
+  ctx.moves.moves[ctx.moves.count++] =
+    pawnOriginSquare |
+    (enPassantSquare << 6) |
+    (ctx.color << 12) |
+    (PAWN_INDEX << 13) |
+    (PAWN_INDEX << 16) |
+    (ENCODE_MOVE_NO_PIECE << 19) |
+    (MOVE_FLAG.EN_PASSANT << 22);
 };
 
 export default generateEnPassantMove;

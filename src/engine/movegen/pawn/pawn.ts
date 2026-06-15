@@ -63,6 +63,7 @@ const generatePawnMoves = (
     (MOVE_FLAG.PROMOTION << 22);
   const promotionCaptureMoveBits =
     colorAndPawnBits | (MOVE_FLAG.PROMOTION_CAPTURE << 22);
+  const hasEnPassant = ctx.enPassantSquare !== null;
   const moveList = ctx.moves;
   const moves = moveList.moves;
   let moveCount = moveList.count;
@@ -85,24 +86,18 @@ const generatePawnMoves = (
           (oneMoveForwardHi & ctx.allOccupancyHi)) ===
         0;
 
-      const oneMoveForwardSquareIsInsideCheckmask =
-        ((oneMoveForwardLo & attackInfo.checkMaskLo) |
-          (oneMoveForwardHi & attackInfo.checkMaskHi)) !==
-        0;
-
       const isPinned =
         ((attackInfo.pinnedPiecesLo & originSquareBitboardLo) |
           (attackInfo.pinnedPiecesHi & originSquareBitboardHi)) !==
         0;
 
-      const pinRayFromOriginSquareLo =
-        attackInfo.pinRaysBySquareLo[originSquare];
-      const pinRayFromOriginSquareHi =
-        attackInfo.pinRaysBySquareHi[originSquare];
-
       let isPinPreventingOneMoveForward = false;
+      let pinRayFromOriginSquareLo = 0;
+      let pinRayFromOriginSquareHi = 0;
 
       if (isPinned) {
+        pinRayFromOriginSquareLo = attackInfo.pinRaysBySquareLo[originSquare];
+        pinRayFromOriginSquareHi = attackInfo.pinRaysBySquareHi[originSquare];
         isPinPreventingOneMoveForward =
           ((oneMoveForwardLo & pinRayFromOriginSquareLo) |
             (oneMoveForwardHi & pinRayFromOriginSquareHi)) ===
@@ -111,8 +106,10 @@ const generatePawnMoves = (
 
       if (
         oneMoveForwardSquareIsEmpty &&
-        oneMoveForwardSquareIsInsideCheckmask &&
-        !isPinPreventingOneMoveForward
+        !isPinPreventingOneMoveForward &&
+        ((oneMoveForwardLo & attackInfo.checkMaskLo) |
+          (oneMoveForwardHi & attackInfo.checkMaskHi)) !==
+          0
       ) {
         if ((oneMoveForwardSquare >> 3) === promotionRank) {
           for (let i = 0; i < PROMOTION_PIECES.length; i++) {
@@ -128,7 +125,11 @@ const generatePawnMoves = (
         }
       }
 
-      if (currentRank === originRank) {
+      if (
+        currentRank === originRank &&
+        oneMoveForwardSquareIsEmpty &&
+        !isPinPreventingOneMoveForward
+      ) {
         const twoMovesForwardSquare = originSquare + doublePushOffset;
         const twoMovesForwardLo = squareBitboardsLo[twoMovesForwardSquare];
         const twoMovesForwardHi = squareBitboardsHi[twoMovesForwardSquare];
@@ -153,10 +154,8 @@ const generatePawnMoves = (
         }
 
         if (
-          oneMoveForwardSquareIsEmpty &&
           twoMovesForwardSquareIsEmpty &&
           twoMovesForwardSquareIsInsideCheckmask &&
-          !isPinPreventingOneMoveForward &&
           !isPinPreventingTwoMovesForward
         ) {
           moves[moveCount++] =
@@ -172,7 +171,7 @@ const generatePawnMoves = (
         targetsHi &= pinRayFromOriginSquareHi;
       }
 
-      if (ctx.enPassantSquare !== null) {
+      if (hasEnPassant) {
         moveList.count = moveCount;
         generateEnPassantMove(
           ctx,
