@@ -6,7 +6,8 @@ export type Undo = {
   previousEnPassantSquare: number | null;
   previousHalfMoveClock: number;
   previousFullMoveNumber: number;
-  previousKingSquares: Int8Array;
+  previousWhiteKingSquare: number;
+  previousBlackKingSquare: number;
   previousZobristHash: bigint;
 
   capturedPieceStateIndex: number | null;

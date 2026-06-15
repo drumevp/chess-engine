@@ -148,8 +148,8 @@ const undoMove = (position: Position, move: number, undo: Undo): void => {
   position.enPassantSquare = undo.previousEnPassantSquare;
   position.fullMoveNumber = undo.previousFullMoveNumber;
   position.halfMoveClock = undo.previousHalfMoveClock;
-  position.kingSquares[COLOR.WHITE] = undo.previousKingSquares[COLOR.WHITE];
-  position.kingSquares[COLOR.BLACK] = undo.previousKingSquares[COLOR.BLACK];
+  position.kingSquares[COLOR.WHITE] = undo.previousWhiteKingSquare;
+  position.kingSquares[COLOR.BLACK] = undo.previousBlackKingSquare;
   position.castlingRights = undo.previousCastlingRights;
   position.zobristHash = undo.previousZobristHash;
 };

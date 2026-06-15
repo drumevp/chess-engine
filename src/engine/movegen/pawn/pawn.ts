@@ -25,13 +25,7 @@ import { addMove } from "../moveList";
 import generateEnPassantMove from "./generateEnPassantMove";
 import { AttackInfo } from "../../types/attackInfo";
 import calculatePieceIndex from "../../helpers/calculatePieceIndex";
-import {
-  BISHOP_INDEX,
-  KNIGHT_INDEX,
-  PAWN_INDEX,
-  QUEEN_INDEX,
-  ROOK_INDEX,
-} from "../../constants/piece";
+import { PAWN_INDEX, VALID_PROMOTION_PIECES } from "../../constants/piece";
 import { PAWN_CONFIG } from "../../constants/pawnConfig";
 import { MoveGenerationContext } from "../../types/move";
 import { MOVE_FLAG } from "../../constants/move";
@@ -41,7 +35,9 @@ import {
   squareBitboardsLo,
 } from "../../tables/importTables";
 import { Bitboard32 } from "../../types/bitboard";
-import getSingleBitSquare from "../../helpers/getSingleBitSquare";
+
+const attakScratch: Bitboard32 = { lo: 0, hi: 0 };
+const enPassantScratch: Bitboard32 = { lo: 0, hi: 0 };
 
 const generatePawnMoves = (
   ctx: MoveGenerationContext,
@@ -54,10 +50,10 @@ const generatePawnMoves = (
   const emptySquaresLo = ~ctx.allOccupancyLo >>> 0;
   const emptySquaresHi = ~ctx.allOccupancyHi >>> 0;
 
-  const bitboardScratch: Bitboard32 = { lo: 0, hi: 0 };
-  const enPassantScratch: Bitboard32 = { lo: 0, hi: 0 };
   const attacksFn =
-    ctx.color === COLOR.WHITE ? generateWhitePawnAttacks : generateBlackPawnAttacks;
+    ctx.color === COLOR.WHITE
+      ? generateWhitePawnAttacks
+      : generateBlackPawnAttacks;
 
   forEachBitGetSquare(pawnsLo, pawnsHi, (originSquare) => {
     /**
@@ -68,19 +64,20 @@ const generatePawnMoves = (
 
     const currentRank = getCurrentRank(originSquare);
 
-    pawnConfig.moveForwardOneSquareFn(
-      originSquareBitboardLo,
-      originSquareBitboardHi,
-      bitboardScratch,
-    );
+    const singlePushOffset = ctx.color === COLOR.WHITE ? 8 : -8;
+    const doublePushOffset = ctx.color === COLOR.WHITE ? 16 : -16;
+
+    const oneMoveForwardSquare = originSquare + singlePushOffset;
+    const oneMoveForwardLo = squareBitboardsLo[oneMoveForwardSquare];
+    const oneMoveForwardHi = squareBitboardsHi[oneMoveForwardSquare];
 
     const oneMoveForwardSquareIsEmpty =
-      (bitboardScratch.lo & emptySquaresLo) >>> 0 !== 0 ||
-      (bitboardScratch.hi & emptySquaresHi) >>> 0 !== 0;
+      (oneMoveForwardLo & emptySquaresLo) >>> 0 !== 0 ||
+      (oneMoveForwardHi & emptySquaresHi) >>> 0 !== 0;
 
     const oneMoveForwardSquareIsInsideCheckmask =
-      (bitboardScratch.lo & attackInfo.checkMaskLo) >>> 0 !== 0 ||
-      (bitboardScratch.hi & attackInfo.checkMaskHi) >>> 0 !== 0;
+      (oneMoveForwardLo & attackInfo.checkMaskLo) >>> 0 !== 0 ||
+      (oneMoveForwardHi & attackInfo.checkMaskHi) >>> 0 !== 0;
 
     const isPinned =
       (attackInfo.pinnedPiecesLo & originSquareBitboardLo) >>> 0 !== 0 ||
@@ -93,8 +90,8 @@ const generatePawnMoves = (
 
     if (isPinned) {
       isPinPreventingOneMoveForward =
-        ((bitboardScratch.lo & pinRayFromOriginSquareLo) |
-          (bitboardScratch.hi & pinRayFromOriginSquareHi)) >>>
+        ((oneMoveForwardLo & pinRayFromOriginSquareLo) |
+          (oneMoveForwardHi & pinRayFromOriginSquareHi)) >>>
           0 ===
         0;
     }
@@ -105,41 +102,30 @@ const generatePawnMoves = (
       oneMoveForwardSquareIsInsideCheckmask &&
       !isPinPreventingOneMoveForward
     ) {
-      const targetSquare = getSingleBitSquare(
-        bitboardScratch.lo,
-        bitboardScratch.hi,
-      );
-
-      if (targetSquare === undefined) {
-        throw new Error("Invalid bitboard");
-      }
-
-      const targetSquareRank = getCurrentRank(targetSquare);
+      const targetSquareRank = getCurrentRank(oneMoveForwardSquare);
 
       // Promotion movement case
       if (targetSquareRank === pawnConfig.promotionRank) {
-        [KNIGHT_INDEX, QUEEN_INDEX, ROOK_INDEX, BISHOP_INDEX].forEach(
-          (promotionPieceIndex) => {
-            addMove(
-              ctx.moves,
-              encodeMove(
-                originSquare,
-                targetSquare,
-                ctx.color,
-                PAWN_INDEX,
-                MOVE_FLAG.PROMOTION,
-                ENCODE_MOVE_NO_PIECE,
-                promotionPieceIndex,
-              ),
-            );
-          },
-        );
+        VALID_PROMOTION_PIECES.forEach((promotionPieceIndex) => {
+          addMove(
+            ctx.moves,
+            encodeMove(
+              originSquare,
+              oneMoveForwardSquare,
+              ctx.color,
+              PAWN_INDEX,
+              MOVE_FLAG.PROMOTION,
+              ENCODE_MOVE_NO_PIECE,
+              promotionPieceIndex,
+            ),
+          );
+        });
       } else {
         addMove(
           ctx.moves,
           encodeMove(
             originSquare,
-            targetSquare,
+            oneMoveForwardSquare,
             ctx.color,
             PAWN_INDEX,
             MOVE_FLAG.QUIET,
@@ -150,27 +136,25 @@ const generatePawnMoves = (
 
     // TWO SQUARES
     if (currentRank === pawnConfig.originRank) {
-      // bitboardScratch = twoMovesForwardBitboard
-      pawnConfig.moveForwardTwoSquaresFn(
-        originSquareBitboardLo,
-        originSquareBitboardHi,
-        bitboardScratch,
-      );
+      // attakScratch = twoMovesForwardBitboard
+      const twoMovesForwardSquare = originSquare + doublePushOffset;
+      const twoMovesForwardLo = squareBitboardsLo[twoMovesForwardSquare];
+      const twoMovesForwardHi = squareBitboardsHi[twoMovesForwardSquare];
 
       const twoMovesForwardSquareIsEmpty =
-        (bitboardScratch.lo & emptySquaresLo) >>> 0 !== 0 ||
-        (bitboardScratch.hi & emptySquaresHi) >>> 0 !== 0;
+        (twoMovesForwardLo & emptySquaresLo) >>> 0 !== 0 ||
+        (twoMovesForwardHi & emptySquaresHi) >>> 0 !== 0;
 
       const twoMovesForwardSquareIsInsideCheckmask =
-        (bitboardScratch.lo & attackInfo.checkMaskLo) >>> 0 !== 0 ||
-        (bitboardScratch.hi & attackInfo.checkMaskHi) >>> 0 !== 0;
+        (twoMovesForwardLo & attackInfo.checkMaskLo) >>> 0 !== 0 ||
+        (twoMovesForwardHi & attackInfo.checkMaskHi) >>> 0 !== 0;
 
       let isPinPreventingTwoMovesForward: boolean = false;
 
       if (isPinned) {
         isPinPreventingTwoMovesForward =
-          ((bitboardScratch.lo & pinRayFromOriginSquareLo) |
-            (bitboardScratch.hi & pinRayFromOriginSquareHi)) >>>
+          ((twoMovesForwardLo & pinRayFromOriginSquareLo) |
+            (twoMovesForwardHi & pinRayFromOriginSquareHi)) >>>
             0 ===
           0;
       }
@@ -182,20 +166,11 @@ const generatePawnMoves = (
         !isPinPreventingOneMoveForward &&
         !isPinPreventingTwoMovesForward
       ) {
-        const targetSquare = getSingleBitSquare(
-          bitboardScratch.lo,
-          bitboardScratch.hi,
-        );
-
-        if (targetSquare === undefined) {
-          throw new Error("Invalid bitboard");
-        }
-
         addMove(
           ctx.moves,
           encodeMove(
             originSquare,
-            targetSquare,
+            twoMovesForwardSquare,
             ctx.color,
             PAWN_INDEX,
             MOVE_FLAG.DOUBLE_PAWN_PUSH,
@@ -207,17 +182,17 @@ const generatePawnMoves = (
     /**
      * ATTACKS
      */
-    // bitboardScratch = targets
+    // attakScratch = targets
     attacksFn(
       originSquare,
       ctx.allOccupancyLo,
       ctx.allOccupancyHi,
-      bitboardScratch,
+      attakScratch,
     );
 
     if (isPinned) {
-      bitboardScratch.lo &= pinRayFromOriginSquareLo;
-      bitboardScratch.hi &= pinRayFromOriginSquareHi;
+      attakScratch.lo &= pinRayFromOriginSquareLo;
+      attakScratch.hi &= pinRayFromOriginSquareHi;
     }
 
     /**
@@ -230,50 +205,31 @@ const generatePawnMoves = (
       attackInfo.checkersLo,
       attackInfo.checkersHi,
       attackInfo.checkCount,
-      bitboardScratch.lo,
-      bitboardScratch.hi,
+      attakScratch.lo,
+      attakScratch.hi,
       originSquare,
       originSquareBitboardLo,
       originSquareBitboardHi,
       enPassantScratch,
     );
 
-    bitboardScratch.lo &= attackInfo.checkMaskLo;
-    bitboardScratch.hi &= attackInfo.checkMaskHi;
+    attakScratch.lo &= attackInfo.checkMaskLo;
+    attakScratch.hi &= attackInfo.checkMaskHi;
 
-    bitboardScratch.lo &= ctx.enemyOccupancyLo;
-    bitboardScratch.hi &= ctx.enemyOccupancyHi;
+    attakScratch.lo &= ctx.enemyOccupancyLo;
+    attakScratch.hi &= ctx.enemyOccupancyHi;
 
-    forEachBitGetSquare(
-      bitboardScratch.lo,
-      bitboardScratch.hi,
-      (targetSquare) => {
-        const capturedPiece = ctx.pieceAt[targetSquare];
+    forEachBitGetSquare(attakScratch.lo, attakScratch.hi, (targetSquare) => {
+      const capturedPiece = ctx.pieceAt[targetSquare];
 
-        if (capturedPiece === -1) {
-          throw new Error("Invalid captured piece");
-        }
+      if (capturedPiece === -1) {
+        throw new Error("Invalid captured piece");
+      }
 
-        const targetSquareRank = getCurrentRank(targetSquare);
+      const targetSquareRank = getCurrentRank(targetSquare);
 
-        if (targetSquareRank === pawnConfig.promotionRank) {
-          [KNIGHT_INDEX, QUEEN_INDEX, ROOK_INDEX, BISHOP_INDEX].forEach(
-            (promotionPieceIndex) => {
-              addMove(
-                ctx.moves,
-                encodeMove(
-                  originSquare,
-                  targetSquare,
-                  ctx.color,
-                  PAWN_INDEX,
-                  MOVE_FLAG.PROMOTION_CAPTURE,
-                  getPieceTypeFromStateIndex(capturedPiece),
-                  promotionPieceIndex,
-                ),
-              );
-            },
-          );
-        } else {
+      if (targetSquareRank === pawnConfig.promotionRank) {
+        VALID_PROMOTION_PIECES.forEach((promotionPieceIndex) => {
           addMove(
             ctx.moves,
             encodeMove(
@@ -281,13 +237,26 @@ const generatePawnMoves = (
               targetSquare,
               ctx.color,
               PAWN_INDEX,
-              MOVE_FLAG.CAPTURE,
+              MOVE_FLAG.PROMOTION_CAPTURE,
               getPieceTypeFromStateIndex(capturedPiece),
+              promotionPieceIndex,
             ),
           );
-        }
-      },
-    );
+        });
+      } else {
+        addMove(
+          ctx.moves,
+          encodeMove(
+            originSquare,
+            targetSquare,
+            ctx.color,
+            PAWN_INDEX,
+            MOVE_FLAG.CAPTURE,
+            getPieceTypeFromStateIndex(capturedPiece),
+          ),
+        );
+      }
+    });
   });
 };
 

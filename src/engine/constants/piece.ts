@@ -6,3 +6,10 @@ export const BISHOP_INDEX: number = 2;
 export const QUEEN_INDEX: number = 3;
 export const KING_INDEX: number = 4;
 export const PAWN_INDEX: number = 5;
+
+export const VALID_PROMOTION_PIECES = [
+  KNIGHT_INDEX,
+  QUEEN_INDEX,
+  ROOK_INDEX,
+  BISHOP_INDEX,
+];

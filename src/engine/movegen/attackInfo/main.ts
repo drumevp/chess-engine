@@ -42,10 +42,7 @@ const generateAttackInfo = (
   getCheckers(ctx, result);
   getPins(ctx, result);
 
-  result.checkCount = countRelevantBits(
-    result.checkersLo,
-    result.checkersHi,
-  );
+  result.checkCount = countRelevantBits(result.checkersLo, result.checkersHi);
   getCheckMask(ctx.ownKingSquare, result);
 
   return result;

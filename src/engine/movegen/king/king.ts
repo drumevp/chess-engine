@@ -26,65 +26,40 @@ import { MoveGenerationContext } from "../../types/move";
 import { addMove } from "../moveList";
 import generateCastlingMoves from "./castling/generateCastlingMoves";
 
+const attackScratch: Bitboard32 = { lo: 0, hi: 0 };
+const kingattackScratch: Bitboard32 = { lo: 0, hi: 0 };
+
 const generateKingMoves = (
   ctx: MoveGenerationContext,
   attackInfo: AttackInfo,
 ): void => {
-  const scratch: Bitboard32 = { lo: 0, hi: 0 };
-  const attackScratch: Bitboard32 = { lo: 0, hi: 0 };
   const enemyColor = getOppositeColor(ctx.color);
   const originSquareBitboardLo = squareBitboardsLo[ctx.ownKingSquare];
   const originSquareBitboardHi = squareBitboardsHi[ctx.ownKingSquare];
+  const occupancyWithoutOwnKingLo =
+    (ctx.allOccupancyLo & ~originSquareBitboardLo) >>> 0;
+  const occupancyWithoutOwnKingHi =
+    (ctx.allOccupancyHi & ~originSquareBitboardHi) >>> 0;
 
   generateKingAttacks(
     ctx.ownKingSquare,
     ctx.allOccupancyLo,
     ctx.allOccupancyHi,
-    scratch,
+    attackScratch,
   );
 
   // Targets
-  scratch.lo = (scratch.lo & ~ctx.ownOccupancyLo) >>> 0;
-  scratch.hi = (scratch.hi & ~ctx.ownOccupancyHi) >>> 0;
+  attackScratch.lo = (attackScratch.lo & ~ctx.ownOccupancyLo) >>> 0;
+  attackScratch.hi = (attackScratch.hi & ~ctx.ownOccupancyHi) >>> 0;
 
   const emptySquaresLo = ~ctx.allOccupancyLo >>> 0;
   const emptySquaresHi = ~ctx.allOccupancyHi >>> 0;
 
-  const captureTargetsLo = (scratch.lo & ctx.enemyOccupancyLo) >>> 0;
-  const captureTargetsHi = (scratch.hi & ctx.enemyOccupancyHi) >>> 0;
+  const captureTargetsLo = (attackScratch.lo & ctx.enemyOccupancyLo) >>> 0;
+  const captureTargetsHi = (attackScratch.hi & ctx.enemyOccupancyHi) >>> 0;
 
-  const quietTargetsLo = (scratch.lo & emptySquaresLo) >>> 0;
-  const quietTargetsHi = (scratch.hi & emptySquaresHi) >>> 0;
-
-  const isKingTargetSafe = (
-    targetSquare: number,
-    ignoredAttackerLo = 0,
-    ignoredAttackerHi = 0,
-  ): boolean => {
-    const targetSquareBitboardLo = squareBitboardsLo[targetSquare];
-    const targetSquareBitboardHi = squareBitboardsHi[targetSquare];
-
-    const occupancyAfterKingMoveLo =
-      ((ctx.allOccupancyLo & ~originSquareBitboardLo) |
-        targetSquareBitboardLo) >>>
-      0;
-    const occupancyAfterKingMoveHi =
-      ((ctx.allOccupancyHi & ~originSquareBitboardHi) |
-        targetSquareBitboardHi) >>>
-      0;
-
-    return !isSquareAttackedWithOccupancy(
-      targetSquare,
-      enemyColor,
-      ctx.stateLo,
-      ctx.stateHi,
-      occupancyAfterKingMoveLo,
-      occupancyAfterKingMoveHi,
-      attackScratch,
-      ignoredAttackerLo,
-      ignoredAttackerHi,
-    );
-  };
+  const quietTargetsLo = (attackScratch.lo & emptySquaresLo) >>> 0;
+  const quietTargetsHi = (attackScratch.hi & emptySquaresHi) >>> 0;
 
   forEachBitGetSquare(
     captureTargetsLo,
@@ -97,8 +72,14 @@ const generateKingMoves = (
       }
 
       if (
-        !isKingTargetSafe(
+        isSquareAttackedWithOccupancy(
           captureTargetSquare,
+          enemyColor,
+          ctx.stateLo,
+          ctx.stateHi,
+          occupancyWithoutOwnKingLo,
+          occupancyWithoutOwnKingHi,
+          kingattackScratch,
           squareBitboardsLo[captureTargetSquare],
           squareBitboardsHi[captureTargetSquare],
         )
@@ -121,7 +102,17 @@ const generateKingMoves = (
   );
 
   forEachBitGetSquare(quietTargetsLo, quietTargetsHi, (quietTargetSquare) => {
-    if (!isKingTargetSafe(quietTargetSquare)) {
+    if (
+      isSquareAttackedWithOccupancy(
+        quietTargetSquare,
+        enemyColor,
+        ctx.stateLo,
+        ctx.stateHi,
+        occupancyWithoutOwnKingLo,
+        occupancyWithoutOwnKingHi,
+        attackScratch,
+      )
+    ) {
       return;
     }
 

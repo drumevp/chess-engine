@@ -2,6 +2,7 @@
  * Explicitly defining NOT masks to prevent bit length inaccuracy
  */
 
+import { hi32FromBigint, lo32FromBigint } from "../bitboard32/splitBigint";
 import { Bitboard } from "../types/bitboard";
 
 export const FULL_BOARD_MASK: Bitboard = 0xffffffffffffffffn;
@@ -48,3 +49,8 @@ export const LOWER_32_BITS_MASK_BIGINT: bigint = 0xffffffffn;
 
 export const LOWER_32_BITS_MASK: number = 0xffffffff;
 export const LOW_16_BITS_MASK: number = 0xffff;
+
+export const LIGHT_SQUARES_MASK_LO = lo32FromBigint(LIGHT_SQUARES_MASK);
+export const LIGHT_SQUARES_MASK_HI = hi32FromBigint(LIGHT_SQUARES_MASK);
+export const DARK_SQUARES_MASK_LO = lo32FromBigint(DARK_SQUARES_MASK);
+export const DARK_SQUARES_MASK_HI = hi32FromBigint(DARK_SQUARES_MASK);
