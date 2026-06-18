@@ -25,7 +25,8 @@ import { createUndo, Undo } from "../engine/types/history";
 import { MoveGenerationContext, MoveList } from "../engine/types/move";
 import { Position } from "../engine/types/position";
 import { CHECKMATE_SCORE } from "./constants/eval";
-import simpleEval from "./simpleEval";
+import { MAX_QUIESCENCE_PLY } from "./constants/search";
+import quiescenceSearch from "./quiescenceSearch";
 
 const failSoftAlphaBetaNegaMax = (
   position: Position,
@@ -34,7 +35,7 @@ const failSoftAlphaBetaNegaMax = (
   beta: number,
   depth: number,
 ): number => {
-  const searchPlyCount = depth + 1;
+  const searchPlyCount = depth + MAX_QUIESCENCE_PLY + 1;
   const moveLists = Array.from({ length: searchPlyCount }, () =>
     createMoveList(),
   );
@@ -49,6 +50,10 @@ const failSoftAlphaBetaNegaMax = (
   // Cloning these to avoid changing the reference values if the caller is ChessEngine.
   const clonedRepetitionCounts = new Map(repetitionCounts);
   const clonedPosition = clonePosition(position);
+
+  if (!clonedRepetitionCounts.has(clonedPosition.zobristHash)) {
+    clonedRepetitionCounts.set(clonedPosition.zobristHash, 1);
+  }
 
   const gameStateScratch: DetermineGameStateRValue = {
     gameState: GAME_STATE.ONGOING,
@@ -107,7 +112,18 @@ const failSoftAlphaBetaNegaMaxRecursive = (
   }
 
   if (depth === 0) {
-    return simpleEval(position);
+    return quiescenceSearch(
+      position,
+      alpha,
+      beta,
+      ply,
+      moveLists,
+      contexts,
+      attackInfos,
+      undoStack,
+      gameStateScratch,
+      repetitionCounts,
+    );
   }
 
   let bestScore = -Infinity;
