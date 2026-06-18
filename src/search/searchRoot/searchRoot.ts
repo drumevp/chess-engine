@@ -11,12 +11,15 @@ import undoMove from "../../engine/position/moves/undoMove/undoMove";
 import { Position } from "../../engine/types/position";
 import failSoftAlphaBetaNegaMax from "./failSoftAlphaBetaNegaMax";
 import {
+  createSearchControl,
   createSearchScratch,
   createSearchState,
   getTerminalScore,
+  shouldStopSearch,
 } from "../helpers/search";
 import quiescenceSearch from "./quiescenceSearch";
 import { SearchResult } from "../types/search";
+import { SearchControl } from "../types/search";
 
 const searchRoot = (
   position: Position,
@@ -24,7 +27,15 @@ const searchRoot = (
   alpha: number,
   beta: number,
   depth: number,
+  control: SearchControl = createSearchControl(),
 ): SearchResult => {
+  if (shouldStopSearch(control)) {
+    return {
+      bestMove: null,
+      score: 0,
+    };
+  }
+
   const scratch = createSearchScratch(depth);
   const searchState = createSearchState(position, repetitionCounts);
   const searchPosition = searchState.position;
@@ -72,6 +83,7 @@ const searchRoot = (
         scratch.undoStack,
         scratch.gameStateScratch,
         searchRepetitionCounts,
+        control,
       ),
     };
   }
@@ -99,10 +111,18 @@ const searchRoot = (
       scratch.undoStack,
       scratch.gameStateScratch,
       searchRepetitionCounts,
+      control,
     );
 
     undoMove(searchPosition, move, undo);
     decrementRepetition(searchRepetitionCounts, childHash);
+
+    if (control.stopped) {
+      return {
+        bestMove,
+        score: bestScore === -Infinity ? 0 : bestScore,
+      };
+    }
 
     if (score > bestScore) {
       bestScore = score;

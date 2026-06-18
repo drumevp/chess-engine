@@ -21,7 +21,9 @@ import { DetermineGameStateRValue } from "../../engine/types/gameState";
 import { Undo } from "../../engine/types/history";
 import { MoveGenerationContext, MoveList } from "../../engine/types/move";
 import { Position } from "../../engine/types/position";
-import { getTerminalScore } from "../helpers/search";
+import simpleEval from "../eval/simpleEval";
+import { getTerminalScore, shouldStopSearch } from "../helpers/search";
+import { SearchControl } from "../types/search";
 import quiescenceSearch from "./quiescenceSearch";
 
 export const failSoftAlphaBetaNegaMax = (
@@ -36,7 +38,12 @@ export const failSoftAlphaBetaNegaMax = (
   undoStack: Undo[],
   gameStateScratch: DetermineGameStateRValue,
   repetitionCounts: Map<bigint, number>,
+  control: SearchControl,
 ): number => {
+  if (shouldStopSearch(control)) {
+    return simpleEval(position);
+  }
+
   const moveList = moveLists[ply];
   const ctx = getMoveGenerationContext(position, moveList, contexts[ply]);
   const attackInfo = generateAttackInfo(ctx, attackInfos[ply]);
@@ -70,6 +77,7 @@ export const failSoftAlphaBetaNegaMax = (
       undoStack,
       gameStateScratch,
       repetitionCounts,
+      control,
     );
   }
 
@@ -95,10 +103,15 @@ export const failSoftAlphaBetaNegaMax = (
       undoStack,
       gameStateScratch,
       repetitionCounts,
+      control,
     );
 
     undoMove(position, move, undo);
     decrementRepetition(repetitionCounts, childHash);
+
+    if (control.stopped) {
+      return bestScore === -Infinity ? simpleEval(position) : bestScore;
+    }
 
     if (score > bestScore) {
       bestScore = score;
