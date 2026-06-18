@@ -8,7 +8,12 @@ import { createUndo } from "../../engine/types/history";
 import { Position } from "../../engine/types/position";
 import { CHECKMATE_SCORE } from "../constants/eval";
 import { MAX_QUIESCENCE_PLY } from "../constants/search";
-import { SearchScratch, SearchState } from "../types/search";
+import {
+  SearchControl,
+  SearchLimits,
+  SearchScratch,
+  SearchState,
+} from "../types/search";
 
 export const createSearchState = (
   position: Position,
@@ -66,3 +71,43 @@ export const getTerminalScore = (
 
   return 0;
 };
+
+export const createSearchControl = (
+  limits: SearchLimits = {},
+): SearchControl => ({
+  limits,
+  nodes: 0,
+  startTime: Date.now(),
+  stopped: false,
+});
+
+export const shouldStopSearch = (control: SearchControl): boolean => {
+  if (control.stopped) {
+    return true;
+  }
+
+  if (
+    control.limits.maxTimeMs !== undefined &&
+    Date.now() - control.startTime >= control.limits.maxTimeMs
+  ) {
+    control.stopped = true;
+
+    return true;
+  }
+
+  if (
+    control.limits.maxNodes !== undefined &&
+    control.nodes >= control.limits.maxNodes
+  ) {
+    control.stopped = true;
+
+    return true;
+  }
+
+  control.nodes++;
+
+  return false;
+};
+
+export const getSearchElapsedTimeMs = (control: SearchControl): number =>
+  Date.now() - control.startTime;

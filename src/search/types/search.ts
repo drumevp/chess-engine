@@ -11,6 +11,21 @@ export type SearchResult = {
 
 export type IterativeDeepeningSearchResult = SearchResult & {
   depth: number;
+  nodes: number;
+  elapsedTimeMs: number;
+  stopped: boolean;
+};
+
+export type SearchLimits = {
+  maxNodes?: number;
+  maxTimeMs?: number;
+};
+
+export type SearchControl = {
+  limits: SearchLimits;
+  nodes: number;
+  startTime: number;
+  stopped: boolean;
 };
 
 export type SearchScratch = {

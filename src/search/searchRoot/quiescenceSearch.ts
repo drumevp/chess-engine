@@ -23,7 +23,8 @@ import { MoveGenerationContext, MoveList } from "../../engine/types/move";
 import { Position } from "../../engine/types/position";
 import { isQuiescenceMove } from "../constants/search";
 import simpleEval from "../eval/simpleEval";
-import { getTerminalScore } from "../helpers/search";
+import { getTerminalScore, shouldStopSearch } from "../helpers/search";
+import { SearchControl } from "../types/search";
 
 const quiescenceSearch = (
   position: Position,
@@ -36,7 +37,12 @@ const quiescenceSearch = (
   undoStack: Undo[],
   gameStateScratch: DetermineGameStateRValue,
   repetitionCounts: Map<bigint, number>,
+  control: SearchControl,
 ): number => {
+  if (shouldStopSearch(control)) {
+    return simpleEval(position);
+  }
+
   if (ply >= moveLists.length) {
     return simpleEval(position);
   }
@@ -100,10 +106,15 @@ const quiescenceSearch = (
       undoStack,
       gameStateScratch,
       repetitionCounts,
+      control,
     );
 
     undoMove(position, move, undo);
     decrementRepetition(repetitionCounts, childHash);
+
+    if (control.stopped) {
+      return bestScore === -Infinity ? simpleEval(position) : bestScore;
+    }
 
     if (score > bestScore) {
       bestScore = score;
