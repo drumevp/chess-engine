@@ -6,21 +6,24 @@
  * doesn't leave us at a disadvantage.
  */
 
-import { GAME_STATE } from "../engine/constants/gameState";
-import generateAttackInfo from "../engine/movegen/attackInfo/main";
-import generateLegalMovesFromContext from "../engine/movegen/generateLegalMovesFromContext";
-import getMoveGenerationContext from "../engine/movegen/getMoveGenerationContext";
-import determineGameState from "../engine/position/analyzePosition/determineGameState";
-import { makeMoveWithUndo } from "../engine/position/moves/makeMove/makeMove";
-import undoMove from "../engine/position/moves/undoMove/undoMove";
-import { AttackInfo } from "../engine/types/attackInfo";
-import { DetermineGameStateRValue } from "../engine/types/gameState";
-import { Undo } from "../engine/types/history";
-import { MoveGenerationContext, MoveList } from "../engine/types/move";
-import { Position } from "../engine/types/position";
-import { CHECKMATE_SCORE } from "./constants/eval";
-import { isQuiescenceMove } from "./constants/search";
-import simpleEval from "./simpleEval";
+import {
+  decrementRepetition,
+  incrementRepetition,
+} from "../../engine/helpers/zobristHashRepetition";
+import generateAttackInfo from "../../engine/movegen/attackInfo/main";
+import generateLegalMovesFromContext from "../../engine/movegen/generateLegalMovesFromContext";
+import getMoveGenerationContext from "../../engine/movegen/getMoveGenerationContext";
+import determineGameState from "../../engine/position/analyzePosition/determineGameState";
+import { makeMoveWithUndo } from "../../engine/position/moves/makeMove/makeMove";
+import undoMove from "../../engine/position/moves/undoMove/undoMove";
+import { AttackInfo } from "../../engine/types/attackInfo";
+import { DetermineGameStateRValue } from "../../engine/types/gameState";
+import { Undo } from "../../engine/types/history";
+import { MoveGenerationContext, MoveList } from "../../engine/types/move";
+import { Position } from "../../engine/types/position";
+import { isQuiescenceMove } from "../constants/search";
+import simpleEval from "../eval/simpleEval";
+import { getTerminalScore } from "../helpers/search";
 
 const quiescenceSearch = (
   position: Position,
@@ -53,12 +56,10 @@ const quiescenceSearch = (
     gameStateScratch,
   );
 
-  if (gameStateScratch.gameState !== GAME_STATE.ONGOING) {
-    if (gameStateScratch.gameState === GAME_STATE.CHECKMATE) {
-      return -CHECKMATE_SCORE + ply;
-    }
+  const terminalScore = getTerminalScore(gameStateScratch, ply);
 
-    return 0;
+  if (terminalScore !== null) {
+    return terminalScore;
   }
 
   let bestScore = -Infinity;
@@ -85,9 +86,7 @@ const quiescenceSearch = (
     }
 
     makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
-
-    const currentHashCount = repetitionCounts.get(position.zobristHash) ?? 0;
-    repetitionCounts.set(position.zobristHash, currentHashCount + 1);
+    incrementRepetition(repetitionCounts, position.zobristHash);
     const childHash = position.zobristHash;
 
     const score = -quiescenceSearch(
@@ -104,14 +103,7 @@ const quiescenceSearch = (
     );
 
     undoMove(position, move, undo);
-
-    const previousHashCount = repetitionCounts.get(childHash) ?? 0;
-
-    if (previousHashCount <= 1) {
-      repetitionCounts.delete(childHash);
-    } else {
-      repetitionCounts.set(childHash, previousHashCount - 1);
-    }
+    decrementRepetition(repetitionCounts, childHash);
 
     if (score > bestScore) {
       bestScore = score;
