@@ -1,8 +1,10 @@
+import { GAME_STATE } from "../../constants/gameState";
 import generateAttackInfo from "../../movegen/attackInfo/main";
 import generateLegalMovesFromContext from "../../movegen/generateLegalMovesFromContext";
 import getMoveGenerationContext from "../../movegen/getMoveGenerationContext";
 import { createMoveList } from "../../movegen/moveList";
 import { AnalyzePosition } from "../../types/analyzePosition";
+import { DetermineGameStateRValue } from "../../types/gameState";
 import { Move } from "../../types/move";
 import { Position } from "../../types/position";
 import {
@@ -44,11 +46,14 @@ const analyzePosition = (
 
   const isCheck = attackInfo.checkCount > 0;
 
-  const { gameState, gameEndReason } = determineGameState(
+  const gameStateScratch: DetermineGameStateRValue = { gameState: GAME_STATE.ONGOING, gameEndReason: null };
+
+   determineGameState(
     position,
     repetitionCounts,
     legalMovesCount,
     isCheck,
+    gameStateScratch,
   );
 
   return {
@@ -57,8 +62,8 @@ const analyzePosition = (
     legalMovesCount,
     sideToMove: position.color,
     isCheck,
-    gameState,
-    gameEndReason,
+    gameState: gameStateScratch.gameState,
+    gameEndReason: gameStateScratch.gameEndReason,
   };
 };
 

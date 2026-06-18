@@ -1,0 +1,12 @@
+import { BISHOP_INDEX, KING_INDEX, KNIGHT_INDEX, PAWN_INDEX, QUEEN_INDEX, ROOK_INDEX } from "../../engine/constants/piece";
+
+export const CHECKMATE_SCORE = 20000;
+
+export const PIECE_VALUE = {
+  [ROOK_INDEX]: 500,
+  [KNIGHT_INDEX]: 320,
+  [BISHOP_INDEX]: 330,
+  [QUEEN_INDEX]: 900,
+  [KING_INDEX]: 0,
+  [PAWN_INDEX]: 100,
+}
