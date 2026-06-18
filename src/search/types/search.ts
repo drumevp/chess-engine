@@ -9,6 +9,10 @@ export type SearchResult = {
   score: number;
 };
 
+export type IterativeDeepeningSearchResult = SearchResult & {
+  depth: number;
+};
+
 export type SearchScratch = {
   moveLists: MoveList[];
   contexts: MoveGenerationContext[];

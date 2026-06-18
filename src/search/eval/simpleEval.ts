@@ -2,10 +2,10 @@
  * Placeholder eval fn
  */
 
-import { COLOR } from "../engine/constants/color";
-import getPieceTypeFromStateIndex from "../engine/helpers/getPieceTypeFromStateIndex";
-import { Position } from "../engine/types/position";
-import { PIECE_VALUE } from "./constants/eval";
+import { COLOR } from "../../engine/constants/color";
+import getPieceTypeFromStateIndex from "../../engine/helpers/getPieceTypeFromStateIndex";
+import { Position } from "../../engine/types/position";
+import { PIECE_VALUE } from "../constants/eval";
 
 const simpleEval = (position: Position): number => {
   let score = 0;
