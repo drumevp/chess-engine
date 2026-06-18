@@ -16,14 +16,17 @@ import getMoveGenerationContext from "../../engine/movegen/getMoveGenerationCont
 import determineGameState from "../../engine/position/analyzePosition/determineGameState";
 import { makeMoveWithUndo } from "../../engine/position/moves/makeMove/makeMove";
 import undoMove from "../../engine/position/moves/undoMove/undoMove";
-import { AttackInfo } from "../../engine/types/attackInfo";
-import { DetermineGameStateRValue } from "../../engine/types/gameState";
-import { Undo } from "../../engine/types/history";
-import { MoveGenerationContext, MoveList } from "../../engine/types/move";
 import { Position } from "../../engine/types/position";
 import simpleEval from "../eval/simpleEval";
-import { getTerminalScore, shouldStopSearch } from "../helpers/search";
-import { SearchControl } from "../types/search";
+import {
+  resetPrincipalVariation,
+  updatePrincipalVariation,
+} from "../helpers/principalVariation";
+import {
+  getTerminalScore,
+  shouldStopSearch,
+} from "../helpers/search";
+import { SearchControl, SearchScratch } from "../types/search";
 import quiescenceSearch from "./quiescenceSearch";
 
 export const failSoftAlphaBetaNegaMax = (
@@ -32,11 +35,7 @@ export const failSoftAlphaBetaNegaMax = (
   beta: number,
   depth: number,
   ply: number,
-  moveLists: MoveList[],
-  contexts: MoveGenerationContext[],
-  attackInfos: AttackInfo[],
-  undoStack: Undo[],
-  gameStateScratch: DetermineGameStateRValue,
+  scratch: SearchScratch,
   repetitionCounts: Map<bigint, number>,
   control: SearchControl,
 ): number => {
@@ -44,9 +43,11 @@ export const failSoftAlphaBetaNegaMax = (
     return simpleEval(position);
   }
 
-  const moveList = moveLists[ply];
-  const ctx = getMoveGenerationContext(position, moveList, contexts[ply]);
-  const attackInfo = generateAttackInfo(ctx, attackInfos[ply]);
+  resetPrincipalVariation(scratch, ply);
+
+  const moveList = scratch.moveLists[ply];
+  const ctx = getMoveGenerationContext(position, moveList, scratch.contexts[ply]);
+  const attackInfo = generateAttackInfo(ctx, scratch.attackInfos[ply]);
   const movesCount = generateLegalMovesFromContext(ctx, attackInfo);
 
   const isCheck = attackInfo.checkCount > 0;
@@ -56,10 +57,10 @@ export const failSoftAlphaBetaNegaMax = (
     repetitionCounts,
     movesCount,
     isCheck,
-    gameStateScratch,
+    scratch.gameStateScratch,
   );
 
-  const terminalScore = getTerminalScore(gameStateScratch, ply);
+  const terminalScore = getTerminalScore(scratch.gameStateScratch, ply);
 
   if (terminalScore !== null) {
     return terminalScore;
@@ -71,11 +72,7 @@ export const failSoftAlphaBetaNegaMax = (
       alpha,
       beta,
       ply,
-      moveLists,
-      contexts,
-      attackInfos,
-      undoStack,
-      gameStateScratch,
+      scratch,
       repetitionCounts,
       control,
     );
@@ -85,7 +82,7 @@ export const failSoftAlphaBetaNegaMax = (
 
   for (let i = 0; i < movesCount; i++) {
     const move = moveList.moves[i];
-    const undo = undoStack[ply];
+    const undo = scratch.undoStack[ply];
 
     makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
     incrementRepetition(repetitionCounts, position.zobristHash);
@@ -97,11 +94,7 @@ export const failSoftAlphaBetaNegaMax = (
       -alpha,
       depth - 1,
       ply + 1,
-      moveLists,
-      contexts,
-      attackInfos,
-      undoStack,
-      gameStateScratch,
+      scratch,
       repetitionCounts,
       control,
     );
@@ -119,6 +112,7 @@ export const failSoftAlphaBetaNegaMax = (
 
     if (score > alpha) {
       alpha = score;
+      updatePrincipalVariation(scratch, ply, move);
     }
 
     if (score >= beta) {

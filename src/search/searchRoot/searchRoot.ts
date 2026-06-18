@@ -17,6 +17,11 @@ import {
   getTerminalScore,
   shouldStopSearch,
 } from "../helpers/search";
+import {
+  getPrincipalVariation,
+  resetPrincipalVariation,
+  updatePrincipalVariation,
+} from "../helpers/principalVariation";
 import quiescenceSearch from "./quiescenceSearch";
 import { SearchResult } from "../types/search";
 import { SearchControl } from "../types/search";
@@ -33,6 +38,7 @@ const searchRoot = (
     return {
       bestMove: null,
       score: 0,
+      pv: [],
     };
   }
 
@@ -40,6 +46,7 @@ const searchRoot = (
   const searchState = createSearchState(position, repetitionCounts);
   const searchPosition = searchState.position;
   const searchRepetitionCounts = searchState.repetitionCounts;
+  resetPrincipalVariation(scratch, 0);
 
   const moveList = scratch.moveLists[0];
   const ctx = getMoveGenerationContext(
@@ -66,25 +73,25 @@ const searchRoot = (
     return {
       bestMove: null,
       score: terminalScore,
+      pv: [],
     };
   }
 
   if (depth <= 0) {
+    const score = quiescenceSearch(
+      searchPosition,
+      alpha,
+      beta,
+      0,
+      scratch,
+      searchRepetitionCounts,
+      control,
+    );
+
     return {
       bestMove: null,
-      score: quiescenceSearch(
-        searchPosition,
-        alpha,
-        beta,
-        0,
-        scratch.moveLists,
-        scratch.contexts,
-        scratch.attackInfos,
-        scratch.undoStack,
-        scratch.gameStateScratch,
-        searchRepetitionCounts,
-        control,
-      ),
+      score,
+      pv: [],
     };
   }
 
@@ -105,11 +112,7 @@ const searchRoot = (
       -alpha,
       depth - 1,
       1,
-      scratch.moveLists,
-      scratch.contexts,
-      scratch.attackInfos,
-      scratch.undoStack,
-      scratch.gameStateScratch,
+      scratch,
       searchRepetitionCounts,
       control,
     );
@@ -121,6 +124,7 @@ const searchRoot = (
       return {
         bestMove,
         score: bestScore === -Infinity ? 0 : bestScore,
+        pv: getPrincipalVariation(scratch),
       };
     }
 
@@ -131,12 +135,14 @@ const searchRoot = (
 
     if (score > alpha) {
       alpha = score;
+      updatePrincipalVariation(scratch, 0, move);
     }
 
     if (score >= beta) {
       return {
         bestMove,
         score,
+        pv: getPrincipalVariation(scratch),
       };
     }
   }
@@ -144,6 +150,7 @@ const searchRoot = (
   return {
     bestMove,
     score: bestScore,
+    pv: getPrincipalVariation(scratch),
   };
 };
 

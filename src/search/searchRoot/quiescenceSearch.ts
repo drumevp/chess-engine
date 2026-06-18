@@ -16,26 +16,25 @@ import getMoveGenerationContext from "../../engine/movegen/getMoveGenerationCont
 import determineGameState from "../../engine/position/analyzePosition/determineGameState";
 import { makeMoveWithUndo } from "../../engine/position/moves/makeMove/makeMove";
 import undoMove from "../../engine/position/moves/undoMove/undoMove";
-import { AttackInfo } from "../../engine/types/attackInfo";
-import { DetermineGameStateRValue } from "../../engine/types/gameState";
-import { Undo } from "../../engine/types/history";
-import { MoveGenerationContext, MoveList } from "../../engine/types/move";
 import { Position } from "../../engine/types/position";
 import { isQuiescenceMove } from "../constants/search";
 import simpleEval from "../eval/simpleEval";
-import { getTerminalScore, shouldStopSearch } from "../helpers/search";
-import { SearchControl } from "../types/search";
+import {
+  resetPrincipalVariation,
+  updatePrincipalVariation,
+} from "../helpers/principalVariation";
+import {
+  getTerminalScore,
+  shouldStopSearch,
+} from "../helpers/search";
+import { SearchControl, SearchScratch } from "../types/search";
 
 const quiescenceSearch = (
   position: Position,
   alpha: number,
   beta: number,
   ply: number,
-  moveLists: MoveList[],
-  contexts: MoveGenerationContext[],
-  attackInfos: AttackInfo[],
-  undoStack: Undo[],
-  gameStateScratch: DetermineGameStateRValue,
+  scratch: SearchScratch,
   repetitionCounts: Map<bigint, number>,
   control: SearchControl,
 ): number => {
@@ -43,13 +42,15 @@ const quiescenceSearch = (
     return simpleEval(position);
   }
 
-  if (ply >= moveLists.length) {
+  if (ply >= scratch.moveLists.length) {
     return simpleEval(position);
   }
 
-  const moveList = moveLists[ply];
-  const ctx = getMoveGenerationContext(position, moveList, contexts[ply]);
-  const attackInfo = generateAttackInfo(ctx, attackInfos[ply]);
+  resetPrincipalVariation(scratch, ply);
+
+  const moveList = scratch.moveLists[ply];
+  const ctx = getMoveGenerationContext(position, moveList, scratch.contexts[ply]);
+  const attackInfo = generateAttackInfo(ctx, scratch.attackInfos[ply]);
   const movesCount = generateLegalMovesFromContext(ctx, attackInfo);
 
   const isCheck = attackInfo.checkCount > 0;
@@ -59,10 +60,10 @@ const quiescenceSearch = (
     repetitionCounts,
     movesCount,
     isCheck,
-    gameStateScratch,
+    scratch.gameStateScratch,
   );
 
-  const terminalScore = getTerminalScore(gameStateScratch, ply);
+  const terminalScore = getTerminalScore(scratch.gameStateScratch, ply);
 
   if (terminalScore !== null) {
     return terminalScore;
@@ -85,7 +86,7 @@ const quiescenceSearch = (
 
   for (let i = 0; i < movesCount; i++) {
     const move = moveList.moves[i];
-    const undo = undoStack[ply];
+    const undo = scratch.undoStack[ply];
 
     if (!isCheck && !isQuiescenceMove(move)) {
       continue;
@@ -100,11 +101,7 @@ const quiescenceSearch = (
       -beta,
       -alpha,
       ply + 1,
-      moveLists,
-      contexts,
-      attackInfos,
-      undoStack,
-      gameStateScratch,
+      scratch,
       repetitionCounts,
       control,
     );
@@ -122,6 +119,7 @@ const quiescenceSearch = (
 
     if (score > alpha) {
       alpha = score;
+      updatePrincipalVariation(scratch, ply, move);
     }
 
     if (score >= beta) {
