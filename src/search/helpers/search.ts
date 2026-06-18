@@ -44,12 +44,18 @@ export const createSearchScratch = (depth: number): SearchScratch => {
     createAttackInfo(),
   );
   const undoStack = Array.from({ length: searchPlyCount }, () => createUndo());
+  const pvTable = Array.from(
+    { length: searchPlyCount },
+    () => new Uint32Array(searchPlyCount),
+  );
 
   return {
     moveLists,
     contexts,
     attackInfos,
     undoStack,
+    pvTable,
+    pvLength: new Uint16Array(searchPlyCount),
     gameStateScratch: {
       gameState: GAME_STATE.ONGOING,
       gameEndReason: null,

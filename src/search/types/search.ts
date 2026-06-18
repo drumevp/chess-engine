@@ -7,6 +7,7 @@ import { Position } from "../../engine/types/position";
 export type SearchResult = {
   bestMove: number | null;
   score: number;
+  pv: number[];
 };
 
 export type IterativeDeepeningSearchResult = SearchResult & {
@@ -34,6 +35,8 @@ export type SearchScratch = {
   attackInfos: AttackInfo[];
   undoStack: Undo[];
   gameStateScratch: DetermineGameStateRValue;
+  pvTable: Uint32Array[];
+  pvLength: Uint16Array;
 };
 
 export type SearchState = {

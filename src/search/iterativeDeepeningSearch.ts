@@ -19,6 +19,7 @@ const iterativeDeepeningSearch = (
   let bestResult: IterativeDeepeningSearchResult = {
     bestMove: null,
     score: 0,
+    pv: [],
     depth: 0,
     nodes: 0,
     elapsedTimeMs: 0,
