@@ -11,6 +11,10 @@ import undoMove from "../../engine/position/moves/undoMove/undoMove";
 import { Position } from "../../engine/types/position";
 import failSoftAlphaBetaNegaMax from "./failSoftAlphaBetaNegaMax";
 import {
+  createCaptureHistory,
+  recordCaptureHistory,
+} from "../helpers/captureHistory";
+import {
   createSearchControl,
   createSearchScratch,
   createSearchState,
@@ -30,6 +34,7 @@ import { orderMoves } from "../helpers/moveOrdering";
 import quiescenceSearch from "./quiescenceSearch";
 import { SearchResult } from "../types/search";
 import { SearchControl } from "../types/search";
+import type { CaptureHistory } from "../types/captureHistory";
 import type { HistoryHeuristic } from "../types/historyHeuristic";
 import { TranspositionTable } from "../types/transpositionTable";
 import {
@@ -47,6 +52,7 @@ const searchRoot = (
   priorityMove: number | null = null,
   transpositionTable?: TranspositionTable,
   historyHeuristic?: HistoryHeuristic,
+  captureHistory?: CaptureHistory,
 ): SearchResult => {
   if (shouldStopSearch(control)) {
     return {
@@ -60,6 +66,7 @@ const searchRoot = (
   const searchState = createSearchState(position, repetitionCounts);
   const searchPosition = searchState.position;
   const searchRepetitionCounts = searchState.repetitionCounts;
+  const searchCaptureHistory = captureHistory ?? createCaptureHistory();
   resetPrincipalVariation(scratch, 0);
 
   const moveList = scratch.moveLists[0];
@@ -100,6 +107,7 @@ const searchRoot = (
       scratch,
       searchRepetitionCounts,
       control,
+      searchCaptureHistory,
     );
 
     return {
@@ -127,6 +135,7 @@ const searchRoot = (
     priorityMove ?? transpositionTableBestMove,
     scratch.killerMoves,
     searchHistoryHeuristic,
+    searchCaptureHistory,
     0,
   );
 
@@ -152,6 +161,7 @@ const searchRoot = (
         control,
         searchTranspositionTable,
         searchHistoryHeuristic,
+        searchCaptureHistory,
       );
     } else {
       score = -failSoftAlphaBetaNegaMax(
@@ -165,6 +175,7 @@ const searchRoot = (
         control,
         searchTranspositionTable,
         searchHistoryHeuristic,
+        searchCaptureHistory,
       );
 
       if (!control.stopped && score > alpha && score < beta) {
@@ -179,6 +190,7 @@ const searchRoot = (
           control,
           searchTranspositionTable,
           searchHistoryHeuristic,
+          searchCaptureHistory,
         );
       }
     }
@@ -206,6 +218,7 @@ const searchRoot = (
 
     if (score >= beta) {
       recordHistoryHeuristic(searchHistoryHeuristic, move, depth);
+      recordCaptureHistory(searchCaptureHistory, move, depth);
 
       return {
         bestMove,

@@ -15,10 +15,12 @@ import {
   PROMOTION_SCORE,
 } from "../constants/moveOrdering";
 import { getPieceValue } from "../constants/eval";
+import { getCaptureHistoryScore } from "./captureHistory";
 import { getHistoryHeuristicScore } from "./historyHeuristic";
 import { isKillerMove } from "./killerMoves";
 import staticExchangeEvaluation from "../searchRoot/staticExchangeEvaluation/staticExchangeEvaluation";
 import { createStaticExchangeEvaluationScratch } from "../searchRoot/staticExchangeEvaluation/scratch";
+import type { CaptureHistory } from "../types/captureHistory";
 import type { HistoryHeuristic } from "../types/historyHeuristic";
 import type { KillerMoves } from "../types/killerMoves";
 import type { StaticExchangeEvaluationScratch } from "../types/staticExchangeEvaluation";
@@ -40,6 +42,7 @@ export const scoreMove = (
   priorityMove: number | null = null,
   killerMoves: KillerMoves | null = null,
   historyHeuristic: HistoryHeuristic | null = null,
+  captureHistory: CaptureHistory | null = null,
   ply = 0,
 ): number => {
   if (priorityMove !== null && move === priorityMove) {
@@ -55,7 +58,10 @@ export const scoreMove = (
         position,
         move,
         scratch.staticExchangeEvaluation,
-      )
+      ) +
+      (captureHistory === null
+        ? 0
+        : getCaptureHistoryScore(captureHistory, move))
     );
   }
 
@@ -66,7 +72,10 @@ export const scoreMove = (
         position,
         move,
         scratch.staticExchangeEvaluation,
-      )
+      ) +
+      (captureHistory === null
+        ? 0
+        : getCaptureHistoryScore(captureHistory, move))
     );
   }
 
@@ -77,7 +86,10 @@ export const scoreMove = (
         position,
         move,
         scratch.staticExchangeEvaluation,
-      )
+      ) +
+      (captureHistory === null
+        ? 0
+        : getCaptureHistoryScore(captureHistory, move))
     );
   }
 
@@ -104,6 +116,7 @@ export const orderMoves = (
   priorityMove: number | null = null,
   killerMoves: KillerMoves | null = null,
   historyHeuristic: HistoryHeuristic | null = null,
+  captureHistory: CaptureHistory | null = null,
   ply = 0,
 ): void => {
   const moves = moveList.moves;
@@ -117,6 +130,7 @@ export const orderMoves = (
       priorityMove,
       killerMoves,
       historyHeuristic,
+      captureHistory,
       ply,
     );
   }
