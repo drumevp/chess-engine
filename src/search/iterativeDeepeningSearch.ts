@@ -138,6 +138,16 @@ const iterativeDeepeningSearch = (
     }
 
     if (control.stopped) {
+      if (bestResult.bestMove === null && result.bestMove !== null) {
+        bestResult = {
+          ...result,
+          depth: Math.max(0, depth - 1),
+          nodes: control.nodes,
+          elapsedTimeMs: getSearchElapsedTimeMs(control),
+          stopped: true,
+        };
+      }
+
       break;
     }
 

@@ -22,13 +22,18 @@ import {
 import { appendHalfKaActiveFeatures } from "../../src/search/nnue/features";
 import { appendFullThreatActiveFeatures } from "../../src/search/nnue/fullThreats";
 import { createNnueEvaluator, evaluateNnue } from "../../src/search/nnue/inference";
+import { DEFAULT_NNUE_MODEL_METADATA } from "../../src/search/nnue/defaultModel";
+import { createMaterialNnueModel } from "../../src/search/nnue/model";
 import { createNnueScratch } from "../../src/search/nnue/scratch";
+import { isPlausibleNnuePosition } from "../../src/search/nnue/positionValidation";
 import type { AttackInfo } from "../../src/engine/types/attackInfo";
 import type { MoveGenerationContext, MoveList } from "../../src/engine/types/move";
 import type { Position } from "../../src/engine/types/position";
 import type { NnueModel, SearchEvaluator } from "../../src/search/types/nnue";
 import { getArg, getNumberArg, hasArg } from "./args";
+import { createFeatureCache } from "./featureCache";
 import { createJsonlWriter } from "./jsonl";
+import { MATCH_OPENING_LINES } from "./matchOpenings";
 import {
   ensureDefaultNnueCheckpoint,
   getTimestamp,
@@ -38,14 +43,23 @@ import {
 } from "./modelFiles";
 import { chooseSearchMove } from "./searchMoves";
 import {
+  applyOutputCalibration,
+  evaluateTrainableNnueRecord,
   trainNnueRecord,
   writeTrainableWeightsToModel,
+  type NnueTrainingLossKind,
   type NnueTrainingLoss,
+  type NnueOutputCalibration,
   type NnueTrainingOptions,
   type TrainingRecord,
 } from "./trainingPass";
 import { createNnueTrainingScratch } from "./trainingScratch";
 import { createTrainableNnueWeights } from "./trainingWeights";
+import {
+  trainTensorNnue,
+  type TensorTrainingEpochSummary,
+  type TensorTrainingPhase,
+} from "./tensorTraining";
 import { UciEngine, type UciScore } from "./uciEngine";
 
 type LichessPrincipalVariation = {
@@ -98,14 +112,60 @@ type DatasetSummary = {
 type ValidationSummary = {
   positions: number;
   zeroMae: number;
-  simpleMae: number;
+  materialMae: number;
   defaultNnueMae: number;
   candidateNnueMae: number;
+  buckets: ValidationBucketSummary[];
+  defaultOutput: OutputDistributionSummary;
+  candidateOutput: OutputDistributionSummary;
+  targetOutput: OutputDistributionSummary;
 };
 
 type NnueDatasetMaeSummary = {
   positions: number;
   meanAbsoluteError: number;
+};
+
+type ValidationBucketSummary = {
+  label: string;
+  minAbsCp: number;
+  maxAbsCp: number;
+  positions: number;
+  zeroMae: number;
+  defaultNnueMae: number;
+  candidateNnueMae: number;
+  targetAverageAbsCp: number;
+  defaultAverageAbsCp: number;
+  candidateAverageAbsCp: number;
+};
+
+type OutputDistributionSummary = {
+  positions: number;
+  averageAbsCp: number;
+  minCp: number;
+  maxCp: number;
+  exactZeroPercent: number;
+  absUnder10Percent: number;
+  absUnder50Percent: number;
+};
+
+type OutputDistributionAccumulator = {
+  positions: number;
+  absTotal: number;
+  minCp: number;
+  maxCp: number;
+  exactZero: number;
+  absUnder10: number;
+  absUnder50: number;
+};
+
+type ValidationBucketAccumulator = ValidationBucketSummary & {
+  zeroErrorTotal: number;
+  defaultErrorTotal: number;
+  candidateErrorTotal: number;
+  targetAbsTotal: number;
+  defaultAbsTotal: number;
+  candidateAbsTotal: number;
 };
 
 type MatchGameResult = "1-0" | "0-1" | "1/2-1/2" | "*";
@@ -119,6 +179,34 @@ type MatchSummary = {
   unfinished: number;
   scoreRate: number;
   estimatedElo: number;
+};
+
+type PromotionDecision = {
+  promoted: boolean;
+  reasons: string[];
+};
+
+type EpochSummary = {
+  phase: string;
+  epoch: number;
+  positions: number;
+  meanAbsoluteError: number;
+  rootMeanSquaredError: number;
+  meanLoss: number;
+  meanWdlError: number;
+};
+
+type TrainingPhase = {
+  name: string;
+  epochs: number;
+  quantizeForward: boolean;
+  options: NnueTrainingOptions;
+};
+
+type CalibrationSummary = NnueOutputCalibration & {
+  positions: number;
+  rawSlope: number;
+  rawIntercept: number;
 };
 
 const getEngineResultLabel = (
@@ -201,6 +289,25 @@ const parseEloList = (value: string): number[] =>
 
     return parsed;
   });
+
+const parseTrainingLoss = (value: string): NnueTrainingLossKind => {
+  if (value === "cp" || value === "wdl" || value === "mixed") {
+    return value;
+  }
+
+  throw new Error(`Invalid --loss: ${value}. Expected cp, wdl, or mixed.`);
+};
+
+const scaleTrainingRates = (
+  rates: NnueTrainingOptions["rates"],
+  scale: number,
+): NnueTrainingOptions["rates"] => ({
+  network: rates.network * scale,
+  feature: rates.feature * scale,
+  threat: rates.threat * scale,
+  psqt: rates.psqt * scale,
+  bias: rates.bias * scale,
+});
 
 const normalizeFen = (fen: string): string => {
   const parts = fen.trim().split(/\s+/);
@@ -290,9 +397,15 @@ const createDatasetScratch = (): DatasetScratch => {
 const assertNnueEncodablePosition = (
   position: Position,
   scratch: DatasetScratch,
+  includeFullThreats: boolean,
 ): void => {
   appendHalfKaActiveFeatures(position, COLOR.WHITE, scratch.halfKaFeatures, 0);
   appendHalfKaActiveFeatures(position, COLOR.BLACK, scratch.halfKaFeatures, 0);
+
+  if (!includeFullThreats) {
+    return;
+  }
+
   appendFullThreatActiveFeatures(
     position,
     COLOR.WHITE,
@@ -312,14 +425,21 @@ const assertNnueEncodablePosition = (
 const getPositionFilter = (
   fen: string,
   scratch: DatasetScratch,
+  options: { includeFullThreats: boolean; validateLegalMoves: boolean },
 ): { isCheck: boolean; isTerminal: boolean } => {
   const position = generateFenToPosition(fen);
 
-  assertNnueEncodablePosition(position, scratch);
+  if (!isPlausibleNnuePosition(position)) {
+    throw new Error(`Implausible chess position: ${fen}`);
+  }
+
+  assertNnueEncodablePosition(position, scratch, options.includeFullThreats);
 
   const ctx = getMoveGenerationContext(position, scratch.moveList, scratch.ctx);
   const attackInfo = generateAttackInfo(ctx, scratch.attackInfo);
-  const legalMoveCount = generateLegalMovesFromContext(ctx, attackInfo);
+  const legalMoveCount = options.validateLegalMoves
+    ? generateLegalMovesFromContext(ctx, attackInfo)
+    : 1;
 
   return {
     isCheck: attackInfo.checkCount > 0,
@@ -350,6 +470,7 @@ const parseLichessRecord = (
   maxAbsCp: number,
   scratch: DatasetScratch,
   summary: DatasetSummary,
+  options: { includeFullThreats: boolean; validateLegalMoves: boolean },
 ): TrainingRecord | null => {
   const record = JSON.parse(line) as LichessEvaluationRecord;
   const evaluation = selectEvaluation(record.evals, minDepth);
@@ -385,7 +506,7 @@ const parseLichessRecord = (
     return null;
   }
 
-  const positionFilter = getPositionFilter(fen, scratch);
+  const positionFilter = getPositionFilter(fen, scratch, options);
 
   if (positionFilter.isCheck || positionFilter.isTerminal) {
     if (positionFilter.isCheck) {
@@ -408,7 +529,9 @@ const flushRandomTrainingRecord = async (
   writeRecord: (record: TrainingRecord) => Promise<void>,
 ): Promise<void> => {
   const index = Math.trunc(random() * buffer.length);
-  const [record] = buffer.splice(index, 1);
+  const record = buffer[index];
+  buffer[index] = buffer[buffer.length - 1];
+  buffer.pop();
 
   await writeRecord(record);
 };
@@ -426,6 +549,8 @@ const createTrainingDataset = async (
     shuffleBuffer: number;
     seed: number;
     logEvery: number;
+    includeFullThreats: boolean;
+    validateLegalMoves: boolean;
   },
 ): Promise<DatasetSummary> => {
   await access(resolve(inputPath));
@@ -478,6 +603,10 @@ const createTrainingDataset = async (
           options.maxAbsCp,
           scratch,
           summary,
+          {
+            includeFullThreats: options.includeFullThreats,
+            validateLegalMoves: options.validateLegalMoves,
+          },
         );
       } catch {
         summary.skipped++;
@@ -538,8 +667,13 @@ const createTrainingDataset = async (
       }
     }
 
-    while (trainBuffer.length > 0) {
-      await flushRandomTrainingRecord(trainBuffer, random, writeTrain);
+    for (let i = trainBuffer.length - 1; i > 0; i--) {
+      const j = Math.trunc(random() * (i + 1));
+      [trainBuffer[i], trainBuffer[j]] = [trainBuffer[j], trainBuffer[i]];
+    }
+
+    for (const record of trainBuffer) {
+      await writeTrain(record);
     }
   } finally {
     lines.close();
@@ -563,6 +697,51 @@ const createTrainingDataset = async (
   return summary;
 };
 
+const countJsonlRecords = async (path: string): Promise<number> => {
+  const lines = createInterface({
+    input: createReadStream(path),
+    crlfDelay: Infinity,
+  });
+  let positions = 0;
+
+  for await (const line of lines) {
+    if (line.trim().length > 0) {
+      positions++;
+    }
+  }
+
+  return positions;
+};
+
+const reuseTrainingDataset = async (
+  directory: string,
+): Promise<DatasetSummary> => {
+  const trainPath = resolve(directory, "train.jsonl");
+  const validationPath = resolve(directory, "validation.jsonl");
+
+  await access(trainPath);
+  await access(validationPath);
+
+  const trainPositions = await countJsonlRecords(trainPath);
+  const validationPositions = await countJsonlRecords(validationPath);
+
+  return {
+    inputPath: `reused:${resolve(directory)}`,
+    trainPath,
+    validationPath,
+    read: trainPositions + validationPositions,
+    trainPositions,
+    validationPositions,
+    skipped: 0,
+    skippedMate: 0,
+    skippedOutOfRange: 0,
+    skippedCheck: 0,
+    skippedTerminal: 0,
+    skippedInvalidPosition: 0,
+    skippedSampling: 0,
+  };
+};
+
 const readTrainingRecord = (line: string): TrainingRecord => {
   const record = JSON.parse(line) as TrainingRecord;
 
@@ -574,20 +753,29 @@ const readTrainingRecord = (line: string): TrainingRecord => {
 };
 
 const addLoss = (
-  metrics: { positions: number; absoluteErrorTotal: number; squaredErrorTotal: number },
+  metrics: {
+    positions: number;
+    absoluteErrorTotal: number;
+    squaredErrorTotal: number;
+    lossTotal: number;
+    wdlErrorTotal: number;
+  },
   loss: NnueTrainingLoss,
 ): void => {
   metrics.positions++;
   metrics.absoluteErrorTotal += loss.absoluteError;
   metrics.squaredErrorTotal += loss.squaredError;
+  metrics.lossTotal += loss.loss;
+  metrics.wdlErrorTotal += loss.wdlError;
 };
 
 const trainEpoch = async (
   datasetPath: string,
+  phaseName: string,
   epoch: number,
   options: NnueTrainingOptions & { logEvery: number; positions: number },
   weights: ReturnType<typeof createTrainableNnueWeights>,
-): Promise<{ positions: number; meanAbsoluteError: number; rootMeanSquaredError: number }> => {
+): Promise<EpochSummary> => {
   const startedAt = Date.now();
   const scratch = createNnueTrainingScratch();
   const lines = createInterface({
@@ -598,6 +786,8 @@ const trainEpoch = async (
     positions: 0,
     absoluteErrorTotal: 0,
     squaredErrorTotal: 0,
+    lossTotal: 0,
+    wdlErrorTotal: 0,
   };
 
   for await (const line of lines) {
@@ -616,21 +806,163 @@ const trainEpoch = async (
         metrics.positions,
         options.positions,
         startedAt,
-        `epoch ${epoch} mae ${formatDecimal(
+        `${phaseName} epoch ${epoch} mae ${formatDecimal(
           metrics.absoluteErrorTotal / metrics.positions,
         )} rmse ${formatDecimal(
           Math.sqrt(metrics.squaredErrorTotal / metrics.positions),
-        )}`,
+        )} loss ${formatDecimal(
+          metrics.lossTotal / metrics.positions,
+          4,
+        )} wdl ${formatDecimal(metrics.wdlErrorTotal / metrics.positions, 4)}`,
       );
     }
   }
 
   return {
+    phase: phaseName,
+    epoch,
     positions: metrics.positions,
     meanAbsoluteError: metrics.absoluteErrorTotal / metrics.positions,
     rootMeanSquaredError: Math.sqrt(
       metrics.squaredErrorTotal / metrics.positions,
     ),
+    meanLoss: metrics.lossTotal / metrics.positions,
+    meanWdlError: metrics.wdlErrorTotal / metrics.positions,
+  };
+};
+
+const VALIDATION_BUCKETS = [
+  { label: "0-50", minAbsCp: 0, maxAbsCp: 50 },
+  { label: "50-100", minAbsCp: 50, maxAbsCp: 100 },
+  { label: "100-200", minAbsCp: 100, maxAbsCp: 200 },
+  { label: "200-500", minAbsCp: 200, maxAbsCp: 500 },
+  { label: "500-1000", minAbsCp: 500, maxAbsCp: 1_000 },
+  { label: "1000-3000", minAbsCp: 1_000, maxAbsCp: 3_000 },
+];
+
+const createOutputDistributionAccumulator = (): OutputDistributionAccumulator => ({
+  positions: 0,
+  absTotal: 0,
+  minCp: Number.POSITIVE_INFINITY,
+  maxCp: Number.NEGATIVE_INFINITY,
+  exactZero: 0,
+  absUnder10: 0,
+  absUnder50: 0,
+});
+
+const addOutputDistribution = (
+  accumulator: OutputDistributionAccumulator,
+  scoreCp: number,
+): void => {
+  const absScore = Math.abs(scoreCp);
+
+  accumulator.positions++;
+  accumulator.absTotal += absScore;
+  accumulator.minCp = Math.min(accumulator.minCp, scoreCp);
+  accumulator.maxCp = Math.max(accumulator.maxCp, scoreCp);
+
+  if (scoreCp === 0) {
+    accumulator.exactZero++;
+  }
+
+  if (absScore < 10) {
+    accumulator.absUnder10++;
+  }
+
+  if (absScore < 50) {
+    accumulator.absUnder50++;
+  }
+};
+
+const summarizeOutputDistribution = (
+  accumulator: OutputDistributionAccumulator,
+): OutputDistributionSummary => {
+  const positions = accumulator.positions;
+
+  if (positions === 0) {
+    return {
+      positions: 0,
+      averageAbsCp: 0,
+      minCp: 0,
+      maxCp: 0,
+      exactZeroPercent: 0,
+      absUnder10Percent: 0,
+      absUnder50Percent: 0,
+    };
+  }
+
+  return {
+    positions,
+    averageAbsCp: accumulator.absTotal / positions,
+    minCp: accumulator.minCp,
+    maxCp: accumulator.maxCp,
+    exactZeroPercent: (accumulator.exactZero / positions) * 100,
+    absUnder10Percent: (accumulator.absUnder10 / positions) * 100,
+    absUnder50Percent: (accumulator.absUnder50 / positions) * 100,
+  };
+};
+
+const createBucketAccumulator = (
+  bucket: (typeof VALIDATION_BUCKETS)[number],
+): ValidationBucketAccumulator => ({
+  ...bucket,
+  positions: 0,
+  zeroMae: 0,
+  defaultNnueMae: 0,
+  candidateNnueMae: 0,
+  targetAverageAbsCp: 0,
+  defaultAverageAbsCp: 0,
+  candidateAverageAbsCp: 0,
+  zeroErrorTotal: 0,
+  defaultErrorTotal: 0,
+  candidateErrorTotal: 0,
+  targetAbsTotal: 0,
+  defaultAbsTotal: 0,
+  candidateAbsTotal: 0,
+});
+
+const findValidationBucket = (
+  buckets: ValidationBucketAccumulator[],
+  absTargetCp: number,
+): ValidationBucketAccumulator => {
+  for (const bucket of buckets) {
+    if (absTargetCp >= bucket.minAbsCp && absTargetCp < bucket.maxAbsCp) {
+      return bucket;
+    }
+  }
+
+  return buckets[buckets.length - 1];
+};
+
+const summarizeBucket = (
+  bucket: ValidationBucketAccumulator,
+): ValidationBucketSummary => {
+  if (bucket.positions === 0) {
+    return {
+      label: bucket.label,
+      minAbsCp: bucket.minAbsCp,
+      maxAbsCp: bucket.maxAbsCp,
+      positions: 0,
+      zeroMae: 0,
+      defaultNnueMae: 0,
+      candidateNnueMae: 0,
+      targetAverageAbsCp: 0,
+      defaultAverageAbsCp: 0,
+      candidateAverageAbsCp: 0,
+    };
+  }
+
+  return {
+    label: bucket.label,
+    minAbsCp: bucket.minAbsCp,
+    maxAbsCp: bucket.maxAbsCp,
+    positions: bucket.positions,
+    zeroMae: bucket.zeroErrorTotal / bucket.positions,
+    defaultNnueMae: bucket.defaultErrorTotal / bucket.positions,
+    candidateNnueMae: bucket.candidateErrorTotal / bucket.positions,
+    targetAverageAbsCp: bucket.targetAbsTotal / bucket.positions,
+    defaultAverageAbsCp: bucket.defaultAbsTotal / bucket.positions,
+    candidateAverageAbsCp: bucket.candidateAbsTotal / bucket.positions,
   };
 };
 
@@ -645,9 +977,13 @@ const evaluateValidation = async (
   });
   const defaultScratch = createNnueScratch();
   const candidateScratch = createNnueScratch();
+  const targetOutput = createOutputDistributionAccumulator();
+  const defaultOutput = createOutputDistributionAccumulator();
+  const candidateOutput = createOutputDistributionAccumulator();
+  const buckets = VALIDATION_BUCKETS.map(createBucketAccumulator);
   let positions = 0;
   let zeroError = 0;
-  let simpleError = 0;
+  let materialError = 0;
   let defaultError = 0;
   let candidateError = 0;
 
@@ -659,23 +995,44 @@ const evaluateValidation = async (
     const record = readTrainingRecord(line);
     const position = generateFenToPosition(record.fen);
 
+    if (!isPlausibleNnuePosition(position)) {
+      continue;
+    }
+    const defaultScore = evaluateNnue(defaultModel, position, defaultScratch);
+    const candidateScore = evaluateNnue(candidateModel, position, candidateScratch);
+    const zeroAbsError = Math.abs(record.scoreCp);
+    const defaultAbsError = Math.abs(defaultScore - record.scoreCp);
+    const candidateAbsError = Math.abs(candidateScore - record.scoreCp);
+    const bucket = findValidationBucket(buckets, Math.abs(record.scoreCp));
+
     positions++;
-    zeroError += Math.abs(record.scoreCp);
-    simpleError += Math.abs(simpleEval(position) - record.scoreCp);
-    defaultError += Math.abs(
-      evaluateNnue(defaultModel, position, defaultScratch) - record.scoreCp,
-    );
-    candidateError += Math.abs(
-      evaluateNnue(candidateModel, position, candidateScratch) - record.scoreCp,
-    );
+    zeroError += zeroAbsError;
+    materialError += Math.abs(simpleEval(position) - record.scoreCp);
+    defaultError += defaultAbsError;
+    candidateError += candidateAbsError;
+    addOutputDistribution(targetOutput, record.scoreCp);
+    addOutputDistribution(defaultOutput, defaultScore);
+    addOutputDistribution(candidateOutput, candidateScore);
+
+    bucket.positions++;
+    bucket.zeroErrorTotal += zeroAbsError;
+    bucket.defaultErrorTotal += defaultAbsError;
+    bucket.candidateErrorTotal += candidateAbsError;
+    bucket.targetAbsTotal += Math.abs(record.scoreCp);
+    bucket.defaultAbsTotal += Math.abs(defaultScore);
+    bucket.candidateAbsTotal += Math.abs(candidateScore);
   }
 
   return {
     positions,
     zeroMae: zeroError / positions,
-    simpleMae: simpleError / positions,
+    materialMae: materialError / positions,
     defaultNnueMae: defaultError / positions,
     candidateNnueMae: candidateError / positions,
+    buckets: buckets.map(summarizeBucket),
+    defaultOutput: summarizeOutputDistribution(defaultOutput),
+    candidateOutput: summarizeOutputDistribution(candidateOutput),
+    targetOutput: summarizeOutputDistribution(targetOutput),
   };
 };
 
@@ -702,6 +1059,10 @@ const evaluateNnueDatasetMae = async (
 
     const record = readTrainingRecord(line);
     const position = generateFenToPosition(record.fen);
+
+    if (!isPlausibleNnuePosition(position)) {
+      continue;
+    }
 
     positions++;
     absoluteErrorTotal += Math.abs(
@@ -730,6 +1091,87 @@ const evaluateNnueDatasetMae = async (
   return {
     positions,
     meanAbsoluteError: absoluteErrorTotal / positions,
+  };
+};
+
+const fitOutputCalibration = async (
+  datasetPath: string,
+  weights: ReturnType<typeof createTrainableNnueWeights>,
+  options: {
+    maxPositions: number;
+    minSlope: number;
+    maxSlope: number;
+    minIntercept: number;
+    maxIntercept: number;
+    logEvery: number;
+  },
+): Promise<CalibrationSummary> => {
+  const lines = createInterface({
+    input: createReadStream(datasetPath),
+    crlfDelay: Infinity,
+  });
+  const scratch = createNnueTrainingScratch();
+  const startedAt = Date.now();
+  let positions = 0;
+  let sumPrediction = 0;
+  let sumTarget = 0;
+  let sumPredictionSquared = 0;
+  let sumPredictionTarget = 0;
+
+  for await (const line of lines) {
+    if (line.trim().length === 0) {
+      continue;
+    }
+
+    const record = readTrainingRecord(line);
+    const predicted = evaluateTrainableNnueRecord(weights, record, scratch);
+    const target = record.scoreCp;
+
+    positions++;
+    sumPrediction += predicted;
+    sumTarget += target;
+    sumPredictionSquared += predicted * predicted;
+    sumPredictionTarget += predicted * target;
+
+    if (positions % options.logEvery === 0) {
+      logProgress(
+        "calibrate",
+        positions,
+        options.maxPositions,
+        startedAt,
+        "fitting output scale",
+      );
+    }
+
+    if (positions >= options.maxPositions) {
+      break;
+    }
+  }
+
+  if (positions === 0) {
+    throw new Error(`Cannot calibrate from empty dataset: ${datasetPath}`);
+  }
+
+  const denominator =
+    positions * sumPredictionSquared - sumPrediction * sumPrediction;
+  const rawSlope =
+    Math.abs(denominator) < 1e-9
+      ? 1
+      : (positions * sumPredictionTarget - sumPrediction * sumTarget) /
+        denominator;
+  const rawIntercept = (sumTarget - rawSlope * sumPrediction) / positions;
+  const slope = Math.min(options.maxSlope, Math.max(options.minSlope, rawSlope));
+  const intercept = Math.min(
+    options.maxIntercept,
+    Math.max(options.minIntercept, rawIntercept),
+  );
+
+  return {
+    positions,
+    rawSlope,
+    rawIntercept,
+    slope,
+    intercept,
   };
 };
 
@@ -814,10 +1256,15 @@ const playMatchGame = async (
     ourDepth: number;
     ourMoveTimeMs: number;
     stockfishMoveTimeMs: number;
+    openingMoves: readonly string[];
   },
 ): Promise<{ result: MatchGameResult; plies: number; finalFen: string }> => {
   const engine = new ChessEngine();
-  let plies = 0;
+  let plies = options.openingMoves.length;
+
+  for (const move of options.openingMoves) {
+    engine.makeUciMove(move);
+  }
 
   for (; plies < options.maxPly && !engine.isGameOver(); plies++) {
     const isEngineTurn = engine.turn() === engineColor;
@@ -884,7 +1331,12 @@ const evaluateAgainstStockfish = async (
 
       for (let gameIndex = 0; gameIndex < options.gamesPerElo; gameIndex++) {
         const engineColor = gameIndex % 2 === 0 ? COLOR.WHITE : COLOR.BLACK;
-        const game = await playMatchGame(stockfish, engineColor, evaluator, options);
+        const openingIndex =
+          Math.trunc(gameIndex / 2) % MATCH_OPENING_LINES.length;
+        const game = await playMatchGame(stockfish, engineColor, evaluator, {
+          ...options,
+          openingMoves: MATCH_OPENING_LINES[openingIndex],
+        });
 
         if (game.result === "*" && options.adjudicateDepth > 0) {
           await stockfish.setOption("UCI_LimitStrength", "false");
@@ -922,7 +1374,7 @@ const evaluateAgainstStockfish = async (
             options.gamesPerElo
           } engine ${engineResult} score ${score} color ${
             engineColor === COLOR.WHITE ? "white" : "black"
-          } result ${game.result} plies ${game.plies}`,
+          } result ${game.result} opening ${openingIndex} plies ${game.plies}`,
         );
       }
 
@@ -967,6 +1419,162 @@ const getWeightedScoreRate = (summaries: MatchSummary[]): number => {
   return games === 0 ? 0 : points / games;
 };
 
+const getTotalGames = (summaries: MatchSummary[]): number =>
+  summaries.reduce((total, summary) => total + summary.games, 0);
+
+const printOutputDistribution = (
+  label: string,
+  distribution: OutputDistributionSummary,
+): void => {
+  console.log(
+    `${label.padEnd(16)} avgAbs ${formatDecimal(
+      distribution.averageAbsCp,
+    ).padStart(8)} min ${formatDecimal(distribution.minCp, 0).padStart(
+      6,
+    )} max ${formatDecimal(distribution.maxCp, 0).padStart(6)} ` +
+      `=0 ${formatDecimal(distribution.exactZeroPercent, 1).padStart(
+        5,
+      )}% <10 ${formatDecimal(distribution.absUnder10Percent, 1).padStart(
+        5,
+      )}% <50 ${formatDecimal(distribution.absUnder50Percent, 1).padStart(5)}%`,
+  );
+};
+
+const printValidationBuckets = (buckets: ValidationBucketSummary[]): void => {
+  console.log(
+    "bucket       count   targetAbs  zeroMAE defaultMAE candidateMAE  candAbs",
+  );
+
+  for (const bucket of buckets) {
+    console.log(
+      `${bucket.label.padEnd(10)} ${formatNumber(bucket.positions).padStart(
+        7,
+      )} ${formatDecimal(bucket.targetAverageAbsCp).padStart(
+        10,
+      )} ${formatDecimal(bucket.zeroMae).padStart(8)} ${formatDecimal(
+        bucket.defaultNnueMae,
+      ).padStart(10)} ${formatDecimal(bucket.candidateNnueMae).padStart(
+        12,
+      )} ${formatDecimal(bucket.candidateAverageAbsCp).padStart(8)}`,
+    );
+  }
+};
+
+const decidePromotion = (options: {
+  noPromote: boolean;
+  skipGames: boolean;
+  allowValidationOnlyPromote: boolean;
+  validation: ValidationSummary;
+  defaultMatches: MatchSummary[];
+  candidateMatches: MatchSummary[];
+  minValidationImprovementCp: number;
+  maxBucketRegressionCp: number;
+  minBucketPositions: number;
+  minCandidateTargetAbsRatio: number;
+  maxCandidateAbsUnder50Percent: number;
+  minPromotionGames: number;
+  minMatchScoreImprovement: number;
+  nonDefaultBase: boolean;
+  allowNonDefaultBasePromote: boolean;
+}): PromotionDecision => {
+  const reasons: string[] = [];
+  const validationImprovement =
+    options.validation.defaultNnueMae - options.validation.candidateNnueMae;
+
+  if (options.noPromote) {
+    reasons.push("--no-promote was set");
+  }
+
+  if (options.nonDefaultBase && !options.allowNonDefaultBasePromote) {
+    reasons.push(
+      "base is not the active default; use --allow-nondefault-base-promote to permit replacement",
+    );
+  }
+
+  if (validationImprovement < options.minValidationImprovementCp) {
+    reasons.push(
+      `validation improvement ${formatDecimal(
+        validationImprovement,
+      )}cp < required ${formatDecimal(options.minValidationImprovementCp)}cp`,
+    );
+  }
+
+  for (const bucket of options.validation.buckets) {
+    if (bucket.positions < options.minBucketPositions) {
+      continue;
+    }
+
+    const regression = bucket.candidateNnueMae - bucket.defaultNnueMae;
+
+    if (regression > options.maxBucketRegressionCp) {
+      reasons.push(
+        `bucket ${bucket.label} regressed ${formatDecimal(
+          regression,
+        )}cp > allowed ${formatDecimal(options.maxBucketRegressionCp)}cp`,
+      );
+    }
+  }
+
+  const targetAbs = options.validation.targetOutput.averageAbsCp;
+  const candidateAbs = options.validation.candidateOutput.averageAbsCp;
+  const candidateTargetAbsRatio = targetAbs === 0 ? 1 : candidateAbs / targetAbs;
+
+  if (candidateTargetAbsRatio < options.minCandidateTargetAbsRatio) {
+    reasons.push(
+      `candidate avgAbs/target avgAbs ${formatDecimal(
+        candidateTargetAbsRatio,
+        3,
+      )} < required ${formatDecimal(options.minCandidateTargetAbsRatio, 3)}`,
+    );
+  }
+
+  if (
+    options.validation.candidateOutput.absUnder50Percent >
+    options.maxCandidateAbsUnder50Percent
+  ) {
+    reasons.push(
+      `candidate abs<50 ${formatDecimal(
+        options.validation.candidateOutput.absUnder50Percent,
+        1,
+      )}% > allowed ${formatDecimal(options.maxCandidateAbsUnder50Percent, 1)}%`,
+    );
+  }
+
+  if (options.skipGames) {
+    if (!options.allowValidationOnlyPromote) {
+      reasons.push("games were skipped; use --allow-validation-only-promote to permit promotion");
+    }
+  } else {
+    const defaultScoreRate = getWeightedScoreRate(options.defaultMatches);
+    const candidateScoreRate = getWeightedScoreRate(options.candidateMatches);
+    const matchImprovement = candidateScoreRate - defaultScoreRate;
+    const totalGames = getTotalGames(options.candidateMatches);
+
+    if (totalGames < options.minPromotionGames) {
+      reasons.push(
+        `candidate match games ${totalGames} < required ${options.minPromotionGames}`,
+      );
+    }
+
+    if (matchImprovement < options.minMatchScoreImprovement) {
+      reasons.push(
+        `match score improvement ${formatDecimal(
+          matchImprovement * 100,
+          1,
+        )}pp < required ${formatDecimal(
+          options.minMatchScoreImprovement * 100,
+          1,
+        )}pp`,
+      );
+    }
+  }
+
+  return {
+    promoted: reasons.length === 0,
+    reasons,
+  };
+};
+
 const printHelp = (): void => {
   console.log(`NNUE training
 
@@ -975,21 +1583,45 @@ Usage:
 
 Common options:
   --data <path>                  Lichess eval .jsonl.zst path
+  --backend <tensor|scalar>      Native batched or reference scalar trainer
+  --base <material|default|path> Starting checkpoint; defaults to material
+  --reuse-dataset <dir>          Reuse train.jsonl and validation.jsonl
   --positions <n>                Training positions
   --validation-positions <n>     Held-out validation positions
   --epochs <n>                   Training epochs
+  --batch-size <n>               Tensor batch size, defaults to 1024
+  --psqt-epochs <n>              Fast sparse PSQT bootstrap epochs
+  --network-epochs <n>           Dense-network-only tensor epochs
+  --feature-epochs <n>           HalfKA transformer tensor epochs
+  --train-full-threats           Cache and train expensive FullThreat features
   --sample-multiplier <n>        Spread samples across more accepted rows
   --shuffle-buffer <n>           Local shuffle buffer size
+  --validate-legal-positions     Run full legal-move validation while sampling
   --train-reeval-positions <n>   Training records to re-evaluate post-export
+  --loss <cp|wdl|mixed>          Training loss, defaults to mixed
+  --float-epochs <n>             Float-forward epochs, defaults to epochs minus QAT
+  --qat-epochs <n>               Quantized-forward fine-tune epochs
+  --threat-warmup-epochs <n>     Float epochs before FullThreat weights update
   --learning-rate <n>            Base learning rate
   --network-learning-rate <n>    Dense layer learning rate
   --feature-learning-rate <n>    HalfKA feature learning rate
   --threat-learning-rate <n>     FullThreat feature learning rate
   --psqt-learning-rate <n>       PSQT learning rate
   --bias-learning-rate <n>       Bias learning rate
+  --wdl-scale <n>                CP scale for logistic WDL loss
+  --cp-loss-weight <n>           Huber CP term weight for mixed loss
+  --bucket-weighting             Mildly upweight decisive labels
+  --calibration-positions <n>    Training records used to fit output scale
+  --calibrate-output             Fit final output scale (experimental)
   --games-per-elo <n>            Stockfish games per Elo
   --elos <list>                  Comma-separated Stockfish Elo list
+  --min-promotion-games <n>      Minimum candidate games before auto-promotion
+  --min-validation-improvement-cp <n>
+                                  Required candidate validation improvement
   --skip-games                   Skip Stockfish game evaluation
+  --allow-validation-only-promote
+                                  Permit promotion when games are skipped
+  --allow-nondefault-base-promote Permit a material/path base to replace default
   --no-promote                   Never replace the default checkpoint
 
 Docs:
@@ -1004,11 +1636,17 @@ const run = async (): Promise<void> => {
   }
 
   const inputPath = getArg("--data", "lichess_data/lichess_db_eval.jsonl.zst");
+  const backend = getArg("--backend", "tensor");
+
+  if (backend !== "tensor" && backend !== "scalar") {
+    throw new Error(`Invalid --backend: ${backend}. Expected tensor or scalar.`);
+  }
+
   const outputDirectory = resolve(
     getArg("--output-dir", `models/nnue/runs/${getTimestamp()}`),
   );
-  const trainPath = resolve(outputDirectory, "train.jsonl");
-  const validationPath = resolve(outputDirectory, "validation.jsonl");
+  let trainPath = resolve(outputDirectory, "train.jsonl");
+  let validationPath = resolve(outputDirectory, "validation.jsonl");
   const checkpointDirectory = resolve(outputDirectory, "checkpoints");
   const positions = getNumberArg("--positions", 100_000);
   const validationPositions = getNumberArg(
@@ -1024,46 +1662,155 @@ const run = async (): Promise<void> => {
   const logEvery = getNumberArg("--log-every", 10_000);
   const trainReevalPositions = Math.min(
     positions,
-    Math.max(0, Math.trunc(getNumberArg("--train-reeval-positions", positions))),
+    Math.max(
+      0,
+      Math.trunc(
+        getNumberArg(
+          "--train-reeval-positions",
+          backend === "tensor" ? Math.min(10_000, positions) : positions,
+        ),
+      ),
+    ),
   );
-  const baseLearningRate = getNumberArg("--learning-rate", 0.0005);
-  const trainingOptions: NnueTrainingOptions = {
-    rates: {
-      network: getNumberArg("--network-learning-rate", baseLearningRate),
-      feature: getNumberArg("--feature-learning-rate", baseLearningRate * 0.1),
-      threat: getNumberArg("--threat-learning-rate", baseLearningRate * 0.05),
-      psqt: getNumberArg("--psqt-learning-rate", baseLearningRate * 10),
-      bias: getNumberArg("--bias-learning-rate", baseLearningRate * 10),
-    },
+  const baseLearningRate = getNumberArg("--learning-rate", 0.02);
+  const loss = parseTrainingLoss(getArg("--loss", "mixed"));
+  const qatEpochs = Math.max(
+    0,
+    Math.trunc(getNumberArg("--qat-epochs", epochs >= 2 ? 1 : 0)),
+  );
+  const floatEpochs = Math.max(
+    0,
+    Math.trunc(getNumberArg("--float-epochs", Math.max(0, epochs - qatEpochs))),
+  );
+  const threatWarmupEpochs = Math.min(
+    floatEpochs,
+    Math.max(
+      0,
+      Math.trunc(getNumberArg("--threat-warmup-epochs", floatEpochs >= 2 ? 1 : 0)),
+    ),
+  );
+  const qatLearningRateScale = getNumberArg("--qat-learning-rate-scale", 0.25);
+  const baseRates = {
+    network: getNumberArg("--network-learning-rate", baseLearningRate),
+    feature: getNumberArg("--feature-learning-rate", baseLearningRate * 0.4),
+    threat: getNumberArg("--threat-learning-rate", baseLearningRate * 0.2),
+    psqt: getNumberArg("--psqt-learning-rate", baseLearningRate * 4),
+    bias: getNumberArg("--bias-learning-rate", baseLearningRate * 4),
+  };
+  const baseTrainingOptions: Omit<
+    NnueTrainingOptions,
+    "quantizeForward" | "trainFullThreats"
+  > = {
+    rates: baseRates,
+    loss,
     targetClamp: getNumberArg("--target-clamp", maxAbsCp),
     errorClamp: getNumberArg("--error-clamp", 200),
+    wdlScale: getNumberArg("--wdl-scale", 400),
+    wdlGradientScale: getNumberArg("--wdl-gradient-scale", 800),
+    cpLossWeight: getNumberArg("--cp-loss-weight", 0.01),
+    cpHuberDelta: getNumberArg("--cp-huber-delta", 300),
+    bucketWeighting:
+      hasArg("--bucket-weighting") && !hasArg("--no-bucket-weighting"),
   };
+  const trainingPhases: TrainingPhase[] = [];
+  const fullFloatEpochs = floatEpochs - threatWarmupEpochs;
+
+  if (threatWarmupEpochs > 0) {
+    trainingPhases.push({
+      name: "float-warmup",
+      epochs: threatWarmupEpochs,
+      quantizeForward: false,
+      options: {
+        ...baseTrainingOptions,
+        quantizeForward: false,
+        trainFullThreats: false,
+      },
+    });
+  }
+
+  if (fullFloatEpochs > 0) {
+    trainingPhases.push({
+      name: "float",
+      epochs: fullFloatEpochs,
+      quantizeForward: false,
+      options: {
+        ...baseTrainingOptions,
+        quantizeForward: false,
+        trainFullThreats: true,
+      },
+    });
+  }
+
+  if (qatEpochs > 0) {
+    trainingPhases.push({
+      name: "qat",
+      epochs: qatEpochs,
+      quantizeForward: true,
+      options: {
+        ...baseTrainingOptions,
+        rates: scaleTrainingRates(baseRates, qatLearningRateScale),
+        quantizeForward: true,
+        trainFullThreats: true,
+      },
+    });
+  }
+
+  if (backend === "scalar" && trainingPhases.length === 0) {
+    throw new Error("At least one float or QAT epoch is required.");
+  }
 
   await mkdir(checkpointDirectory, { recursive: true });
 
-  logSection("Default Checkpoint");
-  const defaultCheckpointPath = await ensureDefaultNnueCheckpoint();
-  const defaultModel = await loadNnueModel(defaultCheckpointPath);
+  logSection("Base Checkpoint");
+  const base = getArg("--base", "material");
+  const defaultCheckpointPath =
+    base === "material"
+      ? "material-seeded"
+      : base === "default"
+        ? await ensureDefaultNnueCheckpoint()
+        : resolve(base);
+  const defaultModel =
+    base === "material"
+      ? createMaterialNnueModel({
+          ...DEFAULT_NNUE_MODEL_METADATA,
+          id: "material-seeded-nnue-v1",
+          createdAt: new Date().toISOString(),
+          source: "material-seeded",
+        })
+      : await loadNnueModel(defaultCheckpointPath);
 
-  console.log(`default: ${defaultCheckpointPath}`);
+  console.log(`base: ${defaultCheckpointPath}`);
   console.log(`model id: ${defaultModel.metadata.id}`);
 
   logSection("Dataset");
-  const datasetSummary = await createTrainingDataset(
-    inputPath,
-    trainPath,
-    validationPath,
-    {
-      positions,
-      validationPositions,
-      minDepth,
-      maxAbsCp,
-      sampleMultiplier,
-      shuffleBuffer,
-      seed,
-      logEvery,
-    },
-  );
+  const reuseDatasetDirectory = getArg("--reuse-dataset", "");
+  const datasetSummary =
+    reuseDatasetDirectory.length > 0
+      ? await reuseTrainingDataset(reuseDatasetDirectory)
+      : await createTrainingDataset(
+          inputPath,
+          trainPath,
+          validationPath,
+          {
+            positions,
+            validationPositions,
+            minDepth,
+            maxAbsCp,
+            sampleMultiplier,
+            shuffleBuffer,
+            seed,
+            logEvery,
+            includeFullThreats:
+              backend === "scalar" ||
+              hasArg("--train-full-threats") ||
+              defaultModel.metadata.fullThreats !== false,
+            validateLegalMoves:
+              backend === "scalar" || hasArg("--validate-legal-positions"),
+          },
+        );
+
+  trainPath = datasetSummary.trainPath;
+  validationPath = datasetSummary.validationPath;
 
   console.log(
     `train ${formatNumber(datasetSummary.trainPositions)} validation ${formatNumber(
@@ -1078,39 +1825,282 @@ const run = async (): Promise<void> => {
   );
 
   logSection("Training");
-  const trainableWeights = createTrainableNnueWeights(defaultModel);
-  const epochSummaries = [];
+  let candidateModel: NnueModel;
+  let calibration: CalibrationSummary | null = null;
+  let scalarFinalEpochSummary: EpochSummary | null = null;
+  let epochSummaries: Array<EpochSummary | TensorTrainingEpochSummary> = [];
 
-  for (let epoch = 1; epoch <= epochs; epoch++) {
-    const epochSummary = await trainEpoch(
-      trainPath,
-      epoch,
-      { ...trainingOptions, logEvery, positions },
+  const candidateMetadata = {
+    ...defaultModel.metadata,
+    id: `${defaultModel.metadata.id}-candidate`,
+    createdAt: new Date().toISOString(),
+    source: `lichess-eval:${basename(inputPath)}`,
+    estimatedElo: null,
+  };
+
+  if (backend === "tensor") {
+    const psqtEpochs = Math.max(
+      0,
+      Math.trunc(getNumberArg("--psqt-epochs", 1)),
+    );
+    const networkEpochs = Math.max(
+      0,
+      Math.trunc(getNumberArg("--network-epochs", 1)),
+    );
+    const featureEpochs = Math.max(
+      0,
+      Math.trunc(getNumberArg("--feature-epochs", epochs)),
+    );
+    const fullThreatEpochs = hasArg("--train-full-threats")
+      ? Math.max(1, Math.trunc(getNumberArg("--full-threat-epochs", 1)))
+      : 0;
+    const useExistingFullThreats = defaultModel.metadata.fullThreats !== false;
+    const tensorPhases: TensorTrainingPhase[] = [];
+
+    if (psqtEpochs > 0) {
+      tensorPhases.push({
+        name: "psqt",
+        epochs: psqtEpochs,
+        learningRate: getNumberArg("--psqt-tensor-learning-rate", 1),
+        trainFeatureTransformer: false,
+        trainNetwork: false,
+        trainPsqt: true,
+        trainFullThreats: false,
+        useNetwork: false,
+        useFullThreats: false,
+      });
+    }
+
+    if (networkEpochs > 0) {
+      tensorPhases.push({
+        name: "network",
+        epochs: networkEpochs,
+        learningRate: getNumberArg("--network-tensor-learning-rate", 0.1),
+        trainFeatureTransformer: false,
+        trainNetwork: true,
+        trainPsqt: true,
+        trainFullThreats: false,
+        useNetwork: true,
+        useFullThreats: useExistingFullThreats,
+      });
+    }
+
+    if (featureEpochs > 0) {
+      tensorPhases.push({
+        name: "halfka",
+        epochs: featureEpochs,
+        learningRate: getNumberArg("--feature-tensor-learning-rate", 0.02),
+        trainFeatureTransformer: true,
+        trainNetwork: true,
+        trainPsqt: true,
+        trainFullThreats: false,
+        useNetwork: true,
+        useFullThreats: useExistingFullThreats,
+      });
+    }
+
+    if (fullThreatEpochs > 0) {
+      tensorPhases.push({
+        name: "full-threats",
+        epochs: fullThreatEpochs,
+        learningRate: getNumberArg("--threat-tensor-learning-rate", 0.01),
+        trainFeatureTransformer: false,
+        trainNetwork: true,
+        trainPsqt: true,
+        trainFullThreats: true,
+        useNetwork: true,
+        useFullThreats: true,
+      });
+    }
+
+    if (tensorPhases.length === 0) {
+      throw new Error("At least one tensor training phase is required.");
+    }
+
+    const includeFullThreats = tensorPhases.some(
+      (phase) => phase.useFullThreats || phase.trainFullThreats,
+    );
+    const featureCachePath = resolve(outputDirectory, "train.features.bin");
+
+    console.log(
+      `backend tensor batch ${formatNumber(
+        getNumberArg("--batch-size", 1_024),
+      )} fullThreats ${includeFullThreats ? "yes" : "no"}`,
+    );
+    const featureCache = await createFeatureCache(trainPath, featureCachePath, {
+      includeFullThreats,
+      logEvery,
+      onProgress: (cached, elapsedMs) => {
+        const positionsPerSecond = cached / Math.max(0.001, elapsedMs / 1_000);
+
+        console.log(
+          `[features] ${formatNumber(cached)}/${formatNumber(
+            datasetSummary.trainPositions,
+          )} ${formatNumber(positionsPerSecond)} pos/s`,
+        );
+      },
+    });
+
+    if (featureCache.positions !== datasetSummary.trainPositions) {
+      console.log(
+        `[features] filtered ${formatNumber(
+          datasetSummary.trainPositions - featureCache.positions,
+        )} implausible positions`,
+      );
+    }
+
+    const totalEpochs = tensorPhases.reduce(
+      (total, phase) => total + phase.epochs,
+      0,
+    );
+    const result = await trainTensorNnue(
+      defaultModel,
+      featureCachePath,
+      {
+        ...candidateMetadata,
+        trainingPositions:
+          defaultModel.metadata.trainingPositions +
+          featureCache.positions * totalEpochs,
+      },
+      {
+        batchSize: Math.max(
+          1,
+          Math.trunc(getNumberArg("--batch-size", 1_024)),
+        ),
+        seed,
+        targetClamp: baseTrainingOptions.targetClamp,
+        loss,
+        wdlScale: baseTrainingOptions.wdlScale,
+        wdlGradientScale: baseTrainingOptions.wdlGradientScale,
+        cpLossWeight: baseTrainingOptions.cpLossWeight,
+        cpHuberDelta: baseTrainingOptions.cpHuberDelta,
+        bucketWeighting: baseTrainingOptions.bucketWeighting,
+        phases: tensorPhases,
+        logEvery,
+        onProgress: (progress) => {
+          console.log(
+            `[train] ${progress.phase} epoch ${progress.epoch} ` +
+              `${formatNumber(progress.positions)}/${formatNumber(
+                progress.totalPositions,
+              )} loss ${formatDecimal(progress.meanLoss, 2)} ` +
+              `${formatNumber(progress.positionsPerSecond)} pos/s`,
+          );
+        },
+      },
+    );
+
+    candidateModel = result.model;
+    epochSummaries = result.epochs;
+  } else {
+    const trainableWeights = createTrainableNnueWeights(defaultModel);
+    const scalarEpochSummaries: EpochSummary[] = [];
+
+    console.log(
+      `backend scalar loss ${loss} floatEpochs ${floatEpochs} ` +
+        `qatEpochs ${qatEpochs} threatWarmupEpochs ${threatWarmupEpochs}`,
+    );
+
+    for (const phase of trainingPhases) {
+      console.log(
+        `[train] phase ${phase.name} epochs ${phase.epochs} ` +
+          `quantizedForward ${phase.quantizeForward ? "yes" : "no"} ` +
+          `fullThreats ${phase.options.trainFullThreats ? "yes" : "no"}`,
+      );
+
+      for (let epoch = 1; epoch <= phase.epochs; epoch++) {
+        const epochSummary = await trainEpoch(
+          trainPath,
+          phase.name,
+          epoch,
+          {
+            ...phase.options,
+            logEvery,
+            positions: datasetSummary.trainPositions,
+          },
+          trainableWeights,
+        );
+
+        scalarEpochSummaries.push(epochSummary);
+        console.log(
+          `[train] ${phase.name} epoch ${epoch} complete mae ${formatDecimal(
+            epochSummary.meanAbsoluteError,
+          )} rmse ${formatDecimal(
+            epochSummary.rootMeanSquaredError,
+          )} loss ${formatDecimal(epochSummary.meanLoss, 4)} wdl ${formatDecimal(
+            epochSummary.meanWdlError,
+            4,
+          )}`,
+        );
+      }
+    }
+
+    const calibrationPositions = Math.min(
+      datasetSummary.trainPositions,
+      Math.max(
+        0,
+        Math.trunc(
+          getNumberArg(
+            "--calibration-positions",
+            datasetSummary.trainPositions,
+          ),
+        ),
+      ),
+    );
+
+    calibration =
+      hasArg("--calibrate-output") &&
+      !hasArg("--no-calibrate-output") &&
+      calibrationPositions > 0
+        ? await fitOutputCalibration(trainPath, trainableWeights, {
+            maxPositions: calibrationPositions,
+            minSlope: getNumberArg("--min-output-calibration-slope", 0.5),
+            maxSlope: getNumberArg("--max-output-calibration-slope", 4),
+            minIntercept: getNumberArg(
+              "--min-output-calibration-intercept",
+              -200,
+            ),
+            maxIntercept: getNumberArg(
+              "--max-output-calibration-intercept",
+              200,
+            ),
+            logEvery,
+          })
+        : null;
+
+    if (calibration !== null) {
+      logSection("Output Calibration");
+      console.log(
+        `positions ${formatNumber(calibration.positions)} raw slope ${formatDecimal(
+          calibration.rawSlope,
+          3,
+        )} raw intercept ${formatDecimal(calibration.rawIntercept)} ` +
+          `applied slope ${formatDecimal(calibration.slope, 3)} ` +
+          `applied intercept ${formatDecimal(calibration.intercept)}`,
+      );
+      applyOutputCalibration(trainableWeights, calibration);
+    }
+
+    candidateModel = writeTrainableWeightsToModel(
+      {
+        ...defaultModel,
+        metadata: {
+          ...candidateMetadata,
+          fullThreats:
+            defaultModel.metadata.fullThreats !== false ||
+            trainingPhases.some((phase) => phase.options.trainFullThreats),
+          network: true,
+          trainingPositions:
+            defaultModel.metadata.trainingPositions +
+            datasetSummary.trainPositions * scalarEpochSummaries.length,
+        },
+      },
       trainableWeights,
     );
-
-    epochSummaries.push(epochSummary);
-    console.log(
-      `[train] epoch ${epoch} complete mae ${formatDecimal(
-        epochSummary.meanAbsoluteError,
-      )} rmse ${formatDecimal(epochSummary.rootMeanSquaredError)}`,
-    );
+    epochSummaries = scalarEpochSummaries;
+    scalarFinalEpochSummary =
+      scalarEpochSummaries[scalarEpochSummaries.length - 1] ?? null;
   }
 
-  const candidateModel = writeTrainableWeightsToModel(
-    {
-      ...defaultModel,
-      metadata: {
-        ...defaultModel.metadata,
-        id: `${defaultModel.metadata.id}-candidate`,
-        createdAt: new Date().toISOString(),
-        source: `lichess-eval:${basename(inputPath)}`,
-        estimatedElo: null,
-        trainingPositions: defaultModel.metadata.trainingPositions + positions * epochs,
-      },
-    },
-    trainableWeights,
-  );
   const candidateCheckpointPath = await writeNnueCheckpoint(
     candidateModel,
     checkpointDirectory,
@@ -1119,7 +2109,6 @@ const run = async (): Promise<void> => {
   console.log(`candidate checkpoint: ${candidateCheckpointPath}`);
 
   logSection("Post-Export Re-evaluation");
-  const finalEpochSummary = epochSummaries[epochSummaries.length - 1];
   const trainReeval =
     trainReevalPositions > 0
       ? await evaluateNnueDatasetMae(
@@ -1131,11 +2120,15 @@ const run = async (): Promise<void> => {
         )
       : null;
 
-  console.log(
-    `train online MAE:              ${formatDecimal(
-      finalEpochSummary.meanAbsoluteError,
-    )}`,
-  );
+  if (scalarFinalEpochSummary !== null) {
+    console.log(
+      `train online MAE:              ${formatDecimal(
+        scalarFinalEpochSummary.meanAbsoluteError,
+      )}`,
+    );
+  } else {
+    console.log("train online MAE:              batched; use post-export MAE");
+  }
 
   if (trainReeval !== null) {
     console.log(
@@ -1156,14 +2149,24 @@ const run = async (): Promise<void> => {
 
   console.log(`positions: ${formatNumber(validation.positions)}`);
   console.log(`zero eval MAE:       ${formatDecimal(validation.zeroMae)}`);
-  console.log(`simpleEval MAE:     ${formatDecimal(validation.simpleMae)}`);
+  console.log(`material eval MAE:   ${formatDecimal(validation.materialMae)}`);
   console.log(`default NNUE MAE:   ${formatDecimal(validation.defaultNnueMae)}`);
   console.log(`candidate NNUE MAE: ${formatDecimal(validation.candidateNnueMae)}`);
+
+  console.log("\nOutput distribution:");
+  printOutputDistribution("target", validation.targetOutput);
+  printOutputDistribution("default NNUE", validation.defaultOutput);
+  printOutputDistribution("candidate NNUE", validation.candidateOutput);
+
+  console.log("\nBucketed validation:");
+  printValidationBuckets(validation.buckets);
 
   let defaultMatches: MatchSummary[] = [];
   let candidateMatches: MatchSummary[] = [];
 
-  if (!hasArg("--skip-games")) {
+  const skipGames = hasArg("--skip-games");
+
+  if (!skipGames) {
     logSection("Stockfish Evaluation");
 
     const matchOptions = {
@@ -1190,13 +2193,27 @@ const run = async (): Promise<void> => {
     );
   }
 
-  const validationImproved =
-    validation.candidateNnueMae < validation.defaultNnueMae;
-  const gamesImproved =
-    candidateMatches.length === 0 ||
-    getWeightedScoreRate(candidateMatches) >= getWeightedScoreRate(defaultMatches);
-  const promoted =
-    !hasArg("--no-promote") && validationImproved && gamesImproved;
+  const promotionDecision = decidePromotion({
+    noPromote: hasArg("--no-promote"),
+    skipGames,
+    allowValidationOnlyPromote: hasArg("--allow-validation-only-promote"),
+    validation,
+    defaultMatches,
+    candidateMatches,
+    minValidationImprovementCp: getNumberArg("--min-validation-improvement-cp", 5),
+    maxBucketRegressionCp: getNumberArg("--max-bucket-regression-cp", 10),
+    minBucketPositions: Math.trunc(getNumberArg("--min-bucket-positions", 500)),
+    minCandidateTargetAbsRatio: getNumberArg("--min-candidate-target-abs-ratio", 0.35),
+    maxCandidateAbsUnder50Percent: getNumberArg(
+      "--max-candidate-abs-under-50-percent",
+      85,
+    ),
+    minPromotionGames: Math.trunc(getNumberArg("--min-promotion-games", 64)),
+    minMatchScoreImprovement: getNumberArg("--min-match-score-improvement", 0.02),
+    nonDefaultBase: base !== "default",
+    allowNonDefaultBasePromote: hasArg("--allow-nondefault-base-promote"),
+  });
+  const promoted = promotionDecision.promoted;
 
   if (promoted) {
     const promotedPath = await promoteDefaultNnueCheckpoint(candidateCheckpointPath);
@@ -1204,6 +2221,10 @@ const run = async (): Promise<void> => {
     console.log(`promoted: ${promotedPath}`);
   } else {
     console.log("promoted: no");
+
+    for (const reason of promotionDecision.reasons) {
+      console.log(`promotion block: ${reason}`);
+    }
   }
 
   const report = {
@@ -1214,10 +2235,12 @@ const run = async (): Promise<void> => {
     promoted,
     dataset: datasetSummary,
     epochs: epochSummaries,
+    calibration,
     trainReeval,
     validation,
     defaultMatches,
     candidateMatches,
+    promotionDecision,
   };
 
   await writeFile(

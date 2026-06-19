@@ -167,6 +167,8 @@ const searchRoot = (
     0,
   );
 
+  bestMove = movesCount > 0 ? moveList.moves[0] : null;
+
   for (let i = 0; i < movesCount; i++) {
     const move = moveList.moves[i];
     const undo = scratch.undoStack[0];

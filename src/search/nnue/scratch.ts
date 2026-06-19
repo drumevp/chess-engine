@@ -22,7 +22,9 @@ export const createNnueScratch = (): NnueScratch => ({
   blackPsqtAccumulator: new Int32Array(NNUE_PSQ_BUCKETS),
   transformedFeatures: new Uint8Array(NNUE_FEATURE_VECTOR_DIMENSIONS),
   fc0Output: new Int32Array(NNUE_FC_0_OUTPUTS_WITH_BUCKET),
+  fc0Sums: new Int32Array(NNUE_FC_0_OUTPUTS_WITH_BUCKET),
   fc0Activation: new Uint8Array(NNUE_FC_0_ACTIVATION_INPUTS),
   fc1Output: new Int32Array(NNUE_FC_1_OUTPUTS),
+  fc1Sums: new Int32Array(NNUE_FC_1_OUTPUTS),
   fc1Activation: new Uint8Array(NNUE_FC_1_OUTPUTS),
 });

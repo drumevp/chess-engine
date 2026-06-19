@@ -10,6 +10,7 @@ import {
   writeNnueCheckpoint,
 } from "./modelFiles";
 import { chooseSearchMove } from "./searchMoves";
+import { MATCH_OPENING_LINES } from "./matchOpenings";
 import { UciEngine } from "./uciEngine";
 
 type GameResult = "1-0" | "0-1" | "1/2-1/2" | "*";
@@ -41,6 +42,21 @@ const scoreForCandidate = (
   return result === "0-1" ? 1 : 0;
 };
 
+const getCandidateResult = (
+  result: GameResult,
+  candidateColor: 0 | 1,
+): "win" | "draw" | "loss" | "unfinished" => {
+  if (result === "*") {
+    return "unfinished";
+  }
+
+  if (result === "1/2-1/2") {
+    return "draw";
+  }
+
+  return scoreForCandidate(result, candidateColor) === 1 ? "win" : "loss";
+};
+
 const estimateElo = (scoreRate: number, opponentElo: number): number => {
   const clippedScore = Math.min(0.99, Math.max(0.01, scoreRate));
   const eloDiff = -400 * Math.log10(1 / clippedScore - 1);
@@ -56,10 +72,10 @@ const stockfishPath = resolve(
 );
 const games = getNumberArg("--games", 4);
 const maxPly = getNumberArg("--max-ply", 160);
-const ourDepth = getNumberArg("--our-depth", 2);
-const ourMoveTimeMs = getNumberArg("--our-movetime", 250);
-const stockfishMoveTimeMs = getNumberArg("--stockfish-movetime", 250);
-const opponentElo = getNumberArg("--opponent-elo", 3500);
+const ourDepth = getNumberArg("--our-depth", 4);
+const ourMoveTimeMs = getNumberArg("--our-movetime", 50);
+const stockfishMoveTimeMs = getNumberArg("--stockfish-movetime", 50);
+const opponentElo = Math.max(1320, getNumberArg("--opponent-elo", 1320));
 const outputPath = resolve(
   getArg("--output", `models/nnue/training/elo-${Date.now()}.json`),
 );
@@ -73,14 +89,21 @@ await mkdir(dirname(outputPath), { recursive: true });
 await stockfish.initialize();
 await stockfish.setOption("Threads", getArg("--stockfish-threads", "1"));
 await stockfish.setOption("Hash", getArg("--stockfish-hash", "128"));
+await stockfish.setOption("UCI_LimitStrength", "true");
+await stockfish.setOption("UCI_Elo", String(opponentElo));
 
 try {
   for (let gameIndex = 0; gameIndex < games; gameIndex++) {
     const engine = new ChessEngine();
     const candidateColor = gameIndex % 2 === 0 ? COLOR.WHITE : COLOR.BLACK;
-    const moves: string[] = [];
+    const openingIndex = Math.trunc(gameIndex / 2) % MATCH_OPENING_LINES.length;
+    const moves: string[] = [...MATCH_OPENING_LINES[openingIndex]];
 
-    for (let ply = 0; ply < maxPly && !engine.isGameOver(); ply++) {
+    for (const move of moves) {
+      engine.makeUciMove(move);
+    }
+
+    for (let ply = moves.length; ply < maxPly && !engine.isGameOver(); ply++) {
       const isCandidateTurn = engine.turn() === candidateColor;
       const move = isCandidateTurn
         ? chooseSearchMove(engine.exportFen(), ourDepth, ourMoveTimeMs, evaluator)
@@ -111,7 +134,9 @@ try {
       JSON.stringify({
         game: gameIndex + 1,
         result,
+        engineResult: getCandidateResult(result, candidateColor),
         candidateColor: candidateColor === COLOR.WHITE ? "white" : "black",
+        openingIndex,
         plies: moves.length,
       }),
     );

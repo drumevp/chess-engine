@@ -70,6 +70,20 @@ const validateNnueModelMetadata = (metadata: NnueModelMetadata): void => {
   ) {
     throw new Error("Invalid NNUE model: metadata.trainingPositions is invalid");
   }
+
+  if (
+    metadata.fullThreats !== undefined &&
+    typeof metadata.fullThreats !== "boolean"
+  ) {
+    throw new Error("Invalid NNUE model: metadata.fullThreats is invalid");
+  }
+
+  if (
+    metadata.network !== undefined &&
+    typeof metadata.network !== "boolean"
+  ) {
+    throw new Error("Invalid NNUE model: metadata.network is invalid");
+  }
 };
 
 const validateNnueNetworkWeights = (
