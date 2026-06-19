@@ -16,6 +16,13 @@ export type NnueModelMetadata = {
   source: string;
   estimatedElo: number | null;
   trainingGames: number;
+  trainingPositions: number;
+};
+
+export type NnueForwardTrace = {
+  score: number;
+  layerStackIndex: number;
+  fc1Activation: Uint8Array;
 };
 
 export type NnueArchitecture = {

@@ -23,6 +23,9 @@ export type IterativeDeepeningSearchResult = SearchResult & {
 export type SearchLimits = {
   maxNodes?: number;
   maxTimeMs?: number;
+  strengthElo?: number;
+  minStrengthElo?: number;
+  maxStrengthElo?: number;
 };
 
 export type SearchControl = {
