@@ -37,6 +37,10 @@ import {
 } from "../helpers/mateDistancePruning";
 import { orderMoves } from "../helpers/moveOrdering";
 import {
+  canUseReverseFutilityPruning,
+  isReverseFutilityPruned,
+} from "../helpers/reverseFutilityPruning";
+import {
   getTerminalScore,
   shouldStopSearch,
 } from "../helpers/search";
@@ -124,6 +128,14 @@ export const failSoftAlphaBetaNegaMax = (
 
   if (transpositionTableScore !== null) {
     return transpositionTableScore;
+  }
+
+  if (canUseReverseFutilityPruning(depth, beta, isCheck)) {
+    const staticEval = evaluatePosition(control.evaluator, position);
+
+    if (isReverseFutilityPruned(staticEval, beta, depth)) {
+      return staticEval;
+    }
   }
 
   let bestScore = -Infinity;
