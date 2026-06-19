@@ -11,7 +11,7 @@ import { appendFullThreatActiveFeatures } from "./fullThreats";
 const applyHalfKaFeature = (
   weights: NnueWeights,
   feature: number,
-  accumulator: Int16Array,
+  accumulator: Int32Array,
   psqtAccumulator: Int32Array,
   direction: 1 | -1,
 ): void => {
@@ -35,7 +35,7 @@ export const addHalfKaFeature = (
   pieceColor: ColorType,
   piece: number,
   kingSquare: number,
-  accumulator: Int16Array,
+  accumulator: Int32Array,
   psqtAccumulator: Int32Array,
 ): void => {
   applyHalfKaFeature(
@@ -54,7 +54,7 @@ export const removeHalfKaFeature = (
   pieceColor: ColorType,
   piece: number,
   kingSquare: number,
-  accumulator: Int16Array,
+  accumulator: Int32Array,
   psqtAccumulator: Int32Array,
 ): void => {
   applyHalfKaFeature(
@@ -71,7 +71,7 @@ export const refreshHalfKaAccumulator = (
   position: Position,
   perspective: ColorType,
   activeFeatures: Uint32Array,
-  accumulator: Int16Array,
+  accumulator: Int32Array,
   psqtAccumulator: Int32Array,
 ): void => {
   const activeFeatureCount = appendHalfKaActiveFeatures(
@@ -101,7 +101,7 @@ export const addFullThreatAccumulator = (
   perspective: ColorType,
   activeFeatures: Uint32Array,
   attackScratch: { lo: number; hi: number },
-  accumulator: Int16Array,
+  accumulator: Int32Array,
   psqtAccumulator: Int32Array,
 ): void => {
   const activeFeatureCount = appendFullThreatActiveFeatures(

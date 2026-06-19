@@ -19,21 +19,14 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": ["dist", "models/nnue/README.md", "models/nnue/defaultCheckpoint"],
   "sideEffects": false,
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --clean",
     "test-perft": "tsx ./scripts/perft.ts --max-depth 4",
     "test-perft:deep": "tsx ./scripts/perft.ts --max-depth 5",
     "export-precalculated-data": "tsx ./scripts/precalculateAttackTables.ts",
-    "nnue:prepare-stockfish": "tsx ./scripts/nnue/prepareStockfish.ts",
-    "nnue:export-default": "tsx ./scripts/nnue/exportDefaultModel.ts",
-    "nnue:generate-training-data": "tsx ./scripts/nnue/generateTrainingData.ts",
-    "nnue:train": "tsx ./scripts/nnue/trainNnue.ts",
-    "nnue:estimate-elo": "tsx ./scripts/nnue/estimateNnueElo.ts",
-    "nnue:play-stockfish": "tsx ./scripts/nnue/playStockfishMatch.ts",
-    "nnue:verify-accumulator": "tsx ./scripts/nnue/verifyAccumulator.ts",
-    "nnue:verify-full-threats": "tsx ./scripts/nnue/verifyFullThreats.ts",
+    "nnue:train": "tsx ./scripts/nnue/train.ts",
     "pack:dry": "npm pack --dry-run"
   },
   "dependencies": {},

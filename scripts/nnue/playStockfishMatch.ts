@@ -2,9 +2,9 @@ import { appendFile, mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import ChessEngine from "../../src/engine/ChessEngine";
 import { COLOR } from "../../src/engine/constants/color";
-import { createDefaultNnueModel } from "../../src/search/nnue/defaultModel";
 import { createNnueEvaluator } from "../../src/search/nnue/inference";
 import { getArg } from "./args";
+import { loadNnueModel } from "./modelFiles";
 import { chooseSearchMove } from "./searchMoves";
 import { UciEngine } from "./uciEngine";
 
@@ -32,9 +32,10 @@ const evaluatorName = getArg("--eval", "nnue");
 const outputPath = resolve(
   getArg("--output", `models/nnue/training/games-${Date.now()}.jsonl`),
 );
+const modelPath = getArg("--model", "default");
 const evaluator =
   evaluatorName === "nnue"
-    ? createNnueEvaluator(createDefaultNnueModel())
+    ? createNnueEvaluator(await loadNnueModel(modelPath))
     : undefined;
 const stockfish = new UciEngine(stockfishPath);
 

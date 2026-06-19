@@ -365,6 +365,10 @@ export const makeFullThreatFeatureIndex = (
   attacked: number,
   kingSquare: number,
 ): number => {
+  if (attacked === NNUE_FULL_THREAT_SENTINEL) {
+    return NNUE_FULL_THREAT_SENTINEL;
+  }
+
   const orientation =
     NNUE_FULL_THREAT_ORIENT_TABLE[kingSquare] ^ (56 * perspective);
   const fromOriented = from ^ orientation;
@@ -412,7 +416,7 @@ const getPieceOnSquareAsFeaturePiece = (
   const stateIndex = position.pieceAt[square];
 
   if (stateIndex === -1) {
-    return 0;
+    return NNUE_FULL_THREAT_SENTINEL;
   }
 
   return stateIndex;

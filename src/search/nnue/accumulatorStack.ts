@@ -36,11 +36,11 @@ export const createNnueAccumulatorStack = (
   currentPly: 0,
   whiteAccumulators: Array.from(
     { length: capacity },
-    () => new Int16Array(NNUE_TRANSFORMED_FEATURE_DIMENSIONS),
+    () => new Int32Array(NNUE_TRANSFORMED_FEATURE_DIMENSIONS),
   ),
   blackAccumulators: Array.from(
     { length: capacity },
-    () => new Int16Array(NNUE_TRANSFORMED_FEATURE_DIMENSIONS),
+    () => new Int32Array(NNUE_TRANSFORMED_FEATURE_DIMENSIONS),
   ),
   whitePsqtAccumulators: Array.from(
     { length: capacity },

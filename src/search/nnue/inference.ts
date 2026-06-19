@@ -50,11 +50,14 @@ const clippedRelu = (
   return value;
 };
 
+const divideByWeightScale = (value: number): number =>
+  Math.floor(value / (1 << NNUE_WEIGHT_SCALE_BITS));
+
 const writeFeatureVector = (
   position: Position,
   scratch: NnueScratch,
-  whiteAccumulator: Int16Array,
-  blackAccumulator: Int16Array,
+  whiteAccumulator: Int32Array,
+  blackAccumulator: Int32Array,
 ): void => {
   const usAccumulator =
     position.color === COLOR.WHITE ? whiteAccumulator : blackAccumulator;
@@ -98,7 +101,7 @@ const propagateFc0 = (
       weightIndex += NNUE_FC_0_OUTPUTS_WITH_BUCKET;
     }
 
-    scratch.fc0Output[output] = sum >> NNUE_WEIGHT_SCALE_BITS;
+    scratch.fc0Output[output] = divideByWeightScale(sum);
   }
 };
 
@@ -126,7 +129,7 @@ const propagateFc1 = (
       weightIndex += NNUE_FC_1_OUTPUTS;
     }
 
-    scratch.fc1Output[output] = sum >> NNUE_WEIGHT_SCALE_BITS;
+    scratch.fc1Output[output] = divideByWeightScale(sum);
     scratch.fc1Activation[output] = clippedRelu(scratch.fc1Output[output]);
   }
 };
@@ -177,8 +180,8 @@ const evaluateNnueFromAccumulators = (
   model: NnueModel,
   position: Position,
   scratch: NnueScratch,
-  whiteAccumulator: Int16Array,
-  blackAccumulator: Int16Array,
+  whiteAccumulator: Int32Array,
+  blackAccumulator: Int32Array,
   whitePsqtAccumulator: Int32Array,
   blackPsqtAccumulator: Int32Array,
 ): number => {
