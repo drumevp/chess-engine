@@ -1,0 +1,6 @@
+import { NUMBER_OF_PIECE_CATEGORIES } from "../../engine/constants/piece";
+
+export const CAPTURE_HISTORY_COLOR_COUNT = 2;
+export const CAPTURE_HISTORY_PIECE_COUNT = NUMBER_OF_PIECE_CATEGORIES;
+export const CAPTURE_HISTORY_SQUARE_COUNT = 64;
+export const CAPTURE_HISTORY_MAX_SCORE = 8_000;

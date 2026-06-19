@@ -19,6 +19,7 @@ import undoMove from "../../engine/position/moves/undoMove/undoMove";
 import { Position } from "../../engine/types/position";
 import { TRANSPOSITION_TABLE_BOUND } from "../constants/transpositionTable";
 import simpleEval from "../eval/simpleEval";
+import { recordCaptureHistory } from "../helpers/captureHistory";
 import {
   resetPrincipalVariation,
   updatePrincipalVariation,
@@ -31,6 +32,7 @@ import {
   shouldStopSearch,
 } from "../helpers/search";
 import { SearchControl, SearchScratch } from "../types/search";
+import type { CaptureHistory } from "../types/captureHistory";
 import type { HistoryHeuristic } from "../types/historyHeuristic";
 import { TranspositionTable } from "../types/transpositionTable";
 import {
@@ -51,6 +53,7 @@ export const failSoftAlphaBetaNegaMax = (
   control: SearchControl,
   transpositionTable: TranspositionTable,
   historyHeuristic: HistoryHeuristic,
+  captureHistory: CaptureHistory,
 ): number => {
   if (shouldStopSearch(control)) {
     return simpleEval(position);
@@ -90,6 +93,7 @@ export const failSoftAlphaBetaNegaMax = (
       scratch,
       repetitionCounts,
       control,
+      captureHistory,
     );
   }
 
@@ -121,6 +125,7 @@ export const failSoftAlphaBetaNegaMax = (
     transpositionTableBestMove,
     scratch.killerMoves,
     historyHeuristic,
+    captureHistory,
     ply,
   );
 
@@ -146,6 +151,7 @@ export const failSoftAlphaBetaNegaMax = (
         control,
         transpositionTable,
         historyHeuristic,
+        captureHistory,
       );
     } else {
       score = -failSoftAlphaBetaNegaMax(
@@ -159,6 +165,7 @@ export const failSoftAlphaBetaNegaMax = (
         control,
         transpositionTable,
         historyHeuristic,
+        captureHistory,
       );
 
       if (!control.stopped && score > alpha && score < beta) {
@@ -173,6 +180,7 @@ export const failSoftAlphaBetaNegaMax = (
           control,
           transpositionTable,
           historyHeuristic,
+          captureHistory,
         );
       }
     }
@@ -197,6 +205,7 @@ export const failSoftAlphaBetaNegaMax = (
     if (score >= beta) {
       recordKillerMove(scratch.killerMoves, ply, move);
       recordHistoryHeuristic(historyHeuristic, move, depth);
+      recordCaptureHistory(captureHistory, move, depth);
 
       storeTranspositionTable(
         transpositionTable,

@@ -29,6 +29,7 @@ import {
   shouldStopSearch,
 } from "../helpers/search";
 import { SearchControl, SearchScratch } from "../types/search";
+import type { CaptureHistory } from "../types/captureHistory";
 
 const quiescenceSearch = (
   position: Position,
@@ -38,6 +39,7 @@ const quiescenceSearch = (
   scratch: SearchScratch,
   repetitionCounts: Map<bigint, number>,
   control: SearchControl,
+  captureHistory: CaptureHistory,
 ): number => {
   if (shouldStopSearch(control)) {
     return simpleEval(position);
@@ -85,7 +87,17 @@ const quiescenceSearch = (
     }
   }
 
-  orderMoves(position, moveList, movesCount, scratch.moveOrderingScratches[ply]);
+  orderMoves(
+    position,
+    moveList,
+    movesCount,
+    scratch.moveOrderingScratches[ply],
+    null,
+    null,
+    null,
+    captureHistory,
+    ply,
+  );
 
   for (let i = 0; i < movesCount; i++) {
     const move = moveList.moves[i];
@@ -107,6 +119,7 @@ const quiescenceSearch = (
       scratch,
       repetitionCounts,
       control,
+      captureHistory,
     );
 
     undoMove(position, move, undo);
