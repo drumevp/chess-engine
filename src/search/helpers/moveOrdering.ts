@@ -15,9 +15,11 @@ import {
   PROMOTION_SCORE,
 } from "../constants/moveOrdering";
 import { getPieceValue } from "../constants/eval";
+import { getHistoryHeuristicScore } from "./historyHeuristic";
 import { isKillerMove } from "./killerMoves";
 import staticExchangeEvaluation from "../searchRoot/staticExchangeEvaluation/staticExchangeEvaluation";
 import { createStaticExchangeEvaluationScratch } from "../searchRoot/staticExchangeEvaluation/scratch";
+import type { HistoryHeuristic } from "../types/historyHeuristic";
 import type { KillerMoves } from "../types/killerMoves";
 import type { StaticExchangeEvaluationScratch } from "../types/staticExchangeEvaluation";
 
@@ -37,6 +39,7 @@ export const scoreMove = (
   scratch: MoveOrderingScratch,
   priorityMove: number | null = null,
   killerMoves: KillerMoves | null = null,
+  historyHeuristic: HistoryHeuristic | null = null,
   ply = 0,
 ): number => {
   if (priorityMove !== null && move === priorityMove) {
@@ -86,6 +89,10 @@ export const scoreMove = (
     return KILLER_MOVE_SCORE;
   }
 
+  if (historyHeuristic !== null) {
+    return getHistoryHeuristicScore(historyHeuristic, move);
+  }
+
   return 0;
 };
 
@@ -96,6 +103,7 @@ export const orderMoves = (
   scratch: MoveOrderingScratch,
   priorityMove: number | null = null,
   killerMoves: KillerMoves | null = null,
+  historyHeuristic: HistoryHeuristic | null = null,
   ply = 0,
 ): void => {
   const moves = moveList.moves;
@@ -108,6 +116,7 @@ export const orderMoves = (
       scratch,
       priorityMove,
       killerMoves,
+      historyHeuristic,
       ply,
     );
   }
