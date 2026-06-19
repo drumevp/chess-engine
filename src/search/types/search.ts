@@ -5,6 +5,7 @@ import { MoveGenerationContext, MoveList } from "../../engine/types/move";
 import { Position } from "../../engine/types/position";
 import type { MoveOrderingScratch } from "../helpers/moveOrdering";
 import type { KillerMoves } from "./killerMoves";
+import type { NullMoveUndo } from "./nullMove";
 import type { SearchEvaluator } from "./nnue";
 
 export type SearchResult = {
@@ -34,6 +35,7 @@ export type SearchControl = {
   nodes: number;
   startTime: number;
   stopped: boolean;
+  isPreviousMoveNull: boolean;
 };
 
 export type SearchScratch = {
@@ -41,6 +43,7 @@ export type SearchScratch = {
   contexts: MoveGenerationContext[];
   attackInfos: AttackInfo[];
   undoStack: Undo[];
+  nullMoveUndoStack: NullMoveUndo[];
   gameStateScratch: DetermineGameStateRValue;
   pvTable: Uint32Array[];
   pvLength: Uint16Array;

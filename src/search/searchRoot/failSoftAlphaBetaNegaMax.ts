@@ -22,6 +22,7 @@ import {
   evaluatePosition,
   popEvaluatorMove,
   pushEvaluatorMove,
+  resetEvaluator,
 } from "../eval/evaluator";
 import { recordCaptureHistory } from "../helpers/captureHistory";
 import {
@@ -35,6 +36,11 @@ import {
   getMateDistancePrunedBeta,
   isMateDistancePruned,
 } from "../helpers/mateDistancePruning";
+import { makeNullMove, undoNullMove } from "../helpers/nullMove";
+import {
+  canUseNullMovePruning,
+  getNullMoveReduction,
+} from "../helpers/nullMovePruning";
 import { orderMoves } from "../helpers/moveOrdering";
 import {
   canUseReverseFutilityPruning,
@@ -130,11 +136,56 @@ export const failSoftAlphaBetaNegaMax = (
     return transpositionTableScore;
   }
 
-  if (canUseReverseFutilityPruning(depth, beta, isCheck)) {
-    const staticEval = evaluatePosition(control.evaluator, position);
+  const staticEval = evaluatePosition(control.evaluator, position);
 
+  if (canUseReverseFutilityPruning(depth, beta, isCheck)) {
     if (isReverseFutilityPruned(staticEval, beta, depth)) {
       return staticEval;
+    }
+  }
+
+  if (
+    canUseNullMovePruning(
+      position,
+      depth,
+      beta,
+      isCheck,
+      control.isPreviousMoveNull,
+      staticEval,
+    )
+  ) {
+    const nullMoveUndo = scratch.nullMoveUndoStack[ply];
+    const reduction = getNullMoveReduction(depth);
+    const nullMoveDepth = Math.max(0, depth - reduction - 1);
+    const wasPreviousMoveNull = control.isPreviousMoveNull;
+
+    makeNullMove(position, nullMoveUndo);
+    control.isPreviousMoveNull = true;
+
+    const score = -failSoftAlphaBetaNegaMax(
+      position,
+      -beta,
+      -beta + 1,
+      nullMoveDepth,
+      ply + 1,
+      scratch,
+      repetitionCounts,
+      control,
+      transpositionTable,
+      historyHeuristic,
+      captureHistory,
+    );
+
+    control.isPreviousMoveNull = wasPreviousMoveNull;
+    undoNullMove(position, nullMoveUndo);
+    resetEvaluator(control.evaluator, position);
+
+    if (control.stopped) {
+      return staticEval;
+    }
+
+    if (score >= beta) {
+      return score;
     }
   }
 

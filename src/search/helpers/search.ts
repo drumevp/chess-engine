@@ -12,6 +12,7 @@ import { SIMPLE_EVALUATOR } from "../eval/evaluator";
 import { createKillerMoves } from "./killerMoves";
 import { createMoveOrderingScratch } from "./moveOrdering";
 import { normalizeSearchLimits } from "./searchStrength";
+import { createNullMoveUndo } from "../types/nullMove";
 import {
   SearchControl,
   SearchLimits,
@@ -49,6 +50,10 @@ export const createSearchScratch = (depth: number): SearchScratch => {
     createAttackInfo(),
   );
   const undoStack = Array.from({ length: searchPlyCount }, () => createUndo());
+  const nullMoveUndoStack = Array.from(
+    { length: searchPlyCount },
+    () => createNullMoveUndo(),
+  );
   const pvTable = Array.from(
     { length: searchPlyCount },
     () => new Uint32Array(searchPlyCount),
@@ -63,6 +68,7 @@ export const createSearchScratch = (depth: number): SearchScratch => {
     contexts,
     attackInfos,
     undoStack,
+    nullMoveUndoStack,
     pvTable,
     pvLength: new Uint16Array(searchPlyCount),
     moveOrderingScratches,
@@ -98,6 +104,7 @@ export const createSearchControl = (
   nodes: 0,
   startTime: Date.now(),
   stopped: false,
+  isPreviousMoveNull: false,
 });
 
 export const shouldStopSearch = (control: SearchControl): boolean => {
