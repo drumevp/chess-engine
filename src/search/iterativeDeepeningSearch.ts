@@ -57,6 +57,7 @@ const iterativeDeepeningSearch = (
       Infinity,
       depth,
       control,
+      bestResult.bestMove,
     );
 
     if (control.stopped) {

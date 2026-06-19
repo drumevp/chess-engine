@@ -22,6 +22,7 @@ import {
   resetPrincipalVariation,
   updatePrincipalVariation,
 } from "../helpers/principalVariation";
+import { orderMoves } from "../helpers/moveOrdering";
 import {
   getTerminalScore,
   shouldStopSearch,
@@ -79,6 +80,8 @@ export const failSoftAlphaBetaNegaMax = (
   }
 
   let bestScore = -Infinity;
+
+  orderMoves(moveList, movesCount);
 
   for (let i = 0; i < movesCount; i++) {
     const move = moveList.moves[i];

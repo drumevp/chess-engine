@@ -22,6 +22,7 @@ import {
   resetPrincipalVariation,
   updatePrincipalVariation,
 } from "../helpers/principalVariation";
+import { orderMoves } from "../helpers/moveOrdering";
 import quiescenceSearch from "./quiescenceSearch";
 import { SearchResult } from "../types/search";
 import { SearchControl } from "../types/search";
@@ -33,6 +34,7 @@ const searchRoot = (
   beta: number,
   depth: number,
   control: SearchControl = createSearchControl(),
+  priorityMove: number | null = null,
 ): SearchResult => {
   if (shouldStopSearch(control)) {
     return {
@@ -97,6 +99,8 @@ const searchRoot = (
 
   let bestMove: number | null = null;
   let bestScore = -Infinity;
+
+  orderMoves(moveList, movesCount, priorityMove);
 
   for (let i = 0; i < movesCount; i++) {
     const move = moveList.moves[i];
