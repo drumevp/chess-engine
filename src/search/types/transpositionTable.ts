@@ -21,3 +21,14 @@ export type TranspositionTableEntry = {
   bound: TranspositionTableBound;
   bestMove: number | null;
 };
+
+export type SharedTranspositionTableBuffers = {
+  size: number;
+  occupied: SharedArrayBuffer;
+  keys: SharedArrayBuffer;
+  depths: SharedArrayBuffer;
+  scores: SharedArrayBuffer;
+  bounds: SharedArrayBuffer;
+  bestMoves: SharedArrayBuffer;
+  hasBestMove: SharedArrayBuffer;
+};

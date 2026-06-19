@@ -22,7 +22,10 @@ import {
   SearchLimits,
 } from "./types/search";
 import type { SearchEvaluator } from "./types/nnue";
-import { createTranspositionTable } from "./transpositionTable/transpositionTable";
+import {
+  createTranspositionTable,
+} from "./transpositionTable/transpositionTable";
+import type { TranspositionTable } from "./types/transpositionTable";
 
 const iterativeDeepeningSearch = (
   position: Position,
@@ -30,6 +33,8 @@ const iterativeDeepeningSearch = (
   maxDepth: number,
   limits: SearchLimits = {},
   evaluator?: SearchEvaluator,
+  initialPriorityMove: number | null = null,
+  transpositionTable?: TranspositionTable,
 ): IterativeDeepeningSearchResult => {
   const control = createSearchControl(limits, evaluator);
   let bestResult: IterativeDeepeningSearchResult = {
@@ -61,7 +66,8 @@ const iterativeDeepeningSearch = (
     };
   }
 
-  const transpositionTable = createTranspositionTable();
+  const searchTranspositionTable =
+    transpositionTable ?? createTranspositionTable();
   const historyHeuristic = createHistoryHeuristic();
   const captureHistory = createCaptureHistory();
   const correctionHistory = createCorrectionHistory();
@@ -88,8 +94,8 @@ const iterativeDeepeningSearch = (
           beta,
           depth,
           control,
-          bestResult.bestMove,
-          transpositionTable,
+          bestResult.bestMove ?? initialPriorityMove,
+          searchTranspositionTable,
           historyHeuristic,
           captureHistory,
           correctionHistory,
@@ -123,8 +129,8 @@ const iterativeDeepeningSearch = (
         Infinity,
         depth,
         control,
-        bestResult.bestMove,
-        transpositionTable,
+        bestResult.bestMove ?? initialPriorityMove,
+        searchTranspositionTable,
         historyHeuristic,
         captureHistory,
         correctionHistory,
