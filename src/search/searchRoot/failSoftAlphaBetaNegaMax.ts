@@ -125,17 +125,47 @@ export const failSoftAlphaBetaNegaMax = (
     incrementRepetition(repetitionCounts, position.zobristHash);
     const childHash = position.zobristHash;
 
-    const score = -failSoftAlphaBetaNegaMax(
-      position,
-      -beta,
-      -alpha,
-      depth - 1,
-      ply + 1,
-      scratch,
-      repetitionCounts,
-      control,
-      transpositionTable,
-    );
+    let score: number;
+
+    if (i === 0) {
+      score = -failSoftAlphaBetaNegaMax(
+        position,
+        -beta,
+        -alpha,
+        depth - 1,
+        ply + 1,
+        scratch,
+        repetitionCounts,
+        control,
+        transpositionTable,
+      );
+    } else {
+      score = -failSoftAlphaBetaNegaMax(
+        position,
+        -alpha - 1,
+        -alpha,
+        depth - 1,
+        ply + 1,
+        scratch,
+        repetitionCounts,
+        control,
+        transpositionTable,
+      );
+
+      if (!control.stopped && score > alpha && score < beta) {
+        score = -failSoftAlphaBetaNegaMax(
+          position,
+          -beta,
+          -alpha,
+          depth - 1,
+          ply + 1,
+          scratch,
+          repetitionCounts,
+          control,
+          transpositionTable,
+        );
+      }
+    }
 
     undoMove(position, move, undo);
     decrementRepetition(repetitionCounts, childHash);
