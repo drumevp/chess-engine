@@ -27,6 +27,11 @@ import {
   resetPrincipalVariation,
   updatePrincipalVariation,
 } from "../helpers/principalVariation";
+import {
+  getMateDistancePrunedAlpha,
+  getMateDistancePrunedBeta,
+  isMateDistancePruned,
+} from "../helpers/mateDistancePruning";
 import { orderMoves } from "../helpers/moveOrdering";
 import {
   getTerminalScore,
@@ -74,6 +79,13 @@ const quiescenceSearch = (
 
   if (terminalScore !== null) {
     return terminalScore;
+  }
+
+  alpha = getMateDistancePrunedAlpha(alpha, ply);
+  beta = getMateDistancePrunedBeta(beta, ply);
+
+  if (isMateDistancePruned(alpha, beta)) {
+    return alpha;
   }
 
   let bestScore = -Infinity;
