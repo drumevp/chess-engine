@@ -18,7 +18,11 @@ import { makeMoveWithUndo } from "../../engine/position/moves/makeMove/makeMove"
 import undoMove from "../../engine/position/moves/undoMove/undoMove";
 import { Position } from "../../engine/types/position";
 import { TRANSPOSITION_TABLE_BOUND } from "../constants/transpositionTable";
-import simpleEval from "../eval/simpleEval";
+import {
+  evaluatePosition,
+  popEvaluatorMove,
+  pushEvaluatorMove,
+} from "../eval/evaluator";
 import { recordCaptureHistory } from "../helpers/captureHistory";
 import {
   resetPrincipalVariation,
@@ -56,7 +60,7 @@ export const failSoftAlphaBetaNegaMax = (
   captureHistory: CaptureHistory,
 ): number => {
   if (shouldStopSearch(control)) {
-    return simpleEval(position);
+    return evaluatePosition(control.evaluator, position);
   }
 
   const originalAlpha = alpha;
@@ -134,6 +138,7 @@ export const failSoftAlphaBetaNegaMax = (
     const undo = scratch.undoStack[ply];
 
     makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
+    pushEvaluatorMove(control.evaluator, position, move, undo);
     incrementRepetition(repetitionCounts, position.zobristHash);
     const childHash = position.zobristHash;
 
@@ -187,9 +192,12 @@ export const failSoftAlphaBetaNegaMax = (
 
     undoMove(position, move, undo);
     decrementRepetition(repetitionCounts, childHash);
+    popEvaluatorMove(control.evaluator);
 
     if (control.stopped) {
-      return bestScore === -Infinity ? simpleEval(position) : bestScore;
+      return bestScore === -Infinity
+        ? evaluatePosition(control.evaluator, position)
+        : bestScore;
     }
 
     if (score > bestScore) {

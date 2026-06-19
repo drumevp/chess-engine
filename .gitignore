@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Local engine builds and NNUE generated artifacts
+engines/stockfish
+models/nnue/checkpoints
+models/nnue/training
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -20,6 +20,7 @@ import {
   IterativeDeepeningSearchResult,
   SearchLimits,
 } from "./types/search";
+import type { SearchEvaluator } from "./types/nnue";
 import { createTranspositionTable } from "./transpositionTable/transpositionTable";
 
 const iterativeDeepeningSearch = (
@@ -27,8 +28,9 @@ const iterativeDeepeningSearch = (
   repetitionCounts: Map<bigint, number>,
   maxDepth: number,
   limits: SearchLimits = {},
+  evaluator?: SearchEvaluator,
 ): IterativeDeepeningSearchResult => {
-  const control = createSearchControl(limits);
+  const control = createSearchControl(limits, evaluator);
   let bestResult: IterativeDeepeningSearchResult = {
     bestMove: null,
     score: 0,

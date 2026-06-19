@@ -26,6 +26,9 @@
     "test-perft": "tsx ./scripts/perft.ts --max-depth 4",
     "test-perft:deep": "tsx ./scripts/perft.ts --max-depth 5",
     "export-precalculated-data": "tsx ./scripts/precalculateAttackTables.ts",
+    "nnue:prepare-stockfish": "tsx ./scripts/nnue/prepareStockfish.ts",
+    "nnue:export-default": "tsx ./scripts/nnue/exportDefaultModel.ts",
+    "nnue:play-stockfish": "tsx ./scripts/nnue/playStockfishMatch.ts",
     "pack:dry": "npm pack --dry-run"
   },
   "dependencies": {},

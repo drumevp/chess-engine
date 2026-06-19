@@ -8,6 +8,7 @@ import { createUndo } from "../../engine/types/history";
 import { Position } from "../../engine/types/position";
 import { CHECKMATE_SCORE } from "../constants/eval";
 import { MAX_QUIESCENCE_PLY } from "../constants/search";
+import { SIMPLE_EVALUATOR } from "../eval/evaluator";
 import { createKillerMoves } from "./killerMoves";
 import { createMoveOrderingScratch } from "./moveOrdering";
 import {
@@ -16,6 +17,7 @@ import {
   SearchScratch,
   SearchState,
 } from "../types/search";
+import type { SearchEvaluator } from "../types/nnue";
 
 export const createSearchState = (
   position: Position,
@@ -88,8 +90,10 @@ export const getTerminalScore = (
 
 export const createSearchControl = (
   limits: SearchLimits = {},
+  evaluator: SearchEvaluator = SIMPLE_EVALUATOR,
 ): SearchControl => ({
   limits,
+  evaluator,
   nodes: 0,
   startTime: Date.now(),
   stopped: false,
