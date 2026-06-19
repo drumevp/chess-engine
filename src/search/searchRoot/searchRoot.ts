@@ -19,6 +19,7 @@ import {
   createCaptureHistory,
   recordCaptureHistory,
 } from "../helpers/captureHistory";
+import { createCorrectionHistory } from "../helpers/correctionHistory";
 import {
   createSearchControl,
   createSearchScratch,
@@ -45,6 +46,7 @@ import quiescenceSearch from "./quiescenceSearch";
 import { SearchResult } from "../types/search";
 import { SearchControl } from "../types/search";
 import type { CaptureHistory } from "../types/captureHistory";
+import type { CorrectionHistory } from "../types/correctionHistory";
 import type { HistoryHeuristic } from "../types/historyHeuristic";
 import { TranspositionTable } from "../types/transpositionTable";
 import {
@@ -63,6 +65,7 @@ const searchRoot = (
   transpositionTable?: TranspositionTable,
   historyHeuristic?: HistoryHeuristic,
   captureHistory?: CaptureHistory,
+  correctionHistory?: CorrectionHistory,
 ): SearchResult => {
   if (shouldStopSearch(control)) {
     return {
@@ -77,6 +80,8 @@ const searchRoot = (
   const searchPosition = searchState.position;
   const searchRepetitionCounts = searchState.repetitionCounts;
   const searchCaptureHistory = captureHistory ?? createCaptureHistory();
+  const searchCorrectionHistory =
+    correctionHistory ?? createCorrectionHistory();
   resetEvaluator(control.evaluator, searchPosition);
   resetPrincipalVariation(scratch, 0);
 
@@ -130,6 +135,7 @@ const searchRoot = (
       searchRepetitionCounts,
       control,
       searchCaptureHistory,
+      searchCorrectionHistory,
     );
 
     return {
@@ -185,6 +191,7 @@ const searchRoot = (
         searchTranspositionTable,
         searchHistoryHeuristic,
         searchCaptureHistory,
+        searchCorrectionHistory,
       );
     } else {
       score = -failSoftAlphaBetaNegaMax(
@@ -199,6 +206,7 @@ const searchRoot = (
         searchTranspositionTable,
         searchHistoryHeuristic,
         searchCaptureHistory,
+        searchCorrectionHistory,
       );
 
       if (!control.stopped && score > alpha && score < beta) {
@@ -214,6 +222,7 @@ const searchRoot = (
           searchTranspositionTable,
           searchHistoryHeuristic,
           searchCaptureHistory,
+          searchCorrectionHistory,
         );
       }
     }

@@ -23,6 +23,7 @@ import {
   popEvaluatorMove,
   pushEvaluatorMove,
 } from "../eval/evaluator";
+import { getCorrectedStaticEval } from "../helpers/correctionHistory";
 import {
   resetPrincipalVariation,
   updatePrincipalVariation,
@@ -39,6 +40,7 @@ import {
 } from "../helpers/search";
 import { SearchControl, SearchScratch } from "../types/search";
 import type { CaptureHistory } from "../types/captureHistory";
+import type { CorrectionHistory } from "../types/correctionHistory";
 
 const quiescenceSearch = (
   position: Position,
@@ -49,13 +51,22 @@ const quiescenceSearch = (
   repetitionCounts: Map<bigint, number>,
   control: SearchControl,
   captureHistory: CaptureHistory,
+  correctionHistory: CorrectionHistory,
 ): number => {
   if (shouldStopSearch(control)) {
-    return evaluatePosition(control.evaluator, position);
+    return getCorrectedStaticEval(
+      position,
+      correctionHistory,
+      evaluatePosition(control.evaluator, position),
+    );
   }
 
   if (ply >= scratch.moveLists.length) {
-    return evaluatePosition(control.evaluator, position);
+    return getCorrectedStaticEval(
+      position,
+      correctionHistory,
+      evaluatePosition(control.evaluator, position),
+    );
   }
 
   resetPrincipalVariation(scratch, ply);
@@ -91,7 +102,11 @@ const quiescenceSearch = (
   let bestScore = -Infinity;
 
   if (!isCheck) {
-    const standPat = evaluatePosition(control.evaluator, position);
+    const standPat = getCorrectedStaticEval(
+      position,
+      correctionHistory,
+      evaluatePosition(control.evaluator, position),
+    );
     bestScore = standPat;
 
     if (standPat >= beta) {
@@ -137,6 +152,7 @@ const quiescenceSearch = (
       repetitionCounts,
       control,
       captureHistory,
+      correctionHistory,
     );
 
     undoMove(position, move, undo);
@@ -145,7 +161,11 @@ const quiescenceSearch = (
 
     if (control.stopped) {
       return bestScore === -Infinity
-        ? evaluatePosition(control.evaluator, position)
+        ? getCorrectedStaticEval(
+            position,
+            correctionHistory,
+            evaluatePosition(control.evaluator, position),
+          )
         : bestScore;
     }
 

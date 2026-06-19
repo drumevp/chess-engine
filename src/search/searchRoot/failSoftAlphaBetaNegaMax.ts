@@ -26,6 +26,10 @@ import {
 } from "../eval/evaluator";
 import { recordCaptureHistory } from "../helpers/captureHistory";
 import {
+  getCorrectedStaticEval,
+  recordCorrectionHistory,
+} from "../helpers/correctionHistory";
+import {
   resetPrincipalVariation,
   updatePrincipalVariation,
 } from "../helpers/principalVariation";
@@ -81,6 +85,7 @@ import {
 } from "../helpers/staticExchangeEvaluationPruning";
 import { SearchControl, SearchScratch } from "../types/search";
 import type { CaptureHistory } from "../types/captureHistory";
+import type { CorrectionHistory } from "../types/correctionHistory";
 import type { HistoryHeuristic } from "../types/historyHeuristic";
 import { TranspositionTable } from "../types/transpositionTable";
 import {
@@ -103,12 +108,17 @@ export const failSoftAlphaBetaNegaMax = (
   transpositionTable: TranspositionTable,
   historyHeuristic: HistoryHeuristic,
   captureHistory: CaptureHistory,
+  correctionHistory: CorrectionHistory,
   excludedMove: number | null = null,
 ): number => {
   const isExcludedMoveSearch = excludedMove !== null;
 
   if (shouldStopSearch(control)) {
-    return evaluatePosition(control.evaluator, position);
+    return getCorrectedStaticEval(
+      position,
+      correctionHistory,
+      evaluatePosition(control.evaluator, position),
+    );
   }
 
   resetPrincipalVariation(scratch, ply);
@@ -153,6 +163,7 @@ export const failSoftAlphaBetaNegaMax = (
       repetitionCounts,
       control,
       captureHistory,
+      correctionHistory,
     );
   }
 
@@ -175,7 +186,12 @@ export const failSoftAlphaBetaNegaMax = (
     }
   }
 
-  const staticEval = evaluatePosition(control.evaluator, position);
+  const rawStaticEval = evaluatePosition(control.evaluator, position);
+  const staticEval = getCorrectedStaticEval(
+    position,
+    correctionHistory,
+    rawStaticEval,
+  );
 
   if (
     canUseRazoring(depth, alpha, beta, isCheck) &&
@@ -190,6 +206,7 @@ export const failSoftAlphaBetaNegaMax = (
       repetitionCounts,
       control,
       captureHistory,
+      correctionHistory,
     );
 
     if (control.stopped || score <= alpha) {
@@ -233,6 +250,7 @@ export const failSoftAlphaBetaNegaMax = (
       transpositionTable,
       historyHeuristic,
       captureHistory,
+      correctionHistory,
     );
 
     control.isPreviousMoveNull = wasPreviousMoveNull;
@@ -280,6 +298,7 @@ export const failSoftAlphaBetaNegaMax = (
       transpositionTable,
       historyHeuristic,
       captureHistory,
+      correctionHistory,
     );
 
     if (probCutScore !== null) {
@@ -375,12 +394,17 @@ export const failSoftAlphaBetaNegaMax = (
         transpositionTable,
         historyHeuristic,
         captureHistory,
+        correctionHistory,
         move,
       );
 
       if (control.stopped) {
         return bestScore === -Infinity
-          ? evaluatePosition(control.evaluator, position)
+          ? getCorrectedStaticEval(
+              position,
+              correctionHistory,
+              evaluatePosition(control.evaluator, position),
+            )
           : bestScore;
       }
 
@@ -410,6 +434,7 @@ export const failSoftAlphaBetaNegaMax = (
         transpositionTable,
         historyHeuristic,
         captureHistory,
+        correctionHistory,
       );
     } else {
       if (canUseLateMoveReduction(depth, i, isCheck, move)) {
@@ -430,6 +455,7 @@ export const failSoftAlphaBetaNegaMax = (
           transpositionTable,
           historyHeuristic,
           captureHistory,
+          correctionHistory,
         );
 
         if (!control.stopped && score > alpha) {
@@ -445,6 +471,7 @@ export const failSoftAlphaBetaNegaMax = (
             transpositionTable,
             historyHeuristic,
             captureHistory,
+            correctionHistory,
           );
         }
       } else {
@@ -460,6 +487,7 @@ export const failSoftAlphaBetaNegaMax = (
           transpositionTable,
           historyHeuristic,
           captureHistory,
+          correctionHistory,
         );
       }
 
@@ -476,6 +504,7 @@ export const failSoftAlphaBetaNegaMax = (
           transpositionTable,
           historyHeuristic,
           captureHistory,
+          correctionHistory,
         );
       }
     }
@@ -486,7 +515,11 @@ export const failSoftAlphaBetaNegaMax = (
 
     if (control.stopped) {
       return bestScore === -Infinity
-        ? evaluatePosition(control.evaluator, position)
+        ? getCorrectedStaticEval(
+            position,
+            correctionHistory,
+            evaluatePosition(control.evaluator, position),
+          )
         : bestScore;
     }
 
@@ -502,6 +535,17 @@ export const failSoftAlphaBetaNegaMax = (
 
     if (score >= beta) {
       if (!isExcludedMoveSearch) {
+        recordCorrectionHistory(
+          correctionHistory,
+          position,
+          depth,
+          rawStaticEval,
+          staticEval,
+          score,
+          originalAlpha,
+          beta,
+          isCheck,
+        );
         recordKillerMove(scratch.killerMoves, ply, move);
         recordHistoryHeuristic(historyHeuristic, move, depth);
         recordCaptureHistory(captureHistory, move, depth);
@@ -524,6 +568,18 @@ export const failSoftAlphaBetaNegaMax = (
   if (isExcludedMoveSearch) {
     return bestScore === -Infinity ? alpha : bestScore;
   }
+
+  recordCorrectionHistory(
+    correctionHistory,
+    position,
+    depth,
+    rawStaticEval,
+    staticEval,
+    bestScore,
+    originalAlpha,
+    beta,
+    isCheck,
+  );
 
   storeTranspositionTable(
     transpositionTable,

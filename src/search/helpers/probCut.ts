@@ -22,6 +22,7 @@ import {
 } from "../eval/evaluator";
 import quiescenceSearch from "../searchRoot/quiescenceSearch";
 import type { CaptureHistory } from "../types/captureHistory";
+import type { CorrectionHistory } from "../types/correctionHistory";
 import type { HistoryHeuristic } from "../types/historyHeuristic";
 import type { SearchControl, SearchScratch } from "../types/search";
 import type { TranspositionTable } from "../types/transpositionTable";
@@ -38,6 +39,7 @@ type ProbCutSearch = (
   transpositionTable: TranspositionTable,
   historyHeuristic: HistoryHeuristic,
   captureHistory: CaptureHistory,
+  correctionHistory: CorrectionHistory,
 ) => number;
 
 const isProbCutMoveCandidate = (move: number): boolean => {
@@ -83,6 +85,7 @@ export const tryProbCut = (
   transpositionTable: TranspositionTable,
   historyHeuristic: HistoryHeuristic,
   captureHistory: CaptureHistory,
+  correctionHistory: CorrectionHistory,
 ): number | null => {
   const moveOrderingScratch = scratch.moveOrderingScratches[ply];
 
@@ -112,6 +115,7 @@ export const tryProbCut = (
       repetitionCounts,
       control,
       captureHistory,
+      correctionHistory,
     );
 
     if (!control.stopped && score >= probCutBeta) {
@@ -127,6 +131,7 @@ export const tryProbCut = (
         transpositionTable,
         historyHeuristic,
         captureHistory,
+        correctionHistory,
       );
     }
 
