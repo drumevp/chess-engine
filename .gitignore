@@ -16,6 +16,8 @@ dist-ssr
 engines/stockfish
 models/nnue/checkpoints
 models/nnue/training
+models/nnue/runs
+lichess_data/
 
 # Editor directories and files
 .vscode/*

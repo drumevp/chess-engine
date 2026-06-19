@@ -64,8 +64,8 @@ export type NnueModel = {
 
 export type NnueAccumulatorStack = {
   currentPly: number;
-  whiteAccumulators: Int16Array[];
-  blackAccumulators: Int16Array[];
+  whiteAccumulators: Int32Array[];
+  blackAccumulators: Int32Array[];
   whitePsqtAccumulators: Int32Array[];
   blackPsqtAccumulators: Int32Array[];
 };
@@ -74,8 +74,8 @@ export type NnueScratch = {
   activeFeatures: Uint32Array;
   fullThreatActiveFeatures: Uint32Array;
   fullThreatAttackScratch: Bitboard32;
-  whiteAccumulator: Int16Array;
-  blackAccumulator: Int16Array;
+  whiteAccumulator: Int32Array;
+  blackAccumulator: Int32Array;
   whitePsqtAccumulator: Int32Array;
   blackPsqtAccumulator: Int32Array;
   transformedFeatures: Uint8Array;

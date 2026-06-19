@@ -1,6 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, resolve } from "node:path";
-import { createDefaultNnueModel } from "../../src/search/nnue/defaultModel";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { basename, dirname, resolve } from "node:path";
+import { NNUE_DEFAULT_RANDOM_SEED } from "../../src/search/constants/nnue";
+import { DEFAULT_NNUE_MODEL_METADATA } from "../../src/search/nnue/defaultModel";
 import { createRandomNnueModel } from "../../src/search/nnue/model";
 import {
   deserializeNnueModel,
@@ -13,10 +14,15 @@ import type {
 
 type SeededModelDescriptor = {
   metadata: NnueModelMetadata;
-  seed: number;
+  seed?: number;
+  checkpoint?: string | null;
 };
 
 const isJsonPath = (path: string): boolean => path.endsWith(".json");
+export const DEFAULT_NNUE_CHECKPOINT_DIRECTORY =
+  "models/nnue/defaultCheckpoint";
+export const DEFAULT_NNUE_CHECKPOINT_FILENAME = "model.dce-nnue";
+export const DEFAULT_NNUE_CHECKPOINT_PATH = `${DEFAULT_NNUE_CHECKPOINT_DIRECTORY}/${DEFAULT_NNUE_CHECKPOINT_FILENAME}`;
 
 export const getTimestamp = (): string =>
   new Date().toISOString().replaceAll(":", "-");
@@ -25,7 +31,7 @@ export const loadNnueModel = async (
   modelPath?: string | null,
 ): Promise<NnueModel> => {
   if (modelPath === undefined || modelPath === null || modelPath === "default") {
-    return createDefaultNnueModel();
+    return loadNnueModel(DEFAULT_NNUE_CHECKPOINT_PATH);
   }
 
   const resolvedPath = resolve(modelPath);
@@ -37,7 +43,47 @@ export const loadNnueModel = async (
 
   const descriptor = JSON.parse(bytes.toString("utf8")) as SeededModelDescriptor;
 
-  return createRandomNnueModel(descriptor.metadata, descriptor.seed);
+  if (descriptor.checkpoint !== undefined && descriptor.checkpoint !== null) {
+    const checkpointPath = resolve(dirname(resolvedPath), descriptor.checkpoint);
+
+    return deserializeNnueModel(await readFile(checkpointPath));
+  }
+
+  return createRandomNnueModel(
+    descriptor.metadata,
+    descriptor.seed ?? undefined,
+  );
+};
+
+export const createSeededDefaultNnueModel = (): NnueModel =>
+  createRandomNnueModel(DEFAULT_NNUE_MODEL_METADATA, NNUE_DEFAULT_RANDOM_SEED);
+
+export const ensureDefaultNnueCheckpoint = async (): Promise<string> => {
+  const checkpointPath = resolve(DEFAULT_NNUE_CHECKPOINT_PATH);
+
+  try {
+    await readFile(checkpointPath);
+
+    return checkpointPath;
+  } catch {
+    const model = createSeededDefaultNnueModel();
+
+    await mkdir(dirname(checkpointPath), { recursive: true });
+    await writeFile(checkpointPath, serializeNnueModel(model));
+
+    return checkpointPath;
+  }
+};
+
+export const promoteDefaultNnueCheckpoint = async (
+  checkpointPath: string,
+): Promise<string> => {
+  const defaultCheckpointPath = resolve(DEFAULT_NNUE_CHECKPOINT_PATH);
+
+  await mkdir(dirname(defaultCheckpointPath), { recursive: true });
+  await copyFile(resolve(checkpointPath), defaultCheckpointPath);
+
+  return defaultCheckpointPath;
 };
 
 export const writeNnueCheckpoint = async (

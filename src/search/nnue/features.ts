@@ -102,6 +102,10 @@ export const appendHalfKaActiveFeatures = (
       continue;
     }
 
+    if (count >= activeFeatures.length) {
+      throw new Error("HalfKA active feature buffer overflow");
+    }
+
     activeFeatures[count++] = makeHalfKaFeatureIndex(
       perspective,
       square,
