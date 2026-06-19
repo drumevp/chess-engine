@@ -30,7 +30,7 @@ import {
   updatePrincipalVariation,
 } from "../helpers/principalVariation";
 import { recordHistoryHeuristic } from "../helpers/historyHeuristic";
-import { recordKillerMove } from "../helpers/killerMoves";
+import { isKillerMove, recordKillerMove } from "../helpers/killerMoves";
 import {
   canUseLateMoveReduction,
   getLateMoveReduction,
@@ -47,6 +47,20 @@ import {
 } from "../helpers/nullMovePruning";
 import { orderMoves } from "../helpers/moveOrdering";
 import {
+  canUseMoveLoopFutilityPruning,
+  isMoveLoopFutilityPruned,
+} from "../helpers/moveLoopFutilityPruning";
+import {
+  canUseProbCut,
+  getProbCutBeta,
+  getProbCutSearchDepth,
+  tryProbCut,
+} from "../helpers/probCut";
+import {
+  canUseRazoring,
+  isRazoringCandidate,
+} from "../helpers/razoring";
+import {
   canUseReverseFutilityPruning,
   isReverseFutilityPruned,
 } from "../helpers/reverseFutilityPruning";
@@ -54,6 +68,11 @@ import {
   getTerminalScore,
   shouldStopSearch,
 } from "../helpers/search";
+import {
+  canUseStaticExchangeEvaluationPruning,
+  hasMoveOrderingStaticExchangeEvaluationScore,
+  isStaticExchangeEvaluationPruned,
+} from "../helpers/staticExchangeEvaluationPruning";
 import { SearchControl, SearchScratch } from "../types/search";
 import type { CaptureHistory } from "../types/captureHistory";
 import type { HistoryHeuristic } from "../types/historyHeuristic";
@@ -64,6 +83,7 @@ import {
   storeTranspositionTable,
 } from "../transpositionTable/transpositionTable";
 import quiescenceSearch from "./quiescenceSearch";
+import staticExchangeEvaluation from "./staticExchangeEvaluation/staticExchangeEvaluation";
 
 export const failSoftAlphaBetaNegaMax = (
   position: Position,
@@ -142,6 +162,26 @@ export const failSoftAlphaBetaNegaMax = (
 
   const staticEval = evaluatePosition(control.evaluator, position);
 
+  if (
+    canUseRazoring(depth, alpha, beta, isCheck) &&
+    isRazoringCandidate(staticEval, alpha, depth)
+  ) {
+    const score = quiescenceSearch(
+      position,
+      alpha,
+      alpha + 1,
+      ply,
+      scratch,
+      repetitionCounts,
+      control,
+      captureHistory,
+    );
+
+    if (control.stopped || score <= alpha) {
+      return score;
+    }
+  }
+
   if (canUseReverseFutilityPruning(depth, beta, isCheck)) {
     if (isReverseFutilityPruned(staticEval, beta, depth)) {
       return staticEval;
@@ -195,6 +235,7 @@ export const failSoftAlphaBetaNegaMax = (
 
   let bestScore = -Infinity;
   let bestMove: number | null = null;
+  const moveOrderingScratch = scratch.moveOrderingScratches[ply];
   const transpositionTableBestMove = getTranspositionTableBestMove(
     transpositionTable,
     position.zobristHash,
@@ -204,7 +245,7 @@ export const failSoftAlphaBetaNegaMax = (
     position,
     moveList,
     movesCount,
-    scratch.moveOrderingScratches[ply],
+    moveOrderingScratch,
     transpositionTableBestMove,
     scratch.killerMoves,
     historyHeuristic,
@@ -212,9 +253,82 @@ export const failSoftAlphaBetaNegaMax = (
     ply,
   );
 
+  if (canUseProbCut(depth, beta, isCheck)) {
+    const probCutScore = tryProbCut(
+      failSoftAlphaBetaNegaMax,
+      position,
+      moveList,
+      movesCount,
+      getProbCutBeta(beta),
+      getProbCutSearchDepth(depth),
+      ply,
+      scratch,
+      repetitionCounts,
+      control,
+      transpositionTable,
+      historyHeuristic,
+      captureHistory,
+    );
+
+    if (probCutScore !== null) {
+      return probCutScore;
+    }
+  }
+
   for (let i = 0; i < movesCount; i++) {
     const move = moveList.moves[i];
     const undo = scratch.undoStack[ply];
+    const hasSearchedMove = bestScore !== -Infinity;
+    const isImportantMove =
+      (transpositionTableBestMove !== null &&
+        move === transpositionTableBestMove) ||
+      isKillerMove(scratch.killerMoves, ply, move);
+
+    if (
+      canUseMoveLoopFutilityPruning(
+        depth,
+        alpha,
+        isCheck,
+        hasSearchedMove,
+        i,
+        move,
+        isImportantMove,
+      ) &&
+      isMoveLoopFutilityPruned(staticEval, alpha, depth)
+    ) {
+      continue;
+    }
+
+    if (
+      canUseStaticExchangeEvaluationPruning(
+        depth,
+        alpha,
+        isCheck,
+        hasSearchedMove,
+        i,
+        move,
+        isImportantMove,
+      )
+    ) {
+      const staticExchangeEvaluationScore =
+        hasMoveOrderingStaticExchangeEvaluationScore(move)
+          ? moveOrderingScratch.staticExchangeScores[i]
+          : staticExchangeEvaluation(
+              position,
+              move,
+              moveOrderingScratch.staticExchangeEvaluation,
+            );
+
+      if (
+        isStaticExchangeEvaluationPruned(
+          move,
+          staticExchangeEvaluationScore,
+          depth,
+        )
+      ) {
+        continue;
+      }
+    }
 
     makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
     pushEvaluatorMove(control.evaluator, position, move, undo);

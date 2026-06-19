@@ -27,18 +27,42 @@ import type { StaticExchangeEvaluationScratch } from "../types/staticExchangeEva
 
 export type MoveOrderingScratch = {
   scores: Int32Array;
+  staticExchangeScores: Int32Array;
   staticExchangeEvaluation: StaticExchangeEvaluationScratch;
 };
 
 export const createMoveOrderingScratch = (): MoveOrderingScratch => ({
   scores: new Int32Array(MAX_MOVES),
+  staticExchangeScores: new Int32Array(MAX_MOVES),
   staticExchangeEvaluation: createStaticExchangeEvaluationScratch(),
 });
 
-export const scoreMove = (
+const getMoveStaticExchangeEvaluationScore = (
   position: Position,
   move: number,
   scratch: MoveOrderingScratch,
+): number => {
+  const moveFlag = moveDecodeFlag(move);
+
+  if (
+    moveFlag === MOVE_FLAG.CAPTURE ||
+    moveFlag === MOVE_FLAG.PROMOTION_CAPTURE ||
+    moveFlag === MOVE_FLAG.EN_PASSANT ||
+    moveFlag === MOVE_FLAG.PROMOTION
+  ) {
+    return staticExchangeEvaluation(
+      position,
+      move,
+      scratch.staticExchangeEvaluation,
+    );
+  }
+
+  return 0;
+};
+
+const scoreMoveWithStaticExchangeEvaluation = (
+  move: number,
+  staticExchangeEvaluationScore: number,
   priorityMove: number | null = null,
   killerMoves: KillerMoves | null = null,
   historyHeuristic: HistoryHeuristic | null = null,
@@ -54,11 +78,7 @@ export const scoreMove = (
   if (moveFlag === MOVE_FLAG.PROMOTION_CAPTURE) {
     return (
       PROMOTION_CAPTURE_SCORE +
-      staticExchangeEvaluation(
-        position,
-        move,
-        scratch.staticExchangeEvaluation,
-      ) +
+      staticExchangeEvaluationScore +
       (captureHistory === null
         ? 0
         : getCaptureHistoryScore(captureHistory, move))
@@ -68,11 +88,7 @@ export const scoreMove = (
   if (moveFlag === MOVE_FLAG.CAPTURE) {
     return (
       CAPTURE_SCORE +
-      staticExchangeEvaluation(
-        position,
-        move,
-        scratch.staticExchangeEvaluation,
-      ) +
+      staticExchangeEvaluationScore +
       (captureHistory === null
         ? 0
         : getCaptureHistoryScore(captureHistory, move))
@@ -82,11 +98,7 @@ export const scoreMove = (
   if (moveFlag === MOVE_FLAG.EN_PASSANT) {
     return (
       EN_PASSANT_SCORE +
-      staticExchangeEvaluation(
-        position,
-        move,
-        scratch.staticExchangeEvaluation,
-      ) +
+      staticExchangeEvaluationScore +
       (captureHistory === null
         ? 0
         : getCaptureHistoryScore(captureHistory, move))
@@ -94,7 +106,11 @@ export const scoreMove = (
   }
 
   if (moveFlag === MOVE_FLAG.PROMOTION) {
-    return PROMOTION_SCORE + getPieceValue(moveDecodePromotionPiece(move));
+    return (
+      PROMOTION_SCORE +
+      getPieceValue(moveDecodePromotionPiece(move)) +
+      staticExchangeEvaluationScore
+    );
   }
 
   if (killerMoves !== null && isKillerMove(killerMoves, ply, move)) {
@@ -107,6 +123,26 @@ export const scoreMove = (
 
   return 0;
 };
+
+export const scoreMove = (
+  position: Position,
+  move: number,
+  scratch: MoveOrderingScratch,
+  priorityMove: number | null = null,
+  killerMoves: KillerMoves | null = null,
+  historyHeuristic: HistoryHeuristic | null = null,
+  captureHistory: CaptureHistory | null = null,
+  ply = 0,
+): number =>
+  scoreMoveWithStaticExchangeEvaluation(
+    move,
+    getMoveStaticExchangeEvaluationScore(position, move, scratch),
+    priorityMove,
+    killerMoves,
+    historyHeuristic,
+    captureHistory,
+    ply,
+  );
 
 export const orderMoves = (
   position: Position,
@@ -121,12 +157,17 @@ export const orderMoves = (
 ): void => {
   const moves = moveList.moves;
   const scores = scratch.scores;
+  const staticExchangeScores = scratch.staticExchangeScores;
 
   for (let i = 0; i < movesCount; i++) {
-    scores[i] = scoreMove(
-      position,
-      moves[i],
-      scratch,
+    const move = moves[i];
+    const staticExchangeEvaluationScore =
+      getMoveStaticExchangeEvaluationScore(position, move, scratch);
+
+    staticExchangeScores[i] = staticExchangeEvaluationScore;
+    scores[i] = scoreMoveWithStaticExchangeEvaluation(
+      move,
+      staticExchangeEvaluationScore,
       priorityMove,
       killerMoves,
       historyHeuristic,
@@ -156,6 +197,10 @@ export const orderMoves = (
       const currentScore = scores[i];
       scores[i] = scores[bestIndex];
       scores[bestIndex] = currentScore;
+
+      const currentStaticExchangeScore = staticExchangeScores[i];
+      staticExchangeScores[i] = staticExchangeScores[bestIndex];
+      staticExchangeScores[bestIndex] = currentStaticExchangeScore;
     }
   }
 };
