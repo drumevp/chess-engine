@@ -32,6 +32,10 @@ import {
 import { recordHistoryHeuristic } from "../helpers/historyHeuristic";
 import { recordKillerMove } from "../helpers/killerMoves";
 import {
+  canUseLateMoveReduction,
+  getLateMoveReduction,
+} from "../helpers/lateMoveReduction";
+import {
   getMateDistancePrunedAlpha,
   getMateDistancePrunedBeta,
   isMateDistancePruned,
@@ -218,13 +222,14 @@ export const failSoftAlphaBetaNegaMax = (
     const childHash = position.zobristHash;
 
     let score: number;
+    const childDepth = depth - 1;
 
     if (i === 0) {
       score = -failSoftAlphaBetaNegaMax(
         position,
         -beta,
         -alpha,
-        depth - 1,
+        childDepth,
         ply + 1,
         scratch,
         repetitionCounts,
@@ -234,26 +239,63 @@ export const failSoftAlphaBetaNegaMax = (
         captureHistory,
       );
     } else {
-      score = -failSoftAlphaBetaNegaMax(
-        position,
-        -alpha - 1,
-        -alpha,
-        depth - 1,
-        ply + 1,
-        scratch,
-        repetitionCounts,
-        control,
-        transpositionTable,
-        historyHeuristic,
-        captureHistory,
-      );
+      if (canUseLateMoveReduction(depth, i, isCheck, move)) {
+        const reduction = Math.min(
+          getLateMoveReduction(depth, i),
+          childDepth - 1,
+        );
+
+        score = -failSoftAlphaBetaNegaMax(
+          position,
+          -alpha - 1,
+          -alpha,
+          childDepth - reduction,
+          ply + 1,
+          scratch,
+          repetitionCounts,
+          control,
+          transpositionTable,
+          historyHeuristic,
+          captureHistory,
+        );
+
+        if (!control.stopped && score > alpha) {
+          score = -failSoftAlphaBetaNegaMax(
+            position,
+            -alpha - 1,
+            -alpha,
+            childDepth,
+            ply + 1,
+            scratch,
+            repetitionCounts,
+            control,
+            transpositionTable,
+            historyHeuristic,
+            captureHistory,
+          );
+        }
+      } else {
+        score = -failSoftAlphaBetaNegaMax(
+          position,
+          -alpha - 1,
+          -alpha,
+          childDepth,
+          ply + 1,
+          scratch,
+          repetitionCounts,
+          control,
+          transpositionTable,
+          historyHeuristic,
+          captureHistory,
+        );
+      }
 
       if (!control.stopped && score > alpha && score < beta) {
         score = -failSoftAlphaBetaNegaMax(
           position,
           -beta,
           -alpha,
-          depth - 1,
+          childDepth,
           ply + 1,
           scratch,
           repetitionCounts,
