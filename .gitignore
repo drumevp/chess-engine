@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+build/
 *.local
 
 # Local engine builds and NNUE generated artifacts
@@ -29,3 +30,4 @@ lichess_data/
 *.njsproj
 *.sln
 *.sw?
+build/*

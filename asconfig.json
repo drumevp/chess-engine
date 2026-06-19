@@ -1,0 +1,18 @@
+{
+  "entries": ["./assembly/nnue.ts"],
+  "options": {
+    "runtime": "stub",
+    "enable": ["simd"],
+    "initialMemory": 8,
+    "maximumMemory": 8,
+    "noAssert": true
+  },
+  "targets": {
+    "release": {
+      "outFile": "build/nnue.wasm",
+      "optimizeLevel": 3,
+      "shrinkLevel": 0,
+      "converge": true
+    }
+  }
+}
