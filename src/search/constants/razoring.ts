@@ -1,0 +1,4 @@
+export const RAZORING_MAX_DEPTH = 3;
+export const RAZORING_MARGIN_BASE = 300;
+export const RAZORING_MARGIN_PER_DEPTH = 200;
+export const RAZORING_MATE_SCORE_BUFFER = 1_000;

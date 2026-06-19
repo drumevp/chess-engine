@@ -20,7 +20,12 @@ import { ColorType } from "../../../engine/types/color";
 import { Position } from "../../../engine/types/position";
 import { getPieceValue } from "../../constants/eval";
 import { findLeastValuableAttacker } from "./attackers";
-import { addOccupancy, removeOccupancy, removePiece } from "./bitboard";
+import {
+  addOccupancy,
+  addPiece,
+  removeOccupancy,
+  removePiece,
+} from "./bitboard";
 import { StaticExchangeEvaluationScratch } from "../../types/staticExchangeEvaluation";
 
 const getEnPassantCapturedSquare = (
@@ -37,9 +42,8 @@ const staticExchangeEvaluation = (
   const moveCapturedPiece = moveDecodeCapturedPiece(move);
 
   if (
-    moveCapturedPiece === null &&
-    moveFlag !== MOVE_FLAG.EN_PASSANT &&
-    moveFlag !== MOVE_FLAG.PROMOTION
+    moveFlag === MOVE_FLAG.KING_CASTLE ||
+    moveFlag === MOVE_FLAG.QUEEN_CASTLE
   ) {
     return 0;
   }
@@ -60,6 +64,8 @@ const staticExchangeEvaluation = (
   scratch.stateHi.set(position.stateHi);
   scratch.simulatedAllOccupancyLo = position.allOccupancyLo;
   scratch.simulatedAllOccupancyHi = position.allOccupancyHi;
+  let pieceOnTarget = movePromotionPiece ?? movePiece;
+
   scratch.gain[0] = getPieceValue(capturedPiece) + promotionGain;
 
   removePiece(scratch, moveFrom, calculatePieceIndex(moveColor, movePiece));
@@ -79,11 +85,12 @@ const staticExchangeEvaluation = (
 
     if (moveFlag === MOVE_FLAG.EN_PASSANT) {
       removeOccupancy(scratch, capturedSquare);
-      addOccupancy(scratch, moveTo);
     }
   }
 
-  let pieceOnTarget = movePromotionPiece ?? movePiece;
+  addPiece(scratch, moveTo, calculatePieceIndex(moveColor, pieceOnTarget));
+  addOccupancy(scratch, moveTo);
+
   let attackingColor = getOppositeColor(moveColor);
   let depth = 1;
 
