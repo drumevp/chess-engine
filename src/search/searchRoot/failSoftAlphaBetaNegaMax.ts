@@ -81,7 +81,7 @@ export const failSoftAlphaBetaNegaMax = (
 
   let bestScore = -Infinity;
 
-  orderMoves(moveList, movesCount);
+  orderMoves(position, moveList, movesCount, scratch.moveOrderingScratches[ply]);
 
   for (let i = 0; i < movesCount; i++) {
     const move = moveList.moves[i];

@@ -100,7 +100,13 @@ const searchRoot = (
   let bestMove: number | null = null;
   let bestScore = -Infinity;
 
-  orderMoves(moveList, movesCount, priorityMove);
+  orderMoves(
+    searchPosition,
+    moveList,
+    movesCount,
+    scratch.moveOrderingScratches[0],
+    priorityMove,
+  );
 
   for (let i = 0; i < movesCount; i++) {
     const move = moveList.moves[i];
