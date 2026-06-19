@@ -30,4 +30,4 @@ lichess_data/
 *.njsproj
 *.sln
 *.sw?
-build/*
+build/
