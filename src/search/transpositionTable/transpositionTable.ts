@@ -6,6 +6,7 @@ import {
 import {
   TranspositionTable,
   TranspositionTableBound,
+  TranspositionTableEntry,
 } from "../types/transpositionTable";
 
 const getPowerOfTwoTableSize = (size: number): number => {
@@ -120,6 +121,31 @@ export const getTranspositionTableBestMove = (
   }
 
   return transpositionTable.bestMoves[index];
+};
+
+export const getTranspositionTableEntry = (
+  transpositionTable: TranspositionTable,
+  hash: bigint,
+  ply: number,
+): TranspositionTableEntry | null => {
+  const index = getTranspositionTableIndex(transpositionTable, hash);
+
+  if (
+    transpositionTable.occupied[index] === 0 ||
+    transpositionTable.keys[index] !== hash
+  ) {
+    return null;
+  }
+
+  return {
+    depth: transpositionTable.depths[index],
+    score: getProbedScore(transpositionTable.scores[index], ply),
+    bound: transpositionTable.bounds[index] as TranspositionTableBound,
+    bestMove:
+      transpositionTable.hasBestMove[index] === 0
+        ? null
+        : transpositionTable.bestMoves[index],
+  };
 };
 
 export const storeTranspositionTable = (

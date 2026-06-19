@@ -14,3 +14,10 @@ export type TranspositionTable = {
   bestMoves: Uint32Array;
   hasBestMove: Uint8Array;
 };
+
+export type TranspositionTableEntry = {
+  depth: number;
+  score: number;
+  bound: TranspositionTableBound;
+  bestMove: number | null;
+};
