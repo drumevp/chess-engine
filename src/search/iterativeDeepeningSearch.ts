@@ -12,6 +12,7 @@ import {
   isAspirationWindowFailLow,
   shouldUseAspirationWindow,
 } from "./helpers/aspirationWindow";
+import { createHistoryHeuristic } from "./helpers/historyHeuristic";
 import searchRoot from "./searchRoot/searchRoot";
 import {
   SearchResult,
@@ -57,6 +58,7 @@ const iterativeDeepeningSearch = (
   }
 
   const transpositionTable = createTranspositionTable();
+  const historyHeuristic = createHistoryHeuristic();
 
   for (let depth = 1; depth <= maxDepth; depth++) {
     if (control.stopped) {
@@ -82,6 +84,7 @@ const iterativeDeepeningSearch = (
           control,
           bestResult.bestMove,
           transpositionTable,
+          historyHeuristic,
         );
 
         if (control.stopped) {
@@ -114,6 +117,7 @@ const iterativeDeepeningSearch = (
         control,
         bestResult.bestMove,
         transpositionTable,
+        historyHeuristic,
       );
     }
 

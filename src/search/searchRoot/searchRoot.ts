@@ -22,10 +22,15 @@ import {
   resetPrincipalVariation,
   updatePrincipalVariation,
 } from "../helpers/principalVariation";
+import {
+  createHistoryHeuristic,
+  recordHistoryHeuristic,
+} from "../helpers/historyHeuristic";
 import { orderMoves } from "../helpers/moveOrdering";
 import quiescenceSearch from "./quiescenceSearch";
 import { SearchResult } from "../types/search";
 import { SearchControl } from "../types/search";
+import type { HistoryHeuristic } from "../types/historyHeuristic";
 import { TranspositionTable } from "../types/transpositionTable";
 import {
   createTranspositionTable,
@@ -41,6 +46,7 @@ const searchRoot = (
   control: SearchControl = createSearchControl(),
   priorityMove: number | null = null,
   transpositionTable?: TranspositionTable,
+  historyHeuristic?: HistoryHeuristic,
 ): SearchResult => {
   if (shouldStopSearch(control)) {
     return {
@@ -107,6 +113,7 @@ const searchRoot = (
   let bestScore = -Infinity;
   const searchTranspositionTable =
     transpositionTable ?? createTranspositionTable();
+  const searchHistoryHeuristic = historyHeuristic ?? createHistoryHeuristic();
   const transpositionTableBestMove = getTranspositionTableBestMove(
     searchTranspositionTable,
     searchPosition.zobristHash,
@@ -119,6 +126,7 @@ const searchRoot = (
     scratch.moveOrderingScratches[0],
     priorityMove ?? transpositionTableBestMove,
     scratch.killerMoves,
+    searchHistoryHeuristic,
     0,
   );
 
@@ -143,6 +151,7 @@ const searchRoot = (
         searchRepetitionCounts,
         control,
         searchTranspositionTable,
+        searchHistoryHeuristic,
       );
     } else {
       score = -failSoftAlphaBetaNegaMax(
@@ -155,6 +164,7 @@ const searchRoot = (
         searchRepetitionCounts,
         control,
         searchTranspositionTable,
+        searchHistoryHeuristic,
       );
 
       if (!control.stopped && score > alpha && score < beta) {
@@ -168,6 +178,7 @@ const searchRoot = (
           searchRepetitionCounts,
           control,
           searchTranspositionTable,
+          searchHistoryHeuristic,
         );
       }
     }
@@ -194,6 +205,8 @@ const searchRoot = (
     }
 
     if (score >= beta) {
+      recordHistoryHeuristic(searchHistoryHeuristic, move, depth);
+
       return {
         bestMove,
         score,

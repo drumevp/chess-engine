@@ -23,6 +23,7 @@ import {
   resetPrincipalVariation,
   updatePrincipalVariation,
 } from "../helpers/principalVariation";
+import { recordHistoryHeuristic } from "../helpers/historyHeuristic";
 import { recordKillerMove } from "../helpers/killerMoves";
 import { orderMoves } from "../helpers/moveOrdering";
 import {
@@ -30,6 +31,7 @@ import {
   shouldStopSearch,
 } from "../helpers/search";
 import { SearchControl, SearchScratch } from "../types/search";
+import type { HistoryHeuristic } from "../types/historyHeuristic";
 import { TranspositionTable } from "../types/transpositionTable";
 import {
   getTranspositionTableBestMove,
@@ -48,6 +50,7 @@ export const failSoftAlphaBetaNegaMax = (
   repetitionCounts: Map<bigint, number>,
   control: SearchControl,
   transpositionTable: TranspositionTable,
+  historyHeuristic: HistoryHeuristic,
 ): number => {
   if (shouldStopSearch(control)) {
     return simpleEval(position);
@@ -117,6 +120,7 @@ export const failSoftAlphaBetaNegaMax = (
     scratch.moveOrderingScratches[ply],
     transpositionTableBestMove,
     scratch.killerMoves,
+    historyHeuristic,
     ply,
   );
 
@@ -141,6 +145,7 @@ export const failSoftAlphaBetaNegaMax = (
         repetitionCounts,
         control,
         transpositionTable,
+        historyHeuristic,
       );
     } else {
       score = -failSoftAlphaBetaNegaMax(
@@ -153,6 +158,7 @@ export const failSoftAlphaBetaNegaMax = (
         repetitionCounts,
         control,
         transpositionTable,
+        historyHeuristic,
       );
 
       if (!control.stopped && score > alpha && score < beta) {
@@ -166,6 +172,7 @@ export const failSoftAlphaBetaNegaMax = (
           repetitionCounts,
           control,
           transpositionTable,
+          historyHeuristic,
         );
       }
     }
@@ -189,6 +196,7 @@ export const failSoftAlphaBetaNegaMax = (
 
     if (score >= beta) {
       recordKillerMove(scratch.killerMoves, ply, move);
+      recordHistoryHeuristic(historyHeuristic, move, depth);
 
       storeTranspositionTable(
         transpositionTable,
