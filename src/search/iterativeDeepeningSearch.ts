@@ -3,8 +3,18 @@ import {
   createSearchControl,
   getSearchElapsedTimeMs,
 } from "./helpers/search";
+import {
+  getAspirationWindowAlpha,
+  getAspirationWindowBeta,
+  getInitialAspirationWindowDelta,
+  getNextAspirationWindowDelta,
+  isAspirationWindowFailHigh,
+  isAspirationWindowFailLow,
+  shouldUseAspirationWindow,
+} from "./helpers/aspirationWindow";
 import searchRoot from "./searchRoot/searchRoot";
 import {
+  SearchResult,
   IterativeDeepeningSearchResult,
   SearchLimits,
 } from "./types/search";
@@ -53,16 +63,59 @@ const iterativeDeepeningSearch = (
       break;
     }
 
-    const result = searchRoot(
-      position,
-      repetitionCounts,
-      -Infinity,
-      Infinity,
-      depth,
-      control,
-      bestResult.bestMove,
-      transpositionTable,
-    );
+    let result: SearchResult;
+
+    if (
+      shouldUseAspirationWindow(depth, bestResult.depth, bestResult.score)
+    ) {
+      let delta = getInitialAspirationWindowDelta();
+      let alpha = getAspirationWindowAlpha(bestResult.score, delta);
+      let beta = getAspirationWindowBeta(bestResult.score, delta);
+
+      while (true) {
+        result = searchRoot(
+          position,
+          repetitionCounts,
+          alpha,
+          beta,
+          depth,
+          control,
+          bestResult.bestMove,
+          transpositionTable,
+        );
+
+        if (control.stopped) {
+          break;
+        }
+
+        if (isAspirationWindowFailLow(result.score, alpha)) {
+          delta = getNextAspirationWindowDelta(delta);
+          alpha = getAspirationWindowAlpha(result.score, delta);
+          beta = getAspirationWindowBeta(result.score, delta);
+          continue;
+        }
+
+        if (isAspirationWindowFailHigh(result.score, beta)) {
+          delta = getNextAspirationWindowDelta(delta);
+          alpha = getAspirationWindowAlpha(result.score, delta);
+          beta = getAspirationWindowBeta(result.score, delta);
+          continue;
+        }
+
+        break;
+      }
+    } else {
+      result = searchRoot(
+        position,
+        repetitionCounts,
+        -Infinity,
+        Infinity,
+        depth,
+        control,
+        bestResult.bestMove,
+        transpositionTable,
+      );
+    }
 
     if (control.stopped) {
       break;
