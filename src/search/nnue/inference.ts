@@ -34,6 +34,16 @@ import {
   resetNnueAccumulatorStack,
 } from "./accumulatorStack";
 import { createNnueScratch } from "./scratch";
+import {
+  createWasmNnueNetworkForward,
+  type NnueNetworkForward,
+} from "./wasmInference";
+
+export type NnueEvaluatorBackend = "auto" | "typescript" | "wasm";
+
+export type NnueEvaluatorOptions = {
+  backend?: NnueEvaluatorBackend;
+};
 
 const clippedRelu = (
   value: number,
@@ -206,22 +216,20 @@ const evaluateNnueFromAccumulators = (
   blackAccumulator: Int32Array,
   whitePsqtAccumulator: Int32Array,
   blackPsqtAccumulator: Int32Array,
+  networkForward?: NnueNetworkForward,
 ): number => {
   const layerStackIndex = getNnueLayerStackIndex(position);
   const layerStack = model.weights.layerStacks[layerStackIndex];
-
-  scratch.whitePsqtAccumulator.set(whitePsqtAccumulator);
-  scratch.blackPsqtAccumulator.set(blackPsqtAccumulator);
-
-  if (
-    model.metadata.network !== false ||
-    model.metadata.fullThreats !== false
-  ) {
-    scratch.whiteAccumulator.set(whiteAccumulator);
-    scratch.blackAccumulator.set(blackAccumulator);
-  }
+  let evaluationWhiteAccumulator = whiteAccumulator;
+  let evaluationBlackAccumulator = blackAccumulator;
+  let evaluationWhitePsqtAccumulator = whitePsqtAccumulator;
+  let evaluationBlackPsqtAccumulator = blackPsqtAccumulator;
 
   if (model.metadata.fullThreats !== false) {
+    scratch.whiteAccumulator.set(whiteAccumulator);
+    scratch.blackAccumulator.set(blackAccumulator);
+    scratch.whitePsqtAccumulator.set(whitePsqtAccumulator);
+    scratch.blackPsqtAccumulator.set(blackPsqtAccumulator);
     addFullThreatAccumulator(
       model.weights,
       position,
@@ -240,10 +248,14 @@ const evaluateNnueFromAccumulators = (
       scratch.blackAccumulator,
       scratch.blackPsqtAccumulator,
     );
+    evaluationWhiteAccumulator = scratch.whiteAccumulator;
+    evaluationBlackAccumulator = scratch.blackAccumulator;
+    evaluationWhitePsqtAccumulator = scratch.whitePsqtAccumulator;
+    evaluationBlackPsqtAccumulator = scratch.blackPsqtAccumulator;
   }
 
-  const whitePsqt = scratch.whitePsqtAccumulator[layerStackIndex];
-  const blackPsqt = scratch.blackPsqtAccumulator[layerStackIndex];
+  const whitePsqt = evaluationWhitePsqtAccumulator[layerStackIndex];
+  const blackPsqt = evaluationBlackPsqtAccumulator[layerStackIndex];
   const psqt =
     position.color === COLOR.WHITE ? whitePsqt - blackPsqt : blackPsqt - whitePsqt;
   const psqtScore = psqt / (2 * NNUE_OUTPUT_SCALE);
@@ -252,17 +264,29 @@ const evaluateNnueFromAccumulators = (
     return Math.trunc((125 * psqtScore) / 128);
   }
 
-  writeFeatureVector(
-    position,
-    scratch,
-    scratch.whiteAccumulator,
-    scratch.blackAccumulator,
-  );
-  propagateFc0(layerStack, scratch);
-  activateFc0(scratch);
-  propagateFc1(layerStack, scratch);
+  let positionalRaw: number;
 
-  const positionalScore = propagateFc2(layerStack, scratch) / NNUE_OUTPUT_SCALE;
+  if (networkForward !== undefined) {
+    positionalRaw = networkForward.forward(
+      evaluationWhiteAccumulator,
+      evaluationBlackAccumulator,
+      position.color,
+      layerStackIndex,
+    );
+  } else {
+    writeFeatureVector(
+      position,
+      scratch,
+      evaluationWhiteAccumulator,
+      evaluationBlackAccumulator,
+    );
+    propagateFc0(layerStack, scratch);
+    activateFc0(scratch);
+    propagateFc1(layerStack, scratch);
+    positionalRaw = propagateFc2(layerStack, scratch);
+  }
+
+  const positionalScore = positionalRaw / NNUE_OUTPUT_SCALE;
 
   return Math.trunc((125 * psqtScore + 131 * positionalScore) / 128);
 };
@@ -319,6 +343,7 @@ const evaluateNnueFromStack = (
   position: Position,
   scratch: NnueScratch,
   stack: NnueAccumulatorStack,
+  networkForward?: NnueNetworkForward,
 ): number => {
   const ply = stack.currentPly;
 
@@ -330,12 +355,39 @@ const evaluateNnueFromStack = (
     stack.blackAccumulators[ply],
     stack.whitePsqtAccumulators[ply],
     stack.blackPsqtAccumulators[ply],
+    networkForward,
   );
 };
 
-export const createNnueEvaluator = (model: NnueModel): SearchEvaluator => {
+const createNetworkForward = (
+  model: NnueModel,
+  backend: NnueEvaluatorBackend,
+): NnueNetworkForward | undefined => {
+  if (backend === "typescript" || model.metadata.network === false) {
+    return undefined;
+  }
+
+  try {
+    return createWasmNnueNetworkForward(model);
+  } catch (error) {
+    if (backend === "wasm") {
+      throw error;
+    }
+
+    return undefined;
+  }
+};
+
+export const createNnueEvaluator = (
+  model: NnueModel,
+  options: NnueEvaluatorOptions = {},
+): SearchEvaluator => {
   const scratch = createNnueScratch();
   const stack = createNnueAccumulatorStack();
+  const networkForward = createNetworkForward(
+    model,
+    options.backend ?? "auto",
+  );
   const positionHashStack: bigint[] = [];
   let currentHash: bigint | null = null;
 
@@ -355,7 +407,13 @@ export const createNnueEvaluator = (model: NnueModel): SearchEvaluator => {
     evaluate: (position: Position): number => {
       ensureCurrentPosition(position);
 
-      return evaluateNnueFromStack(model, position, scratch, stack);
+      return evaluateNnueFromStack(
+        model,
+        position,
+        scratch,
+        stack,
+        networkForward,
+      );
     },
     reset,
     pushMove: (position, move, undo): void => {

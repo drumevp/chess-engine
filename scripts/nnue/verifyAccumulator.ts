@@ -34,6 +34,17 @@ type MoveRecord = {
 const INITIAL_FEN =
   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+const LAYER_STACK_FENS = [
+  "4k3/8/8/8/8/8/8/4K3 w - - 0 1",
+  "r3k2r/8/8/8/8/8/8/R3K2R w - - 0 1",
+  "r3k2r/8/8/8/8/8/8/RNBQKBNR w - - 0 1",
+  "rnbqkbnr/8/8/8/8/8/8/RNBQKBNR w - - 0 1",
+  "rnbqkbnr/pppppppp/8/8/8/8/8/R3K2R w - - 0 1",
+  "rnbqkbnr/pppppppp/8/8/8/8/8/RNBQKBNR w - - 0 1",
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPP4/RNBQKBNR w - - 0 1",
+  INITIAL_FEN,
+] as const;
+
 const NAMED_CASES: NamedCase[] = [
   {
     name: "quiet",
@@ -213,18 +224,37 @@ const verifyRandomSequences = (
   }
 };
 
+const verifyLayerStacks = (
+  model: NnueModel,
+  evaluator: SearchEvaluator,
+): void => {
+  for (let stack = 0; stack < LAYER_STACK_FENS.length; stack++) {
+    const position = generateFenToPosition(LAYER_STACK_FENS[stack]);
+
+    evaluator.reset?.(position);
+    assertAccumulatorMatchesFullRefresh(
+      model,
+      evaluator,
+      position,
+      `layer-stack-${stack}`,
+    );
+  }
+};
+
 const model = createDefaultNnueModel();
-const evaluator = createNnueEvaluator(model);
+const evaluator = createNnueEvaluator(model, { backend: "wasm" });
 
 for (const testCase of NAMED_CASES) {
   verifyNamedCase(model, evaluator, testCase);
 }
 
+verifyLayerStacks(model, evaluator);
 verifyRandomSequences(model, evaluator);
 
 console.log(
   JSON.stringify({
     namedCases: NAMED_CASES.length,
+    layerStacks: LAYER_STACK_FENS.length,
     randomSequences: 16,
     randomMaxPlies: 24,
   }),

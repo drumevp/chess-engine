@@ -17,6 +17,18 @@ updating the 23 million HalfKA transformer weights. FullThreat training is a
 later-stage operation and is much slower. Throughput depends on CPU and batch
 size; `1024` is the tested default for HalfKA on this machine.
 
+Runtime search uses the embedded AssemblyScript/WebAssembly SIMD forward kernel
+by default and falls back to the TypeScript implementation if WebAssembly cannot
+be instantiated. Feature indexing and incremental HalfKA accumulator updates
+remain in TypeScript; only feature transformation and the dense network are in
+AssemblyScript. Rebuild and benchmark the embedded kernel with:
+
+```bash
+npm run nnue:wasm:build
+npm run nnue:verify-accumulator
+npm run nnue:benchmark -- --movetime 1000
+```
+
 The script expects the Lichess eval dump at:
 
 ```text
