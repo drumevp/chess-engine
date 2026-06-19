@@ -22,7 +22,10 @@ import type {
   NnueScratch,
   SearchEvaluator,
 } from "../types/nnue";
-import { refreshHalfKaAccumulator } from "./accumulator";
+import {
+  addFullThreatAccumulator,
+  refreshHalfKaAccumulator,
+} from "./accumulator";
 import {
   createNnueAccumulatorStack,
   popNnueAccumulatorStack,
@@ -181,14 +184,43 @@ const evaluateNnueFromAccumulators = (
   const layerStackIndex = getLayerStackIndex(position);
   const layerStack = model.weights.layerStacks[layerStackIndex];
 
-  writeFeatureVector(position, scratch, whiteAccumulator, blackAccumulator);
+  scratch.whiteAccumulator.set(whiteAccumulator);
+  scratch.blackAccumulator.set(blackAccumulator);
+  scratch.whitePsqtAccumulator.set(whitePsqtAccumulator);
+  scratch.blackPsqtAccumulator.set(blackPsqtAccumulator);
+
+  addFullThreatAccumulator(
+    model.weights,
+    position,
+    COLOR.WHITE,
+    scratch.fullThreatActiveFeatures,
+    scratch.fullThreatAttackScratch,
+    scratch.whiteAccumulator,
+    scratch.whitePsqtAccumulator,
+  );
+  addFullThreatAccumulator(
+    model.weights,
+    position,
+    COLOR.BLACK,
+    scratch.fullThreatActiveFeatures,
+    scratch.fullThreatAttackScratch,
+    scratch.blackAccumulator,
+    scratch.blackPsqtAccumulator,
+  );
+
+  writeFeatureVector(
+    position,
+    scratch,
+    scratch.whiteAccumulator,
+    scratch.blackAccumulator,
+  );
   propagateFc0(layerStack, scratch);
   activateFc0(scratch);
   propagateFc1(layerStack, scratch);
 
   const positionalScore = propagateFc2(layerStack, scratch) / NNUE_OUTPUT_SCALE;
-  const whitePsqt = whitePsqtAccumulator[layerStackIndex];
-  const blackPsqt = blackPsqtAccumulator[layerStackIndex];
+  const whitePsqt = scratch.whitePsqtAccumulator[layerStackIndex];
+  const blackPsqt = scratch.blackPsqtAccumulator[layerStackIndex];
   const psqt =
     position.color === COLOR.WHITE ? whitePsqt - blackPsqt : blackPsqt - whitePsqt;
   const psqtScore = psqt / (2 * NNUE_OUTPUT_SCALE);

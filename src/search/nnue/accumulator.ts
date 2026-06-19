@@ -6,6 +6,7 @@ import {
 } from "../constants/nnue";
 import type { NnueWeights } from "../types/nnue";
 import { appendHalfKaActiveFeatures, makeHalfKaFeatureIndex } from "./features";
+import { appendFullThreatActiveFeatures } from "./fullThreats";
 
 const applyHalfKaFeature = (
   weights: NnueWeights,
@@ -91,5 +92,38 @@ export const refreshHalfKaAccumulator = (
       psqtAccumulator,
       1,
     );
+  }
+};
+
+export const addFullThreatAccumulator = (
+  weights: NnueWeights,
+  position: Position,
+  perspective: ColorType,
+  activeFeatures: Uint32Array,
+  attackScratch: { lo: number; hi: number },
+  accumulator: Int16Array,
+  psqtAccumulator: Int32Array,
+): void => {
+  const activeFeatureCount = appendFullThreatActiveFeatures(
+    position,
+    perspective,
+    activeFeatures,
+    0,
+    attackScratch,
+  );
+
+  for (let i = 0; i < activeFeatureCount; i++) {
+    const feature = activeFeatures[i];
+    let weightIndex = feature * NNUE_TRANSFORMED_FEATURE_DIMENSIONS;
+
+    for (let j = 0; j < NNUE_TRANSFORMED_FEATURE_DIMENSIONS; j++) {
+      accumulator[j] += weights.threatWeights[weightIndex++];
+    }
+
+    let psqtWeightIndex = feature * NNUE_PSQ_BUCKETS;
+
+    for (let j = 0; j < NNUE_PSQ_BUCKETS; j++) {
+      psqtAccumulator[j] += weights.threatPsqtWeights[psqtWeightIndex++];
+    }
   }
 };

@@ -1,5 +1,6 @@
 import type { Position } from "../../engine/types/position";
 import type { Undo } from "../../engine/types/history";
+import type { Bitboard32 } from "../../engine/types/bitboard";
 
 export type SearchEvaluator = {
   evaluate: (position: Position) => number;
@@ -64,6 +65,8 @@ export type NnueAccumulatorStack = {
 
 export type NnueScratch = {
   activeFeatures: Uint32Array;
+  fullThreatActiveFeatures: Uint32Array;
+  fullThreatAttackScratch: Bitboard32;
   whiteAccumulator: Int16Array;
   blackAccumulator: Int16Array;
   whitePsqtAccumulator: Int32Array;

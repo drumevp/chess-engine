@@ -1,5 +1,5 @@
 export const NNUE_ARCHITECTURE_NAME =
-  "Stockfish-HalfKAv2_hm-FullThreats-L1024-L31-L32-v1";
+  "HalfKAv2_hm-FullThreats-L1024-L31-L32-v1";
 
 export const NNUE_SQUARE_COUNT = 64;
 export const NNUE_COLOR_COUNT = 2;
