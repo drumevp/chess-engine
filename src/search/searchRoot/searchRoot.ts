@@ -11,6 +11,11 @@ import undoMove from "../../engine/position/moves/undoMove/undoMove";
 import { Position } from "../../engine/types/position";
 import failSoftAlphaBetaNegaMax from "./failSoftAlphaBetaNegaMax";
 import {
+  popEvaluatorMove,
+  pushEvaluatorMove,
+  resetEvaluator,
+} from "../eval/evaluator";
+import {
   createCaptureHistory,
   recordCaptureHistory,
 } from "../helpers/captureHistory";
@@ -67,6 +72,7 @@ const searchRoot = (
   const searchPosition = searchState.position;
   const searchRepetitionCounts = searchState.repetitionCounts;
   const searchCaptureHistory = captureHistory ?? createCaptureHistory();
+  resetEvaluator(control.evaluator, searchPosition);
   resetPrincipalVariation(scratch, 0);
 
   const moveList = scratch.moveLists[0];
@@ -144,6 +150,7 @@ const searchRoot = (
     const undo = scratch.undoStack[0];
 
     makeMoveWithUndo(searchPosition, move, undo, { updateZobristHash: true });
+    pushEvaluatorMove(control.evaluator, searchPosition, move, undo);
     incrementRepetition(searchRepetitionCounts, searchPosition.zobristHash);
     const childHash = searchPosition.zobristHash;
 
@@ -197,6 +204,7 @@ const searchRoot = (
 
     undoMove(searchPosition, move, undo);
     decrementRepetition(searchRepetitionCounts, childHash);
+    popEvaluatorMove(control.evaluator);
 
     if (control.stopped) {
       return {

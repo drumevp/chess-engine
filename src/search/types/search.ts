@@ -5,6 +5,7 @@ import { MoveGenerationContext, MoveList } from "../../engine/types/move";
 import { Position } from "../../engine/types/position";
 import type { MoveOrderingScratch } from "../helpers/moveOrdering";
 import type { KillerMoves } from "./killerMoves";
+import type { SearchEvaluator } from "./nnue";
 
 export type SearchResult = {
   bestMove: number | null;
@@ -26,6 +27,7 @@ export type SearchLimits = {
 
 export type SearchControl = {
   limits: SearchLimits;
+  evaluator: SearchEvaluator;
   nodes: number;
   startTime: number;
   stopped: boolean;

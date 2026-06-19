@@ -18,7 +18,11 @@ import { makeMoveWithUndo } from "../../engine/position/moves/makeMove/makeMove"
 import undoMove from "../../engine/position/moves/undoMove/undoMove";
 import { Position } from "../../engine/types/position";
 import { isQuiescenceMove } from "../constants/search";
-import simpleEval from "../eval/simpleEval";
+import {
+  evaluatePosition,
+  popEvaluatorMove,
+  pushEvaluatorMove,
+} from "../eval/evaluator";
 import {
   resetPrincipalVariation,
   updatePrincipalVariation,
@@ -42,11 +46,11 @@ const quiescenceSearch = (
   captureHistory: CaptureHistory,
 ): number => {
   if (shouldStopSearch(control)) {
-    return simpleEval(position);
+    return evaluatePosition(control.evaluator, position);
   }
 
   if (ply >= scratch.moveLists.length) {
-    return simpleEval(position);
+    return evaluatePosition(control.evaluator, position);
   }
 
   resetPrincipalVariation(scratch, ply);
@@ -75,7 +79,7 @@ const quiescenceSearch = (
   let bestScore = -Infinity;
 
   if (!isCheck) {
-    const standPat = simpleEval(position);
+    const standPat = evaluatePosition(control.evaluator, position);
     bestScore = standPat;
 
     if (standPat >= beta) {
@@ -108,6 +112,7 @@ const quiescenceSearch = (
     }
 
     makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
+    pushEvaluatorMove(control.evaluator, position, move, undo);
     incrementRepetition(repetitionCounts, position.zobristHash);
     const childHash = position.zobristHash;
 
@@ -124,9 +129,12 @@ const quiescenceSearch = (
 
     undoMove(position, move, undo);
     decrementRepetition(repetitionCounts, childHash);
+    popEvaluatorMove(control.evaluator);
 
     if (control.stopped) {
-      return bestScore === -Infinity ? simpleEval(position) : bestScore;
+      return bestScore === -Infinity
+        ? evaluatePosition(control.evaluator, position)
+        : bestScore;
     }
 
     if (score > bestScore) {
