@@ -1,8 +1,8 @@
 {
   "kind": "deterministic-random-nnue-model",
   "metadata": {
-    "id": "seeded-random-stockfish-like-v1",
-    "architecture": "Stockfish-HalfKAv2_hm-FullThreats-L1024-L31-L32-v1",
+    "id": "seeded-random-nnue-v1",
+    "architecture": "HalfKAv2_hm-FullThreats-L1024-L31-L32-v1",
     "createdAt": "2026-06-19T00:00:00.000Z",
     "source": "deterministic-random-seed",
     "estimatedElo": null,

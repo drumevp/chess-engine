@@ -4,7 +4,7 @@ import { getNnueArchitectureName } from "./architecture";
 import { createRandomNnueModel } from "./model";
 
 export const DEFAULT_NNUE_MODEL_METADATA: NnueModelMetadata = {
-  id: "seeded-random-stockfish-like-v1",
+  id: "seeded-random-nnue-v1",
   architecture: getNnueArchitectureName(),
   createdAt: "2026-06-19T00:00:00.000Z",
   source: "deterministic-random-seed",

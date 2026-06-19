@@ -18,7 +18,7 @@ import type {
   NnueNetworkWeights,
   NnueWeights,
 } from "../types/nnue";
-import { STOCKFISH_LIKE_NNUE_ARCHITECTURE } from "./architecture";
+import { NNUE_ARCHITECTURE } from "./architecture";
 import { createSeededRandom, getRandomInt } from "./random";
 
 const fillRandomInt8 = (
@@ -100,7 +100,7 @@ export const createNnueModel = (
   weights: NnueWeights,
 ): NnueModel => ({
   metadata,
-  architecture: STOCKFISH_LIKE_NNUE_ARCHITECTURE,
+  architecture: NNUE_ARCHITECTURE,
   weights,
 });
 

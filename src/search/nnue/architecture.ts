@@ -13,7 +13,7 @@ import {
 } from "../constants/nnue";
 import type { NnueArchitecture } from "../types/nnue";
 
-export const STOCKFISH_LIKE_NNUE_ARCHITECTURE: NnueArchitecture = {
+export const NNUE_ARCHITECTURE: NnueArchitecture = {
   halfKaFeatureDimensions: NNUE_HALF_KA_FEATURE_DIMENSIONS,
   fullThreatsFeatureDimensions: NNUE_FULL_THREATS_FEATURE_DIMENSIONS,
   transformedFeatureDimensions: NNUE_TRANSFORMED_FEATURE_DIMENSIONS,
