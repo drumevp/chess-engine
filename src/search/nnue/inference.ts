@@ -91,17 +91,28 @@ const propagateFc0 = (
   scratch: NnueScratch,
 ): void => {
   const { fc0Bias, fc0Weights } = weights;
+  const sums = scratch.fc0Sums;
 
   for (let output = 0; output < NNUE_FC_0_OUTPUTS_WITH_BUCKET; output++) {
-    let sum = fc0Bias[output];
-    let weightIndex = output;
+    sums[output] = fc0Bias[output];
+  }
 
-    for (let input = 0; input < NNUE_FEATURE_VECTOR_DIMENSIONS; input++) {
-      sum += scratch.transformedFeatures[input] * fc0Weights[weightIndex];
-      weightIndex += NNUE_FC_0_OUTPUTS_WITH_BUCKET;
+  for (let input = 0; input < NNUE_FEATURE_VECTOR_DIMENSIONS; input++) {
+    const value = scratch.transformedFeatures[input];
+
+    if (value === 0) {
+      continue;
     }
 
-    scratch.fc0Output[output] = divideByWeightScale(sum);
+    let weightIndex = input * NNUE_FC_0_OUTPUTS_WITH_BUCKET;
+
+    for (let output = 0; output < NNUE_FC_0_OUTPUTS_WITH_BUCKET; output++) {
+      sums[output] += value * fc0Weights[weightIndex++];
+    }
+  }
+
+  for (let output = 0; output < NNUE_FC_0_OUTPUTS_WITH_BUCKET; output++) {
+    scratch.fc0Output[output] = divideByWeightScale(sums[output]);
   }
 };
 
@@ -119,17 +130,28 @@ const propagateFc1 = (
   scratch: NnueScratch,
 ): void => {
   const { fc1Bias, fc1Weights } = weights;
+  const sums = scratch.fc1Sums;
 
   for (let output = 0; output < NNUE_FC_1_OUTPUTS; output++) {
-    let sum = fc1Bias[output];
-    let weightIndex = output;
+    sums[output] = fc1Bias[output];
+  }
 
-    for (let input = 0; input < NNUE_FC_0_ACTIVATION_INPUTS; input++) {
-      sum += scratch.fc0Activation[input] * fc1Weights[weightIndex];
-      weightIndex += NNUE_FC_1_OUTPUTS;
+  for (let input = 0; input < NNUE_FC_0_ACTIVATION_INPUTS; input++) {
+    const value = scratch.fc0Activation[input];
+
+    if (value === 0) {
+      continue;
     }
 
-    scratch.fc1Output[output] = divideByWeightScale(sum);
+    let weightIndex = input * NNUE_FC_1_OUTPUTS;
+
+    for (let output = 0; output < NNUE_FC_1_OUTPUTS; output++) {
+      sums[output] += value * fc1Weights[weightIndex++];
+    }
+  }
+
+  for (let output = 0; output < NNUE_FC_1_OUTPUTS; output++) {
+    scratch.fc1Output[output] = divideByWeightScale(sums[output]);
     scratch.fc1Activation[output] = clippedRelu(scratch.fc1Output[output]);
   }
 };
@@ -188,29 +210,47 @@ const evaluateNnueFromAccumulators = (
   const layerStackIndex = getNnueLayerStackIndex(position);
   const layerStack = model.weights.layerStacks[layerStackIndex];
 
-  scratch.whiteAccumulator.set(whiteAccumulator);
-  scratch.blackAccumulator.set(blackAccumulator);
   scratch.whitePsqtAccumulator.set(whitePsqtAccumulator);
   scratch.blackPsqtAccumulator.set(blackPsqtAccumulator);
 
-  addFullThreatAccumulator(
-    model.weights,
-    position,
-    COLOR.WHITE,
-    scratch.fullThreatActiveFeatures,
-    scratch.fullThreatAttackScratch,
-    scratch.whiteAccumulator,
-    scratch.whitePsqtAccumulator,
-  );
-  addFullThreatAccumulator(
-    model.weights,
-    position,
-    COLOR.BLACK,
-    scratch.fullThreatActiveFeatures,
-    scratch.fullThreatAttackScratch,
-    scratch.blackAccumulator,
-    scratch.blackPsqtAccumulator,
-  );
+  if (
+    model.metadata.network !== false ||
+    model.metadata.fullThreats !== false
+  ) {
+    scratch.whiteAccumulator.set(whiteAccumulator);
+    scratch.blackAccumulator.set(blackAccumulator);
+  }
+
+  if (model.metadata.fullThreats !== false) {
+    addFullThreatAccumulator(
+      model.weights,
+      position,
+      COLOR.WHITE,
+      scratch.fullThreatActiveFeatures,
+      scratch.fullThreatAttackScratch,
+      scratch.whiteAccumulator,
+      scratch.whitePsqtAccumulator,
+    );
+    addFullThreatAccumulator(
+      model.weights,
+      position,
+      COLOR.BLACK,
+      scratch.fullThreatActiveFeatures,
+      scratch.fullThreatAttackScratch,
+      scratch.blackAccumulator,
+      scratch.blackPsqtAccumulator,
+    );
+  }
+
+  const whitePsqt = scratch.whitePsqtAccumulator[layerStackIndex];
+  const blackPsqt = scratch.blackPsqtAccumulator[layerStackIndex];
+  const psqt =
+    position.color === COLOR.WHITE ? whitePsqt - blackPsqt : blackPsqt - whitePsqt;
+  const psqtScore = psqt / (2 * NNUE_OUTPUT_SCALE);
+
+  if (model.metadata.network === false) {
+    return Math.trunc((125 * psqtScore) / 128);
+  }
 
   writeFeatureVector(
     position,
@@ -223,11 +263,6 @@ const evaluateNnueFromAccumulators = (
   propagateFc1(layerStack, scratch);
 
   const positionalScore = propagateFc2(layerStack, scratch) / NNUE_OUTPUT_SCALE;
-  const whitePsqt = scratch.whitePsqtAccumulator[layerStackIndex];
-  const blackPsqt = scratch.blackPsqtAccumulator[layerStackIndex];
-  const psqt =
-    position.color === COLOR.WHITE ? whitePsqt - blackPsqt : blackPsqt - whitePsqt;
-  const psqtScore = psqt / (2 * NNUE_OUTPUT_SCALE);
 
   return Math.trunc((125 * psqtScore + 131 * positionalScore) / 128);
 };

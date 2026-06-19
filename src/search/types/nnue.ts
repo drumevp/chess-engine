@@ -17,6 +17,8 @@ export type NnueModelMetadata = {
   estimatedElo: number | null;
   trainingGames: number;
   trainingPositions: number;
+  fullThreats?: boolean;
+  network?: boolean;
 };
 
 export type NnueForwardTrace = {
@@ -80,8 +82,10 @@ export type NnueScratch = {
   blackPsqtAccumulator: Int32Array;
   transformedFeatures: Uint8Array;
   fc0Output: Int32Array;
+  fc0Sums: Int32Array;
   fc0Activation: Uint8Array;
   fc1Output: Int32Array;
+  fc1Sums: Int32Array;
   fc1Activation: Uint8Array;
 };
 

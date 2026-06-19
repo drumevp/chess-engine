@@ -1,4 +1,5 @@
 import generateFenToPosition from "../../src/engine/fen/fenToPosition/generateFenToPosition";
+import generateLegalMoves from "../../src/engine/movegen/generateLegalMoves";
 import internalToUci from "../../src/engine/notation/uci/internalToUci";
 import {
   moveDecodeFrom,
@@ -33,5 +34,11 @@ export const chooseSearchMove = (
     evaluator,
   );
 
-  return result.bestMove === null ? null : encodedMoveToUci(result.bestMove);
+  if (result.bestMove !== null) {
+    return encodedMoveToUci(result.bestMove);
+  }
+
+  const legalMoves = generateLegalMoves(position);
+
+  return legalMoves.length === 0 ? null : encodedMoveToUci(legalMoves[0]);
 };

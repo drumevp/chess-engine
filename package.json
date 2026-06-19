@@ -3,7 +3,13 @@
   "version": "0.2.0",
   "description": "A TypeScript bitboard chess move generation engine",
   "license": "MIT",
-  "keywords": ["chess", "engine", "bitboard", "move-generation", "perft"],
+  "keywords": [
+    "chess",
+    "engine",
+    "bitboard",
+    "move-generation",
+    "perft"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/drumevp/chess-engine.git"
@@ -19,7 +25,11 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "models/nnue/README.md", "models/nnue/defaultCheckpoint"],
+  "files": [
+    "dist",
+    "models/nnue/README.md",
+    "models/nnue/defaultCheckpoint"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --clean",
@@ -27,13 +37,19 @@
     "test-perft:deep": "tsx ./scripts/perft.ts --max-depth 5",
     "export-precalculated-data": "tsx ./scripts/precalculateAttackTables.ts",
     "nnue:train": "tsx ./scripts/nnue/train.ts",
+    "nnue:elo": "tsx ./scripts/nnue/estimateNnueElo.ts",
+    "nnue:verify-tensor": "tsx ./scripts/nnue/verifyTensorTraining.ts",
     "pack:dry": "npm pack --dry-run"
   },
-  "dependencies": {},
   "devDependencies": {
+    "@tensorflow/tfjs-node": "^4.22.0",
     "@types/node": "^25.9.1",
     "tsup": "^8.0.0",
     "tsx": "^4.22.3",
     "typescript": "~6.0.2"
+  },
+  "overrides": {
+    "esbuild": "0.28.1",
+    "tar": "7.5.16"
   }
 }

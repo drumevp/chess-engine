@@ -7,11 +7,25 @@ import {
   NNUE_FC_2_WEIGHT_COUNT,
   NNUE_FULL_THREAT_PSQ_WEIGHT_COUNT,
   NNUE_FULL_THREAT_WEIGHT_COUNT,
+  NNUE_HALF_KA_FEATURE_DIMENSIONS,
   NNUE_HALF_KA_PSQ_WEIGHT_COUNT,
   NNUE_HALF_KA_WEIGHT_COUNT,
   NNUE_LAYER_STACKS,
+  NNUE_OUTPUT_SCALE,
+  NNUE_PIECE_SQUARE_BUCKET_SIZE,
+  NNUE_PSQ_BUCKETS,
+  NNUE_SQUARE_COUNT,
   NNUE_TRANSFORMED_FEATURE_DIMENSIONS,
+  NNUE_WEIGHT_SCALE_BITS,
 } from "../constants/nnue";
+import { PIECE_VALUE } from "../constants/eval";
+import {
+  BISHOP_INDEX,
+  KNIGHT_INDEX,
+  PAWN_INDEX,
+  QUEEN_INDEX,
+  ROOK_INDEX,
+} from "../../engine/constants/piece";
 import type {
   NnueModel,
   NnueModelMetadata,
@@ -95,6 +109,71 @@ export const createRandomNnueWeights = (
   return weights;
 };
 
+const MATERIAL_PIECE_TYPES = [
+  PAWN_INDEX,
+  PAWN_INDEX,
+  KNIGHT_INDEX,
+  KNIGHT_INDEX,
+  BISHOP_INDEX,
+  BISHOP_INDEX,
+  ROOK_INDEX,
+  ROOK_INDEX,
+  QUEEN_INDEX,
+  QUEEN_INDEX,
+] as const;
+const MATERIAL_PSQT_SCALE = (NNUE_OUTPUT_SCALE * 128) / 125;
+
+const initializeMaterialPsqt = (weights: NnueWeights): void => {
+  for (let feature = 0; feature < NNUE_HALF_KA_FEATURE_DIMENSIONS; feature++) {
+    const pieceOffset = Math.trunc(
+      (feature % NNUE_PIECE_SQUARE_BUCKET_SIZE) / NNUE_SQUARE_COUNT,
+    );
+    const pieceType = MATERIAL_PIECE_TYPES[pieceOffset];
+
+    if (pieceType === undefined) {
+      continue;
+    }
+
+    const perspectiveSign = pieceOffset % 2 === 0 ? 1 : -1;
+    const value = Math.round(
+      perspectiveSign * PIECE_VALUE[pieceType] * MATERIAL_PSQT_SCALE,
+    );
+    const offset = feature * NNUE_PSQ_BUCKETS;
+
+    for (let bucket = 0; bucket < NNUE_PSQ_BUCKETS; bucket++) {
+      weights.psqtWeights[offset + bucket] = value;
+    }
+  }
+};
+
+export const createMaterialNnueWeights = (
+  seed = NNUE_DEFAULT_RANDOM_SEED,
+): NnueWeights => {
+  const weights = createRandomNnueWeights(seed);
+
+  weights.featureBias.fill(64);
+  weights.threatWeights.fill(0);
+  weights.threatPsqtWeights.fill(0);
+  initializeMaterialPsqt(weights);
+
+  for (const layerStack of weights.layerStacks) {
+    layerStack.fc1Bias.fill(1 << NNUE_WEIGHT_SCALE_BITS);
+    layerStack.fc2Bias.fill(0);
+    layerStack.fc2Weights.fill(0);
+    layerStack.fc0Bias[NNUE_FC_0_OUTPUTS_WITH_BUCKET - 1] = 0;
+
+    for (
+      let index = NNUE_FC_0_OUTPUTS_WITH_BUCKET - 1;
+      index < layerStack.fc0Weights.length;
+      index += NNUE_FC_0_OUTPUTS_WITH_BUCKET
+    ) {
+      layerStack.fc0Weights[index] = 0;
+    }
+  }
+
+  return weights;
+};
+
 export const createNnueModel = (
   metadata: NnueModelMetadata,
   weights: NnueWeights,
@@ -108,3 +187,12 @@ export const createRandomNnueModel = (
   metadata: NnueModelMetadata,
   seed = NNUE_DEFAULT_RANDOM_SEED,
 ): NnueModel => createNnueModel(metadata, createRandomNnueWeights(seed));
+
+export const createMaterialNnueModel = (
+  metadata: NnueModelMetadata,
+  seed = NNUE_DEFAULT_RANDOM_SEED,
+): NnueModel =>
+  createNnueModel(
+    { ...metadata, fullThreats: false, network: false },
+    createMaterialNnueWeights(seed),
+  );

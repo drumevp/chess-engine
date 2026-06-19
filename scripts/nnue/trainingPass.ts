@@ -43,10 +43,20 @@ export type NnueTrainingRates = {
   bias: number;
 };
 
+export type NnueTrainingLossKind = "cp" | "wdl" | "mixed";
+
 export type NnueTrainingOptions = {
   rates: NnueTrainingRates;
+  quantizeForward: boolean;
+  trainFullThreats: boolean;
+  loss: NnueTrainingLossKind;
   targetClamp: number;
   errorClamp: number;
+  wdlScale: number;
+  wdlGradientScale: number;
+  cpLossWeight: number;
+  cpHuberDelta: number;
+  bucketWeighting: boolean;
 };
 
 export type NnueTrainingLoss = {
@@ -54,6 +64,14 @@ export type NnueTrainingLoss = {
   target: number;
   absoluteError: number;
   squaredError: number;
+  loss: number;
+  wdlError: number;
+  gradient: number;
+};
+
+export type NnueOutputCalibration = {
+  slope: number;
+  intercept: number;
 };
 
 type ActiveFeatureCounts = {
@@ -107,8 +125,76 @@ const clippedRelu = (value: number, maxValue: number): number => {
 const clippedReluDerivative = (value: number, maxValue: number): number =>
   value > 0 && value < maxValue ? 1 : 0;
 
-const divideByWeightScale = (value: number): number =>
-  Math.floor(value / (1 << NNUE_WEIGHT_SCALE_BITS));
+const readWeight = (
+  value: number,
+  min: number,
+  max: number,
+  quantizeForward: boolean,
+): number =>
+  quantizeForward ? fakeQuantizeWeight(value, min, max) : clamp(value, min, max);
+
+const divideByWeightScale = (
+  value: number,
+  quantizeForward: boolean,
+): number => {
+  const scaled = value / (1 << NNUE_WEIGHT_SCALE_BITS);
+
+  return quantizeForward ? Math.floor(scaled) : scaled;
+};
+
+const transformValue = (
+  value: number,
+  quantizeForward: boolean,
+): number => quantizeForward ? Math.trunc(value) : value;
+
+const sigmoid = (value: number): number => {
+  if (value >= 40) {
+    return 1;
+  }
+
+  if (value <= -40) {
+    return 0;
+  }
+
+  return 1 / (1 + Math.exp(-value));
+};
+
+const getHuberLoss = (error: number, delta: number): number => {
+  const absError = Math.abs(error);
+
+  if (absError <= delta) {
+    return 0.5 * error * error;
+  }
+
+  return delta * (absError - 0.5 * delta);
+};
+
+const getHuberGradient = (error: number, delta: number): number =>
+  clamp(error, -delta, delta);
+
+const getTargetBucketWeight = (absTarget: number): number => {
+  if (absTarget < 50) {
+    return 0.5;
+  }
+
+  if (absTarget < 100) {
+    return 0.75;
+  }
+
+  if (absTarget < 200) {
+    return 1;
+  }
+
+  if (absTarget < 500) {
+    return 1.5;
+  }
+
+  if (absTarget < 1_000) {
+    return 2;
+  }
+
+  return 2.5;
+};
 
 const normalizeFen = (fen: string): string => {
   const parts = fen.trim().split(/\s+/);
@@ -125,12 +211,18 @@ const addFeatureRowsToAccumulator = (
   features: Uint32Array,
   featureCount: number,
   accumulator: Float32Array,
+  quantizeForward: boolean,
 ): void => {
   for (let featureIndex = 0; featureIndex < featureCount; featureIndex++) {
     let weightIndex = features[featureIndex] * NNUE_TRANSFORMED_FEATURE_DIMENSIONS;
 
     for (let i = 0; i < NNUE_TRANSFORMED_FEATURE_DIMENSIONS; i++) {
-      accumulator[i] += fakeQuantizeWeight(weights[weightIndex++], -32_768, 32_767);
+      accumulator[i] += readWeight(
+        weights[weightIndex++],
+        -32_768,
+        32_767,
+        quantizeForward,
+      );
     }
   }
 };
@@ -140,12 +232,18 @@ const addThreatRowsToAccumulator = (
   features: Uint32Array,
   featureCount: number,
   accumulator: Float32Array,
+  quantizeForward: boolean,
 ): void => {
   for (let featureIndex = 0; featureIndex < featureCount; featureIndex++) {
     let weightIndex = features[featureIndex] * NNUE_TRANSFORMED_FEATURE_DIMENSIONS;
 
     for (let i = 0; i < NNUE_TRANSFORMED_FEATURE_DIMENSIONS; i++) {
-      accumulator[i] += fakeQuantizeWeight(weights[weightIndex++], -127, 127);
+      accumulator[i] += readWeight(
+        weights[weightIndex++],
+        -127,
+        127,
+        quantizeForward,
+      );
     }
   }
 };
@@ -155,15 +253,17 @@ const addPsqtRowsToAccumulator = (
   features: Uint32Array,
   featureCount: number,
   accumulator: Float32Array,
+  quantizeForward: boolean,
 ): void => {
   for (let featureIndex = 0; featureIndex < featureCount; featureIndex++) {
     let weightIndex = features[featureIndex] * NNUE_PSQ_BUCKETS;
 
     for (let i = 0; i < NNUE_PSQ_BUCKETS; i++) {
-      accumulator[i] += fakeQuantizeWeight(
+      accumulator[i] += readWeight(
         weights[weightIndex++],
         -2_147_483_648,
         2_147_483_647,
+        quantizeForward,
       );
     }
   }
@@ -178,9 +278,15 @@ const refreshTrainingAccumulator = (
   scratch: NnueTrainingScratch,
   accumulator: Float32Array,
   psqtAccumulator: Float32Array,
+  quantizeForward: boolean,
 ): { halfKa: number; fullThreat: number } => {
   for (let i = 0; i < NNUE_TRANSFORMED_FEATURE_DIMENSIONS; i++) {
-    accumulator[i] = fakeQuantizeWeight(weights.featureBias[i], -32_768, 32_767);
+    accumulator[i] = readWeight(
+      weights.featureBias[i],
+      -32_768,
+      32_767,
+      quantizeForward,
+    );
   }
 
   psqtAccumulator.fill(0);
@@ -197,12 +303,14 @@ const refreshTrainingAccumulator = (
     halfKaFeatures,
     halfKaCount,
     accumulator,
+    quantizeForward,
   );
   addPsqtRowsToAccumulator(
     weights.psqtWeights,
     halfKaFeatures,
     halfKaCount,
     psqtAccumulator,
+    quantizeForward,
   );
 
   const fullThreatCount = appendFullThreatActiveFeatures(
@@ -218,12 +326,14 @@ const refreshTrainingAccumulator = (
     fullThreatFeatures,
     fullThreatCount,
     accumulator,
+    quantizeForward,
   );
   addPsqtRowsToAccumulator(
     weights.threatPsqtWeights,
     fullThreatFeatures,
     fullThreatCount,
     psqtAccumulator,
+    quantizeForward,
   );
 
   return { halfKa: halfKaCount, fullThreat: fullThreatCount };
@@ -232,6 +342,7 @@ const refreshTrainingAccumulator = (
 const writeFeatureVector = (
   position: Position,
   scratch: NnueTrainingScratch,
+  quantizeForward: boolean,
 ): void => {
   const usAccumulator =
     position.color === COLOR.WHITE
@@ -254,12 +365,14 @@ const writeFeatureVector = (
       NNUE_FT_MAX,
     );
 
-    scratch.transformedFeatures[i] = Math.trunc(
+    scratch.transformedFeatures[i] = transformValue(
       (usLeft * usRight) / NNUE_FEATURE_TRANSFORMER_PRODUCT_DENOMINATOR,
+      quantizeForward,
     );
     scratch.transformedFeatures[i + NNUE_TRANSFORMED_FEATURES_PER_PERSPECTIVE] =
-      Math.trunc(
+      transformValue(
         (themLeft * themRight) / NNUE_FEATURE_TRANSFORMER_PRODUCT_DENOMINATOR,
+        quantizeForward,
       );
   }
 };
@@ -267,31 +380,44 @@ const writeFeatureVector = (
 const propagateFc0 = (
   weights: TrainableNnueNetworkWeights,
   scratch: NnueTrainingScratch,
+  quantizeForward: boolean,
 ): void => {
   for (let output = 0; output < NNUE_FC_0_OUTPUTS_WITH_BUCKET; output++) {
-    let sum = fakeQuantizeWeight(
+    let sum = readWeight(
       weights.fc0Bias[output],
       -2_147_483_648,
       2_147_483_647,
+      quantizeForward,
     );
     let weightIndex = output;
 
     for (let input = 0; input < NNUE_FEATURE_VECTOR_DIMENSIONS; input++) {
       sum +=
         scratch.transformedFeatures[input] *
-        fakeQuantizeWeight(weights.fc0Weights[weightIndex], -127, 127);
+        readWeight(
+          weights.fc0Weights[weightIndex],
+          -127,
+          127,
+          quantizeForward,
+        );
       weightIndex += NNUE_FC_0_OUTPUTS_WITH_BUCKET;
     }
 
-    scratch.fc0Output[output] = divideByWeightScale(sum);
+    scratch.fc0Output[output] = divideByWeightScale(sum, quantizeForward);
   }
 };
 
-const activateFc0 = (scratch: NnueTrainingScratch): void => {
+const activateFc0 = (
+  scratch: NnueTrainingScratch,
+  quantizeForward: boolean,
+): void => {
   for (let i = 0; i < NNUE_FC_0_OUTPUTS; i++) {
     const value = clippedRelu(scratch.fc0Output[i], NNUE_HIDDEN_MAX);
 
-    scratch.fc0Activation[i] = Math.trunc((value * value) / NNUE_HIDDEN_ONE);
+    scratch.fc0Activation[i] = transformValue(
+      (value * value) / NNUE_HIDDEN_ONE,
+      quantizeForward,
+    );
     scratch.fc0Activation[i + NNUE_FC_0_OUTPUTS] = value;
   }
 };
@@ -299,23 +425,30 @@ const activateFc0 = (scratch: NnueTrainingScratch): void => {
 const propagateFc1 = (
   weights: TrainableNnueNetworkWeights,
   scratch: NnueTrainingScratch,
+  quantizeForward: boolean,
 ): void => {
   for (let output = 0; output < NNUE_FC_1_OUTPUTS; output++) {
-    let sum = fakeQuantizeWeight(
+    let sum = readWeight(
       weights.fc1Bias[output],
       -2_147_483_648,
       2_147_483_647,
+      quantizeForward,
     );
     let weightIndex = output;
 
     for (let input = 0; input < NNUE_FC_0_ACTIVATION_INPUTS; input++) {
       sum +=
         scratch.fc0Activation[input] *
-        fakeQuantizeWeight(weights.fc1Weights[weightIndex], -127, 127);
+        readWeight(
+          weights.fc1Weights[weightIndex],
+          -127,
+          127,
+          quantizeForward,
+        );
       weightIndex += NNUE_FC_1_OUTPUTS;
     }
 
-    scratch.fc1Output[output] = divideByWeightScale(sum);
+    scratch.fc1Output[output] = divideByWeightScale(sum, quantizeForward);
     scratch.fc1Activation[output] = clippedRelu(
       scratch.fc1Output[output],
       NNUE_HIDDEN_MAX,
@@ -326,15 +459,21 @@ const propagateFc1 = (
 const getOutputSum = (
   weights: TrainableNnueNetworkWeights,
   scratch: NnueTrainingScratch,
+  quantizeForward: boolean,
 ): number => {
   let sum =
-    fakeQuantizeWeight(weights.fc2Bias[0], -2_147_483_648, 2_147_483_647) +
+    readWeight(
+      weights.fc2Bias[0],
+      -2_147_483_648,
+      2_147_483_647,
+      quantizeForward,
+    ) +
     scratch.fc0Output[NNUE_FC_0_OUTPUTS];
 
   for (let input = 0; input < NNUE_FC_1_OUTPUTS; input++) {
     sum +=
       scratch.fc1Activation[input] *
-      fakeQuantizeWeight(weights.fc2Weights[input], -127, 127);
+      readWeight(weights.fc2Weights[input], -127, 127, quantizeForward);
   }
 
   return sum;
@@ -344,6 +483,7 @@ const forward = (
   weights: TrainableNnueWeights,
   position: Position,
   scratch: NnueTrainingScratch,
+  quantizeForward: boolean,
 ): { score: number; layerStackIndex: number; activeCounts: ActiveFeatureCounts } => {
   const whiteCounts = refreshTrainingAccumulator(
     weights,
@@ -354,6 +494,7 @@ const forward = (
     scratch,
     scratch.whiteAccumulator,
     scratch.whitePsqtAccumulator,
+    quantizeForward,
   );
   const blackCounts = refreshTrainingAccumulator(
     weights,
@@ -364,16 +505,17 @@ const forward = (
     scratch,
     scratch.blackAccumulator,
     scratch.blackPsqtAccumulator,
+    quantizeForward,
   );
   const layerStackIndex = getNnueLayerStackIndex(position);
   const layerStack = weights.layerStacks[layerStackIndex];
 
-  writeFeatureVector(position, scratch);
-  propagateFc0(layerStack, scratch);
-  activateFc0(scratch);
-  propagateFc1(layerStack, scratch);
+  writeFeatureVector(position, scratch, quantizeForward);
+  propagateFc0(layerStack, scratch, quantizeForward);
+  activateFc0(scratch, quantizeForward);
+  propagateFc1(layerStack, scratch, quantizeForward);
 
-  const outputSum = getOutputSum(layerStack, scratch);
+  const outputSum = getOutputSum(layerStack, scratch, quantizeForward);
   const whitePsqt = scratch.whitePsqtAccumulator[layerStackIndex];
   const blackPsqt = scratch.blackPsqtAccumulator[layerStackIndex];
   const psqt =
@@ -409,6 +551,7 @@ const updateFc2 = (
   scratch: NnueTrainingScratch,
   gradOutputSum: number,
   rates: NnueTrainingRates,
+  quantizeForward: boolean,
 ): void => {
   weights.fc2Bias[0] = applyGradient(
     weights.fc2Bias[0],
@@ -419,7 +562,12 @@ const updateFc2 = (
   );
 
   for (let input = 0; input < NNUE_FC_1_OUTPUTS; input++) {
-    const weight = fakeQuantizeWeight(weights.fc2Weights[input], -127, 127);
+    const weight = readWeight(
+      weights.fc2Weights[input],
+      -127,
+      127,
+      quantizeForward,
+    );
 
     scratch.gradFc1Activation[input] += gradOutputSum * weight;
     weights.fc2Weights[input] = applyGradient(
@@ -436,6 +584,7 @@ const backpropFc1 = (
   weights: TrainableNnueNetworkWeights,
   scratch: NnueTrainingScratch,
   rates: NnueTrainingRates,
+  quantizeForward: boolean,
 ): void => {
   for (let output = 0; output < NNUE_FC_1_OUTPUTS; output++) {
     const gradOutput =
@@ -455,10 +604,11 @@ const backpropFc1 = (
     let weightIndex = output;
 
     for (let input = 0; input < NNUE_FC_0_ACTIVATION_INPUTS; input++) {
-      const weight = fakeQuantizeWeight(
+      const weight = readWeight(
         weights.fc1Weights[weightIndex],
         -127,
         127,
+        quantizeForward,
       );
 
       scratch.gradFc0Activation[input] += gradPreActivation * weight;
@@ -492,6 +642,7 @@ const backpropFc0 = (
   weights: TrainableNnueNetworkWeights,
   scratch: NnueTrainingScratch,
   rates: NnueTrainingRates,
+  quantizeForward: boolean,
 ): void => {
   for (let output = 0; output < NNUE_FC_0_OUTPUTS_WITH_BUCKET; output++) {
     const gradPreActivation =
@@ -508,10 +659,11 @@ const backpropFc0 = (
     let weightIndex = output;
 
     for (let input = 0; input < NNUE_FEATURE_VECTOR_DIMENSIONS; input++) {
-      const weight = fakeQuantizeWeight(
+      const weight = readWeight(
         weights.fc0Weights[weightIndex],
         -127,
         127,
+        quantizeForward,
       );
 
       scratch.gradTransformedFeatures[input] += gradPreActivation * weight;
@@ -658,6 +810,8 @@ const backprop = (
   activeCounts: ActiveFeatureCounts,
   gradScore: number,
   rates: NnueTrainingRates,
+  quantizeForward: boolean,
+  trainFullThreats: boolean,
 ): void => {
   const layerStack = weights.layerStacks[layerStackIndex];
   const gradOutputSum = gradScore * OUTPUT_SUM_SCORE_SCALE;
@@ -667,11 +821,11 @@ const backprop = (
   const blackPsqtGradient = -whitePsqtGradient;
 
   clearGradients(scratch);
-  updateFc2(layerStack, scratch, gradOutputSum, rates);
+  updateFc2(layerStack, scratch, gradOutputSum, rates, quantizeForward);
   scratch.gradFc0Output[NNUE_FC_0_OUTPUTS] += gradOutputSum;
-  backpropFc1(layerStack, scratch, rates);
+  backpropFc1(layerStack, scratch, rates, quantizeForward);
   backpropFc0Activations(scratch);
-  backpropFc0(layerStack, scratch, rates);
+  backpropFc0(layerStack, scratch, rates, quantizeForward);
   backpropFeatureTransformer(position, scratch);
   updateFeatureBias(weights, scratch, rates);
   updateFeatureRows(
@@ -692,24 +846,26 @@ const backprop = (
     -32_768,
     32_767,
   );
-  updateFeatureRows(
-    weights.threatWeights,
-    scratch.whiteFullThreatFeatures,
-    activeCounts.whiteFullThreat,
-    scratch.gradWhiteAccumulator,
-    rates.threat,
-    -127,
-    127,
-  );
-  updateFeatureRows(
-    weights.threatWeights,
-    scratch.blackFullThreatFeatures,
-    activeCounts.blackFullThreat,
-    scratch.gradBlackAccumulator,
-    rates.threat,
-    -127,
-    127,
-  );
+  if (trainFullThreats && rates.threat !== 0) {
+    updateFeatureRows(
+      weights.threatWeights,
+      scratch.whiteFullThreatFeatures,
+      activeCounts.whiteFullThreat,
+      scratch.gradWhiteAccumulator,
+      rates.threat,
+      -127,
+      127,
+    );
+    updateFeatureRows(
+      weights.threatWeights,
+      scratch.blackFullThreatFeatures,
+      activeCounts.blackFullThreat,
+      scratch.gradBlackAccumulator,
+      rates.threat,
+      -127,
+      127,
+    );
+  }
   updatePsqtRows(
     weights.psqtWeights,
     scratch.whiteHalfKaFeatures,
@@ -726,22 +882,77 @@ const backprop = (
     blackPsqtGradient,
     rates.psqt,
   );
-  updatePsqtRows(
-    weights.threatPsqtWeights,
-    scratch.whiteFullThreatFeatures,
-    activeCounts.whiteFullThreat,
-    layerStackIndex,
-    whitePsqtGradient,
-    rates.psqt,
-  );
-  updatePsqtRows(
-    weights.threatPsqtWeights,
-    scratch.blackFullThreatFeatures,
-    activeCounts.blackFullThreat,
-    layerStackIndex,
-    blackPsqtGradient,
-    rates.psqt,
-  );
+  if (trainFullThreats && rates.threat !== 0) {
+    updatePsqtRows(
+      weights.threatPsqtWeights,
+      scratch.whiteFullThreatFeatures,
+      activeCounts.whiteFullThreat,
+      layerStackIndex,
+      whitePsqtGradient,
+      rates.psqt,
+    );
+    updatePsqtRows(
+      weights.threatPsqtWeights,
+      scratch.blackFullThreatFeatures,
+      activeCounts.blackFullThreat,
+      layerStackIndex,
+      blackPsqtGradient,
+      rates.psqt,
+    );
+  }
+};
+
+const getTrainingLoss = (
+  predicted: number,
+  target: number,
+  options: NnueTrainingOptions,
+): {
+  rawError: number;
+  absoluteError: number;
+  squaredError: number;
+  loss: number;
+  wdlError: number;
+  gradient: number;
+} => {
+  const rawError = predicted - target;
+  const predictedWdl = sigmoid(predicted / options.wdlScale);
+  const targetWdl = sigmoid(target / options.wdlScale);
+  const wdlError = predictedWdl - targetWdl;
+  const clampedPredictedWdl = clamp(predictedWdl, 1e-6, 1 - 1e-6);
+  const wdlLoss =
+    -(targetWdl * Math.log(clampedPredictedWdl)) -
+    (1 - targetWdl) * Math.log(1 - clampedPredictedWdl);
+  const cpLoss = getHuberLoss(rawError, options.cpHuberDelta);
+  const cpGradient = getHuberGradient(rawError, options.cpHuberDelta);
+  const wdlGradient = wdlError * options.wdlGradientScale;
+  const targetWeight = options.bucketWeighting
+    ? getTargetBucketWeight(Math.abs(target))
+    : 1;
+  let loss: number;
+  let gradient: number;
+
+  if (options.loss === "cp") {
+    loss = cpLoss;
+    gradient = cpGradient;
+  } else if (options.loss === "wdl") {
+    loss = wdlLoss;
+    gradient = wdlGradient;
+  } else {
+    loss = wdlLoss + options.cpLossWeight * cpLoss;
+    gradient = wdlGradient + options.cpLossWeight * cpGradient;
+  }
+
+  loss *= targetWeight;
+  gradient *= targetWeight;
+
+  return {
+    rawError,
+    absoluteError: Math.abs(rawError),
+    squaredError: rawError * rawError,
+    loss,
+    wdlError: Math.abs(wdlError),
+    gradient: clamp(gradient, -options.errorClamp, options.errorClamp),
+  };
 };
 
 export const trainNnueRecord = (
@@ -751,7 +962,7 @@ export const trainNnueRecord = (
   options: NnueTrainingOptions,
 ): NnueTrainingLoss => {
   const position = generateFenToPosition(normalizeFen(record.fen));
-  const trace = forward(weights, position, scratch);
+  const trace = forward(weights, position, scratch, options.quantizeForward);
   assertFinite(trace.score, "NNUE prediction", record);
 
   const target = clamp(
@@ -761,15 +972,11 @@ export const trainNnueRecord = (
   );
   assertFinite(target, "NNUE target", record);
 
-  const rawError = trace.score - target;
-  assertFinite(rawError, "NNUE raw error", record);
+  const loss = getTrainingLoss(trace.score, target, options);
 
-  const gradient = clamp(
-    rawError,
-    -options.errorClamp,
-    options.errorClamp,
-  );
-  assertFinite(gradient, "NNUE gradient", record);
+  assertFinite(loss.rawError, "NNUE raw error", record);
+  assertFinite(loss.gradient, "NNUE gradient", record);
+  assertFinite(loss.loss, "NNUE loss", record);
 
   backprop(
     weights,
@@ -777,15 +984,20 @@ export const trainNnueRecord = (
     scratch,
     trace.layerStackIndex,
     trace.activeCounts,
-    gradient,
+    loss.gradient,
     options.rates,
+    options.quantizeForward,
+    options.trainFullThreats,
   );
 
   return {
     predicted: trace.score,
     target,
-    absoluteError: Math.abs(rawError),
-    squaredError: rawError * rawError,
+    absoluteError: loss.absoluteError,
+    squaredError: loss.squaredError,
+    loss: loss.loss,
+    wdlError: loss.wdlError,
+    gradient: loss.gradient,
   };
 };
 
@@ -796,7 +1008,64 @@ export const evaluateTrainableNnueRecord = (
 ): number => {
   const position = generateFenToPosition(normalizeFen(record.fen));
 
-  return forward(weights, position, scratch).score;
+  return forward(weights, position, scratch, false).score;
+};
+
+const scaleFloatArray = (
+  values: Float32Array,
+  scale: number,
+  min: number,
+  max: number,
+): void => {
+  for (let i = 0; i < values.length; i++) {
+    values[i] = clamp(values[i] * scale, min, max);
+  }
+};
+
+export const applyOutputCalibration = (
+  weights: TrainableNnueWeights,
+  calibration: NnueOutputCalibration,
+): void => {
+  const interceptOutputSum = calibration.intercept / OUTPUT_SUM_SCORE_SCALE;
+
+  scaleFloatArray(
+    weights.psqtWeights,
+    calibration.slope,
+    -2_147_483_648,
+    2_147_483_647,
+  );
+  scaleFloatArray(
+    weights.threatPsqtWeights,
+    calibration.slope,
+    -2_147_483_648,
+    2_147_483_647,
+  );
+
+  for (const layerStack of weights.layerStacks) {
+    layerStack.fc0Bias[NNUE_FC_0_OUTPUTS] = clamp(
+      layerStack.fc0Bias[NNUE_FC_0_OUTPUTS] * calibration.slope,
+      -2_147_483_648,
+      2_147_483_647,
+    );
+
+    for (let input = 0; input < NNUE_FEATURE_VECTOR_DIMENSIONS; input++) {
+      const weightIndex =
+        input * NNUE_FC_0_OUTPUTS_WITH_BUCKET + NNUE_FC_0_OUTPUTS;
+
+      layerStack.fc0Weights[weightIndex] = clamp(
+        layerStack.fc0Weights[weightIndex] * calibration.slope,
+        -127,
+        127,
+      );
+    }
+
+    scaleFloatArray(layerStack.fc2Weights, calibration.slope, -127, 127);
+    layerStack.fc2Bias[0] = clamp(
+      layerStack.fc2Bias[0] * calibration.slope + interceptOutputSum,
+      -2_147_483_648,
+      2_147_483_647,
+    );
+  }
 };
 
 export const writeTrainableWeightsToModel = (
