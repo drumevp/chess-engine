@@ -17,6 +17,7 @@ import {
 } from "../constants/nnue";
 import type {
   NnueAccumulatorStack,
+  NnueForwardTrace,
   NnueModel,
   NnueNetworkWeights,
   NnueScratch,
@@ -158,7 +159,7 @@ const countPieces = (position: Position): number => {
   return pieceCount;
 };
 
-const getLayerStackIndex = (position: Position): number => {
+export const getNnueLayerStackIndex = (position: Position): number => {
   const bucket = Math.trunc((countPieces(position) - 1) / 4);
 
   if (bucket <= 0) {
@@ -181,7 +182,7 @@ const evaluateNnueFromAccumulators = (
   whitePsqtAccumulator: Int32Array,
   blackPsqtAccumulator: Int32Array,
 ): number => {
-  const layerStackIndex = getLayerStackIndex(position);
+  const layerStackIndex = getNnueLayerStackIndex(position);
   const layerStack = model.weights.layerStacks[layerStackIndex];
 
   scratch.whiteAccumulator.set(whiteAccumulator);
@@ -259,6 +260,20 @@ export const evaluateNnue = (
     scratch.whitePsqtAccumulator,
     scratch.blackPsqtAccumulator,
   );
+};
+
+export const evaluateNnueWithTrace = (
+  model: NnueModel,
+  position: Position,
+  scratch: NnueScratch,
+): NnueForwardTrace => {
+  const score = evaluateNnue(model, position, scratch);
+
+  return {
+    score,
+    layerStackIndex: getNnueLayerStackIndex(position),
+    fc1Activation: scratch.fc1Activation,
+  };
 };
 
 const evaluateNnueFromStack = (

@@ -11,6 +11,7 @@ import { MAX_QUIESCENCE_PLY } from "../constants/search";
 import { SIMPLE_EVALUATOR } from "../eval/evaluator";
 import { createKillerMoves } from "./killerMoves";
 import { createMoveOrderingScratch } from "./moveOrdering";
+import { normalizeSearchLimits } from "./searchStrength";
 import {
   SearchControl,
   SearchLimits,
@@ -92,7 +93,7 @@ export const createSearchControl = (
   limits: SearchLimits = {},
   evaluator: SearchEvaluator = SIMPLE_EVALUATOR,
 ): SearchControl => ({
-  limits,
+  limits: normalizeSearchLimits(limits),
   evaluator,
   nodes: 0,
   startTime: Date.now(),

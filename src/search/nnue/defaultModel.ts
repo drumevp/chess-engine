@@ -10,6 +10,7 @@ export const DEFAULT_NNUE_MODEL_METADATA: NnueModelMetadata = {
   source: "deterministic-random-seed",
   estimatedElo: null,
   trainingGames: 0,
+  trainingPositions: 0,
 };
 
 export const createDefaultNnueModel = () =>

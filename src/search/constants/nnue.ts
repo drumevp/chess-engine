@@ -67,5 +67,5 @@ export const NNUE_ORIENT_TABLE = new Int8Array([
 ]);
 
 export const NNUE_MODEL_BINARY_MAGIC = "DCE_NNUE";
-export const NNUE_MODEL_BINARY_VERSION = 1;
+export const NNUE_MODEL_BINARY_VERSION = 2;
 export const NNUE_DEFAULT_RANDOM_SEED = 0x4d595df4;

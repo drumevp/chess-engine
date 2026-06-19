@@ -6,7 +6,8 @@
     "createdAt": "2026-06-19T00:00:00.000Z",
     "source": "deterministic-random-seed",
     "estimatedElo": null,
-    "trainingGames": 0
+    "trainingGames": 0,
+    "trainingPositions": 0
   },
   "seed": 1297702388,
   "checkpoint": null,

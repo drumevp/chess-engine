@@ -4,6 +4,7 @@ import {
 } from "../constants/nnue";
 import type { NnueModel, NnueNetworkWeights } from "../types/nnue";
 import { createEmptyNnueWeights, createNnueModel } from "./model";
+import { validateNnueModel } from "./validation";
 
 type SerializableArray = Int8Array | Int16Array | Int32Array;
 
@@ -91,6 +92,8 @@ const readLayerStack = (
 };
 
 export const serializeNnueModel = (model: NnueModel): Uint8Array => {
+  validateNnueModel(model);
+
   const metadataBytes = textEncoder.encode(JSON.stringify(model.metadata));
   const weightsByteLength =
     getSerializedArrayByteLength(model.weights.featureBias) +
@@ -178,5 +181,9 @@ export const deserializeNnueModel = (input: Uint8Array): NnueModel => {
     throw new Error("Invalid NNUE model binary: trailing bytes");
   }
 
-  return createNnueModel(metadata, weights);
+  const model = createNnueModel(metadata, weights);
+
+  validateNnueModel(model);
+
+  return model;
 };
