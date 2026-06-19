@@ -30,6 +30,11 @@ import {
 } from "../helpers/principalVariation";
 import { recordHistoryHeuristic } from "../helpers/historyHeuristic";
 import { recordKillerMove } from "../helpers/killerMoves";
+import {
+  getMateDistancePrunedAlpha,
+  getMateDistancePrunedBeta,
+  isMateDistancePruned,
+} from "../helpers/mateDistancePruning";
 import { orderMoves } from "../helpers/moveOrdering";
 import {
   getTerminalScore,
@@ -63,8 +68,6 @@ export const failSoftAlphaBetaNegaMax = (
     return evaluatePosition(control.evaluator, position);
   }
 
-  const originalAlpha = alpha;
-
   resetPrincipalVariation(scratch, ply);
 
   const moveList = scratch.moveLists[ply];
@@ -87,6 +90,15 @@ export const failSoftAlphaBetaNegaMax = (
   if (terminalScore !== null) {
     return terminalScore;
   }
+
+  alpha = getMateDistancePrunedAlpha(alpha, ply);
+  beta = getMateDistancePrunedBeta(beta, ply);
+
+  if (isMateDistancePruned(alpha, beta)) {
+    return alpha;
+  }
+
+  const originalAlpha = alpha;
 
   if (depth === 0) {
     return quiescenceSearch(

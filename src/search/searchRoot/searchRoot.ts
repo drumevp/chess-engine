@@ -35,6 +35,11 @@ import {
   createHistoryHeuristic,
   recordHistoryHeuristic,
 } from "../helpers/historyHeuristic";
+import {
+  getMateDistancePrunedAlpha,
+  getMateDistancePrunedBeta,
+  isMateDistancePruned,
+} from "../helpers/mateDistancePruning";
 import { orderMoves } from "../helpers/moveOrdering";
 import quiescenceSearch from "./quiescenceSearch";
 import { SearchResult } from "../types/search";
@@ -100,6 +105,17 @@ const searchRoot = (
     return {
       bestMove: null,
       score: terminalScore,
+      pv: [],
+    };
+  }
+
+  alpha = getMateDistancePrunedAlpha(alpha, 0);
+  beta = getMateDistancePrunedBeta(beta, 0);
+
+  if (isMateDistancePruned(alpha, beta)) {
+    return {
+      bestMove: null,
+      score: alpha,
       pv: [],
     };
   }
