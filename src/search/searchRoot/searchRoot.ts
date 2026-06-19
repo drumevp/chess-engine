@@ -26,6 +26,8 @@ import { orderMoves } from "../helpers/moveOrdering";
 import quiescenceSearch from "./quiescenceSearch";
 import { SearchResult } from "../types/search";
 import { SearchControl } from "../types/search";
+import { TranspositionTable } from "../types/transpositionTable";
+import { createTranspositionTable } from "../transpositionTable/transpositionTable";
 
 const searchRoot = (
   position: Position,
@@ -35,6 +37,7 @@ const searchRoot = (
   depth: number,
   control: SearchControl = createSearchControl(),
   priorityMove: number | null = null,
+  transpositionTable?: TranspositionTable,
 ): SearchResult => {
   if (shouldStopSearch(control)) {
     return {
@@ -99,6 +102,8 @@ const searchRoot = (
 
   let bestMove: number | null = null;
   let bestScore = -Infinity;
+  const searchTranspositionTable =
+    transpositionTable ?? createTranspositionTable();
 
   orderMoves(
     searchPosition,
@@ -125,6 +130,7 @@ const searchRoot = (
       scratch,
       searchRepetitionCounts,
       control,
+      searchTranspositionTable,
     );
 
     undoMove(searchPosition, move, undo);

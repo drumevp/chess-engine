@@ -17,6 +17,7 @@ import determineGameState from "../../engine/position/analyzePosition/determineG
 import { makeMoveWithUndo } from "../../engine/position/moves/makeMove/makeMove";
 import undoMove from "../../engine/position/moves/undoMove/undoMove";
 import { Position } from "../../engine/types/position";
+import { TRANSPOSITION_TABLE_BOUND } from "../constants/transpositionTable";
 import simpleEval from "../eval/simpleEval";
 import {
   resetPrincipalVariation,
@@ -28,6 +29,11 @@ import {
   shouldStopSearch,
 } from "../helpers/search";
 import { SearchControl, SearchScratch } from "../types/search";
+import { TranspositionTable } from "../types/transpositionTable";
+import {
+  probeTranspositionTable,
+  storeTranspositionTable,
+} from "../transpositionTable/transpositionTable";
 import quiescenceSearch from "./quiescenceSearch";
 
 export const failSoftAlphaBetaNegaMax = (
@@ -39,10 +45,13 @@ export const failSoftAlphaBetaNegaMax = (
   scratch: SearchScratch,
   repetitionCounts: Map<bigint, number>,
   control: SearchControl,
+  transpositionTable: TranspositionTable,
 ): number => {
   if (shouldStopSearch(control)) {
     return simpleEval(position);
   }
+
+  const originalAlpha = alpha;
 
   resetPrincipalVariation(scratch, ply);
 
@@ -79,7 +88,21 @@ export const failSoftAlphaBetaNegaMax = (
     );
   }
 
+  const transpositionTableScore = probeTranspositionTable(
+    transpositionTable,
+    position.zobristHash,
+    depth,
+    alpha,
+    beta,
+    ply,
+  );
+
+  if (transpositionTableScore !== null) {
+    return transpositionTableScore;
+  }
+
   let bestScore = -Infinity;
+  let bestMove: number | null = null;
 
   orderMoves(position, moveList, movesCount, scratch.moveOrderingScratches[ply]);
 
@@ -100,6 +123,7 @@ export const failSoftAlphaBetaNegaMax = (
       scratch,
       repetitionCounts,
       control,
+      transpositionTable,
     );
 
     undoMove(position, move, undo);
@@ -111,6 +135,7 @@ export const failSoftAlphaBetaNegaMax = (
 
     if (score > bestScore) {
       bestScore = score;
+      bestMove = move;
     }
 
     if (score > alpha) {
@@ -119,9 +144,31 @@ export const failSoftAlphaBetaNegaMax = (
     }
 
     if (score >= beta) {
+      storeTranspositionTable(
+        transpositionTable,
+        position.zobristHash,
+        depth,
+        score,
+        TRANSPOSITION_TABLE_BOUND.LOWER_BOUND,
+        bestMove,
+        ply,
+      );
+
       return score;
     }
   }
+
+  storeTranspositionTable(
+    transpositionTable,
+    position.zobristHash,
+    depth,
+    bestScore,
+    bestScore <= originalAlpha
+      ? TRANSPOSITION_TABLE_BOUND.UPPER_BOUND
+      : TRANSPOSITION_TABLE_BOUND.EXACT,
+    bestMove,
+    ply,
+  );
 
   return bestScore;
 };

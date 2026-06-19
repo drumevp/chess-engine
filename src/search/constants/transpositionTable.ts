@@ -1,0 +1,11 @@
+import { CHECKMATE_SCORE } from "./eval";
+
+export const DEFAULT_TRANSPOSITION_TABLE_SIZE = 1 << 20;
+export const TRANSPOSITION_TABLE_MATE_SCORE_THRESHOLD =
+  CHECKMATE_SCORE - 1000;
+
+export const TRANSPOSITION_TABLE_BOUND = {
+  EXACT: 0,
+  LOWER_BOUND: 1,
+  UPPER_BOUND: 2,
+} as const;
