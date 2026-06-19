@@ -9,13 +9,16 @@ import { Position } from "../../engine/types/position";
 import {
   CAPTURE_SCORE,
   EN_PASSANT_SCORE,
+  KILLER_MOVE_SCORE,
   PRIORITY_MOVE_SCORE,
   PROMOTION_CAPTURE_SCORE,
   PROMOTION_SCORE,
 } from "../constants/moveOrdering";
 import { getPieceValue } from "../constants/eval";
+import { isKillerMove } from "./killerMoves";
 import staticExchangeEvaluation from "../searchRoot/staticExchangeEvaluation/staticExchangeEvaluation";
 import { createStaticExchangeEvaluationScratch } from "../searchRoot/staticExchangeEvaluation/scratch";
+import type { KillerMoves } from "../types/killerMoves";
 import type { StaticExchangeEvaluationScratch } from "../types/staticExchangeEvaluation";
 
 export type MoveOrderingScratch = {
@@ -33,6 +36,8 @@ export const scoreMove = (
   move: number,
   scratch: MoveOrderingScratch,
   priorityMove: number | null = null,
+  killerMoves: KillerMoves | null = null,
+  ply = 0,
 ): number => {
   if (priorityMove !== null && move === priorityMove) {
     return PRIORITY_MOVE_SCORE;
@@ -77,6 +82,10 @@ export const scoreMove = (
     return PROMOTION_SCORE + getPieceValue(moveDecodePromotionPiece(move));
   }
 
+  if (killerMoves !== null && isKillerMove(killerMoves, ply, move)) {
+    return KILLER_MOVE_SCORE;
+  }
+
   return 0;
 };
 
@@ -86,12 +95,21 @@ export const orderMoves = (
   movesCount: number,
   scratch: MoveOrderingScratch,
   priorityMove: number | null = null,
+  killerMoves: KillerMoves | null = null,
+  ply = 0,
 ): void => {
   const moves = moveList.moves;
   const scores = scratch.scores;
 
   for (let i = 0; i < movesCount; i++) {
-    scores[i] = scoreMove(position, moves[i], scratch, priorityMove);
+    scores[i] = scoreMove(
+      position,
+      moves[i],
+      scratch,
+      priorityMove,
+      killerMoves,
+      ply,
+    );
   }
 
   for (let i = 0; i < movesCount - 1; i++) {

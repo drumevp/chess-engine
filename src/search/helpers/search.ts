@@ -8,6 +8,7 @@ import { createUndo } from "../../engine/types/history";
 import { Position } from "../../engine/types/position";
 import { CHECKMATE_SCORE } from "../constants/eval";
 import { MAX_QUIESCENCE_PLY } from "../constants/search";
+import { createKillerMoves } from "./killerMoves";
 import { createMoveOrderingScratch } from "./moveOrdering";
 import {
   SearchControl,
@@ -62,6 +63,7 @@ export const createSearchScratch = (depth: number): SearchScratch => {
     pvTable,
     pvLength: new Uint16Array(searchPlyCount),
     moveOrderingScratches,
+    killerMoves: createKillerMoves(searchPlyCount),
     gameStateScratch: {
       gameState: GAME_STATE.ONGOING,
       gameEndReason: null,

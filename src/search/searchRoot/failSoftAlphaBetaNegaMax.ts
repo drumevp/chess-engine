@@ -23,6 +23,7 @@ import {
   resetPrincipalVariation,
   updatePrincipalVariation,
 } from "../helpers/principalVariation";
+import { recordKillerMove } from "../helpers/killerMoves";
 import { orderMoves } from "../helpers/moveOrdering";
 import {
   getTerminalScore,
@@ -115,6 +116,8 @@ export const failSoftAlphaBetaNegaMax = (
     movesCount,
     scratch.moveOrderingScratches[ply],
     transpositionTableBestMove,
+    scratch.killerMoves,
+    ply,
   );
 
   for (let i = 0; i < movesCount; i++) {
@@ -185,6 +188,8 @@ export const failSoftAlphaBetaNegaMax = (
     }
 
     if (score >= beta) {
+      recordKillerMove(scratch.killerMoves, ply, move);
+
       storeTranspositionTable(
         transpositionTable,
         position.zobristHash,
