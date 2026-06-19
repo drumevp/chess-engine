@@ -128,17 +128,47 @@ const searchRoot = (
     incrementRepetition(searchRepetitionCounts, searchPosition.zobristHash);
     const childHash = searchPosition.zobristHash;
 
-    const score = -failSoftAlphaBetaNegaMax(
-      searchPosition,
-      -beta,
-      -alpha,
-      depth - 1,
-      1,
-      scratch,
-      searchRepetitionCounts,
-      control,
-      searchTranspositionTable,
-    );
+    let score: number;
+
+    if (i === 0) {
+      score = -failSoftAlphaBetaNegaMax(
+        searchPosition,
+        -beta,
+        -alpha,
+        depth - 1,
+        1,
+        scratch,
+        searchRepetitionCounts,
+        control,
+        searchTranspositionTable,
+      );
+    } else {
+      score = -failSoftAlphaBetaNegaMax(
+        searchPosition,
+        -alpha - 1,
+        -alpha,
+        depth - 1,
+        1,
+        scratch,
+        searchRepetitionCounts,
+        control,
+        searchTranspositionTable,
+      );
+
+      if (!control.stopped && score > alpha && score < beta) {
+        score = -failSoftAlphaBetaNegaMax(
+          searchPosition,
+          -beta,
+          -alpha,
+          depth - 1,
+          1,
+          scratch,
+          searchRepetitionCounts,
+          control,
+          searchTranspositionTable,
+        );
+      }
+    }
 
     undoMove(searchPosition, move, undo);
     decrementRepetition(searchRepetitionCounts, childHash);
