@@ -4,6 +4,7 @@ import {
   TRANSPOSITION_TABLE_MATE_SCORE_THRESHOLD,
 } from "../constants/transpositionTable";
 import {
+  SharedTranspositionTableBuffers,
   TranspositionTable,
   TranspositionTableBound,
   TranspositionTableEntry,
@@ -69,6 +70,51 @@ export const createTranspositionTable = (
     hasBestMove: new Uint8Array(tableSize),
   };
 };
+
+export const createSharedTranspositionTable = (
+  size = DEFAULT_TRANSPOSITION_TABLE_SIZE,
+): TranspositionTable => {
+  const tableSize = getPowerOfTwoTableSize(size);
+
+  return {
+    size: tableSize,
+    keyMask: BigInt(tableSize - 1),
+    occupied: new Uint8Array(new SharedArrayBuffer(tableSize)),
+    keys: new BigUint64Array(new SharedArrayBuffer(tableSize * 8)),
+    depths: new Int16Array(new SharedArrayBuffer(tableSize * 2)),
+    scores: new Int32Array(new SharedArrayBuffer(tableSize * 4)),
+    bounds: new Uint8Array(new SharedArrayBuffer(tableSize)),
+    bestMoves: new Uint32Array(new SharedArrayBuffer(tableSize * 4)),
+    hasBestMove: new Uint8Array(new SharedArrayBuffer(tableSize)),
+  };
+};
+
+export const getSharedTranspositionTableBuffers = (
+  transpositionTable: TranspositionTable,
+): SharedTranspositionTableBuffers => ({
+  size: transpositionTable.size,
+  occupied: transpositionTable.occupied.buffer as SharedArrayBuffer,
+  keys: transpositionTable.keys.buffer as SharedArrayBuffer,
+  depths: transpositionTable.depths.buffer as SharedArrayBuffer,
+  scores: transpositionTable.scores.buffer as SharedArrayBuffer,
+  bounds: transpositionTable.bounds.buffer as SharedArrayBuffer,
+  bestMoves: transpositionTable.bestMoves.buffer as SharedArrayBuffer,
+  hasBestMove: transpositionTable.hasBestMove.buffer as SharedArrayBuffer,
+});
+
+export const createTranspositionTableFromSharedBuffers = (
+  buffers: SharedTranspositionTableBuffers,
+): TranspositionTable => ({
+  size: buffers.size,
+  keyMask: BigInt(buffers.size - 1),
+  occupied: new Uint8Array(buffers.occupied),
+  keys: new BigUint64Array(buffers.keys),
+  depths: new Int16Array(buffers.depths),
+  scores: new Int32Array(buffers.scores),
+  bounds: new Uint8Array(buffers.bounds),
+  bestMoves: new Uint32Array(buffers.bestMoves),
+  hasBestMove: new Uint8Array(buffers.hasBestMove),
+});
 
 export const probeTranspositionTable = (
   transpositionTable: TranspositionTable,
