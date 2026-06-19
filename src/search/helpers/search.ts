@@ -8,6 +8,7 @@ import { createUndo } from "../../engine/types/history";
 import { Position } from "../../engine/types/position";
 import { CHECKMATE_SCORE } from "../constants/eval";
 import { MAX_QUIESCENCE_PLY } from "../constants/search";
+import { createMoveOrderingScratch } from "./moveOrdering";
 import {
   SearchControl,
   SearchLimits,
@@ -48,6 +49,10 @@ export const createSearchScratch = (depth: number): SearchScratch => {
     { length: searchPlyCount },
     () => new Uint32Array(searchPlyCount),
   );
+  const moveOrderingScratches = Array.from(
+    { length: searchPlyCount },
+    () => createMoveOrderingScratch(),
+  );
 
   return {
     moveLists,
@@ -56,6 +61,7 @@ export const createSearchScratch = (depth: number): SearchScratch => {
     undoStack,
     pvTable,
     pvLength: new Uint16Array(searchPlyCount),
+    moveOrderingScratches,
     gameStateScratch: {
       gameState: GAME_STATE.ONGOING,
       gameEndReason: null,

@@ -3,6 +3,7 @@ import { DetermineGameStateRValue } from "../../engine/types/gameState";
 import { Undo } from "../../engine/types/history";
 import { MoveGenerationContext, MoveList } from "../../engine/types/move";
 import { Position } from "../../engine/types/position";
+import type { MoveOrderingScratch } from "../helpers/moveOrdering";
 
 export type SearchResult = {
   bestMove: number | null;
@@ -37,6 +38,7 @@ export type SearchScratch = {
   gameStateScratch: DetermineGameStateRValue;
   pvTable: Uint32Array[];
   pvLength: Uint16Array;
+  moveOrderingScratches: MoveOrderingScratch[];
 };
 
 export type SearchState = {

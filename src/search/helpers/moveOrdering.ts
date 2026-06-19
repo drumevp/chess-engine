@@ -1,12 +1,11 @@
 import { MOVE_FLAG } from "../../engine/constants/move";
 import {
-  moveDecodeCapturedPiece,
   moveDecodeFlag,
-  moveDecodePiece,
   moveDecodePromotionPiece,
 } from "../../engine/position/moves/packedMove";
+import { MAX_MOVES } from "../../engine/movegen/moveList";
 import { MoveList } from "../../engine/types/move";
-import { PIECE_VALUE } from "../constants/eval";
+import { Position } from "../../engine/types/position";
 import {
   CAPTURE_SCORE,
   EN_PASSANT_SCORE,
@@ -14,17 +13,25 @@ import {
   PROMOTION_CAPTURE_SCORE,
   PROMOTION_SCORE,
 } from "../constants/moveOrdering";
+import { getPieceValue } from "../constants/eval";
+import staticExchangeEvaluation from "../searchRoot/staticExchangeEvaluation/staticExchangeEvaluation";
+import { createStaticExchangeEvaluationScratch } from "../searchRoot/staticExchangeEvaluation/scratch";
+import type { StaticExchangeEvaluationScratch } from "../types/staticExchangeEvaluation";
 
-const getPieceValue = (piece: number | null): number => {
-  if (piece === null) {
-    return 0;
-  }
-
-  return PIECE_VALUE[piece] ?? 0;
+export type MoveOrderingScratch = {
+  scores: Int32Array;
+  staticExchangeEvaluation: StaticExchangeEvaluationScratch;
 };
 
+export const createMoveOrderingScratch = (): MoveOrderingScratch => ({
+  scores: new Int32Array(MAX_MOVES),
+  staticExchangeEvaluation: createStaticExchangeEvaluationScratch(),
+});
+
 export const scoreMove = (
+  position: Position,
   move: number,
+  scratch: MoveOrderingScratch,
   priorityMove: number | null = null,
 ): number => {
   if (priorityMove !== null && move === priorityMove) {
@@ -36,22 +43,34 @@ export const scoreMove = (
   if (moveFlag === MOVE_FLAG.PROMOTION_CAPTURE) {
     return (
       PROMOTION_CAPTURE_SCORE +
-      getPieceValue(moveDecodePromotionPiece(move)) +
-      getPieceValue(moveDecodeCapturedPiece(move)) -
-      getPieceValue(moveDecodePiece(move))
+      staticExchangeEvaluation(
+        position,
+        move,
+        scratch.staticExchangeEvaluation,
+      )
     );
   }
 
   if (moveFlag === MOVE_FLAG.CAPTURE) {
     return (
       CAPTURE_SCORE +
-      getPieceValue(moveDecodeCapturedPiece(move)) -
-      getPieceValue(moveDecodePiece(move))
+      staticExchangeEvaluation(
+        position,
+        move,
+        scratch.staticExchangeEvaluation,
+      )
     );
   }
 
   if (moveFlag === MOVE_FLAG.EN_PASSANT) {
-    return EN_PASSANT_SCORE;
+    return (
+      EN_PASSANT_SCORE +
+      staticExchangeEvaluation(
+        position,
+        move,
+        scratch.staticExchangeEvaluation,
+      )
+    );
   }
 
   if (moveFlag === MOVE_FLAG.PROMOTION) {
@@ -62,18 +81,25 @@ export const scoreMove = (
 };
 
 export const orderMoves = (
+  position: Position,
   moveList: MoveList,
   movesCount: number,
+  scratch: MoveOrderingScratch,
   priorityMove: number | null = null,
 ): void => {
   const moves = moveList.moves;
+  const scores = scratch.scores;
+
+  for (let i = 0; i < movesCount; i++) {
+    scores[i] = scoreMove(position, moves[i], scratch, priorityMove);
+  }
 
   for (let i = 0; i < movesCount - 1; i++) {
     let bestIndex = i;
-    let bestScore = scoreMove(moves[i], priorityMove);
+    let bestScore = scores[i];
 
     for (let j = i + 1; j < movesCount; j++) {
-      const score = scoreMove(moves[j], priorityMove);
+      const score = scores[j];
 
       if (score > bestScore) {
         bestScore = score;
@@ -85,6 +111,10 @@ export const orderMoves = (
       const currentMove = moves[i];
       moves[i] = moves[bestIndex];
       moves[bestIndex] = currentMove;
+
+      const currentScore = scores[i];
+      scores[i] = scores[bestIndex];
+      scores[bestIndex] = currentScore;
     }
   }
 };

@@ -10,3 +10,11 @@ export const PIECE_VALUE = {
   [KING_INDEX]: 0,
   [PAWN_INDEX]: 100,
 }
+
+export const getPieceValue = (piece: number | null): number => {
+  if (piece === null) {
+    return 0;
+  }
+
+  return PIECE_VALUE[piece] ?? 0;
+};
