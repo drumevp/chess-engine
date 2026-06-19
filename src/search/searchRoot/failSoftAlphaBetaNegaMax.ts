@@ -69,6 +69,12 @@ import {
   shouldStopSearch,
 } from "../helpers/search";
 import {
+  canUseSingularExtension,
+  getSingularExtensionAmount,
+  getSingularExtensionBeta,
+  getSingularExtensionSearchDepth,
+} from "../helpers/singularExtension";
+import {
   canUseStaticExchangeEvaluationPruning,
   hasMoveOrderingStaticExchangeEvaluationScore,
   isStaticExchangeEvaluationPruned,
@@ -78,7 +84,7 @@ import type { CaptureHistory } from "../types/captureHistory";
 import type { HistoryHeuristic } from "../types/historyHeuristic";
 import { TranspositionTable } from "../types/transpositionTable";
 import {
-  getTranspositionTableBestMove,
+  getTranspositionTableEntry,
   probeTranspositionTable,
   storeTranspositionTable,
 } from "../transpositionTable/transpositionTable";
@@ -97,7 +103,10 @@ export const failSoftAlphaBetaNegaMax = (
   transpositionTable: TranspositionTable,
   historyHeuristic: HistoryHeuristic,
   captureHistory: CaptureHistory,
+  excludedMove: number | null = null,
 ): number => {
+  const isExcludedMoveSearch = excludedMove !== null;
+
   if (shouldStopSearch(control)) {
     return evaluatePosition(control.evaluator, position);
   }
@@ -147,17 +156,23 @@ export const failSoftAlphaBetaNegaMax = (
     );
   }
 
-  const transpositionTableScore = probeTranspositionTable(
-    transpositionTable,
-    position.zobristHash,
-    depth,
-    alpha,
-    beta,
-    ply,
-  );
+  const transpositionTableEntry = isExcludedMoveSearch
+    ? null
+    : getTranspositionTableEntry(transpositionTable, position.zobristHash, ply);
 
-  if (transpositionTableScore !== null) {
-    return transpositionTableScore;
+  if (!isExcludedMoveSearch) {
+    const transpositionTableScore = probeTranspositionTable(
+      transpositionTable,
+      position.zobristHash,
+      depth,
+      alpha,
+      beta,
+      ply,
+    );
+
+    if (transpositionTableScore !== null) {
+      return transpositionTableScore;
+    }
   }
 
   const staticEval = evaluatePosition(control.evaluator, position);
@@ -236,10 +251,7 @@ export const failSoftAlphaBetaNegaMax = (
   let bestScore = -Infinity;
   let bestMove: number | null = null;
   const moveOrderingScratch = scratch.moveOrderingScratches[ply];
-  const transpositionTableBestMove = getTranspositionTableBestMove(
-    transpositionTable,
-    position.zobristHash,
-  );
+  const transpositionTableBestMove = transpositionTableEntry?.bestMove ?? null;
 
   orderMoves(
     position,
@@ -277,6 +289,11 @@ export const failSoftAlphaBetaNegaMax = (
 
   for (let i = 0; i < movesCount; i++) {
     const move = moveList.moves[i];
+
+    if (isExcludedMoveSearch && move === excludedMove) {
+      continue;
+    }
+
     const undo = scratch.undoStack[ply];
     const hasSearchedMove = bestScore !== -Infinity;
     const isImportantMove =
@@ -330,13 +347,55 @@ export const failSoftAlphaBetaNegaMax = (
       }
     }
 
+    let extension = 0;
+
+    if (
+      transpositionTableEntry !== null &&
+      canUseSingularExtension(
+        depth,
+        isCheck,
+        excludedMove,
+        transpositionTableEntry,
+        move,
+      )
+    ) {
+      const singularBeta = getSingularExtensionBeta(
+        transpositionTableEntry.score,
+        depth,
+      );
+      const singularScore = failSoftAlphaBetaNegaMax(
+        position,
+        singularBeta - 1,
+        singularBeta,
+        getSingularExtensionSearchDepth(depth),
+        ply + 1,
+        scratch,
+        repetitionCounts,
+        control,
+        transpositionTable,
+        historyHeuristic,
+        captureHistory,
+        move,
+      );
+
+      if (control.stopped) {
+        return bestScore === -Infinity
+          ? evaluatePosition(control.evaluator, position)
+          : bestScore;
+      }
+
+      if (singularScore < singularBeta) {
+        extension = getSingularExtensionAmount();
+      }
+    }
+
     makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
     pushEvaluatorMove(control.evaluator, position, move, undo);
     incrementRepetition(repetitionCounts, position.zobristHash);
     const childHash = position.zobristHash;
 
     let score: number;
-    const childDepth = depth - 1;
+    const childDepth = depth - 1 + extension;
 
     if (i === 0) {
       score = -failSoftAlphaBetaNegaMax(
@@ -442,22 +501,28 @@ export const failSoftAlphaBetaNegaMax = (
     }
 
     if (score >= beta) {
-      recordKillerMove(scratch.killerMoves, ply, move);
-      recordHistoryHeuristic(historyHeuristic, move, depth);
-      recordCaptureHistory(captureHistory, move, depth);
+      if (!isExcludedMoveSearch) {
+        recordKillerMove(scratch.killerMoves, ply, move);
+        recordHistoryHeuristic(historyHeuristic, move, depth);
+        recordCaptureHistory(captureHistory, move, depth);
 
-      storeTranspositionTable(
-        transpositionTable,
-        position.zobristHash,
-        depth,
-        score,
-        TRANSPOSITION_TABLE_BOUND.LOWER_BOUND,
-        bestMove,
-        ply,
-      );
+        storeTranspositionTable(
+          transpositionTable,
+          position.zobristHash,
+          depth,
+          score,
+          TRANSPOSITION_TABLE_BOUND.LOWER_BOUND,
+          bestMove,
+          ply,
+        );
+      }
 
       return score;
     }
+  }
+
+  if (isExcludedMoveSearch) {
+    return bestScore === -Infinity ? alpha : bestScore;
   }
 
   storeTranspositionTable(
