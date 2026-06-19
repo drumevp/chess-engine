@@ -105,6 +105,23 @@ export const probeTranspositionTable = (
   return null;
 };
 
+export const getTranspositionTableBestMove = (
+  transpositionTable: TranspositionTable,
+  hash: bigint,
+): number | null => {
+  const index = getTranspositionTableIndex(transpositionTable, hash);
+
+  if (
+    transpositionTable.occupied[index] === 0 ||
+    transpositionTable.keys[index] !== hash ||
+    transpositionTable.hasBestMove[index] === 0
+  ) {
+    return null;
+  }
+
+  return transpositionTable.bestMoves[index];
+};
+
 export const storeTranspositionTable = (
   transpositionTable: TranspositionTable,
   hash: bigint,

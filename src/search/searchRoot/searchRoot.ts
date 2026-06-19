@@ -27,7 +27,10 @@ import quiescenceSearch from "./quiescenceSearch";
 import { SearchResult } from "../types/search";
 import { SearchControl } from "../types/search";
 import { TranspositionTable } from "../types/transpositionTable";
-import { createTranspositionTable } from "../transpositionTable/transpositionTable";
+import {
+  createTranspositionTable,
+  getTranspositionTableBestMove,
+} from "../transpositionTable/transpositionTable";
 
 const searchRoot = (
   position: Position,
@@ -104,13 +107,17 @@ const searchRoot = (
   let bestScore = -Infinity;
   const searchTranspositionTable =
     transpositionTable ?? createTranspositionTable();
+  const transpositionTableBestMove = getTranspositionTableBestMove(
+    searchTranspositionTable,
+    searchPosition.zobristHash,
+  );
 
   orderMoves(
     searchPosition,
     moveList,
     movesCount,
     scratch.moveOrderingScratches[0],
-    priorityMove,
+    priorityMove ?? transpositionTableBestMove,
   );
 
   for (let i = 0; i < movesCount; i++) {

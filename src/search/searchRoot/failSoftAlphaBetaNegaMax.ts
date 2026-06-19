@@ -31,6 +31,7 @@ import {
 import { SearchControl, SearchScratch } from "../types/search";
 import { TranspositionTable } from "../types/transpositionTable";
 import {
+  getTranspositionTableBestMove,
   probeTranspositionTable,
   storeTranspositionTable,
 } from "../transpositionTable/transpositionTable";
@@ -103,8 +104,18 @@ export const failSoftAlphaBetaNegaMax = (
 
   let bestScore = -Infinity;
   let bestMove: number | null = null;
+  const transpositionTableBestMove = getTranspositionTableBestMove(
+    transpositionTable,
+    position.zobristHash,
+  );
 
-  orderMoves(position, moveList, movesCount, scratch.moveOrderingScratches[ply]);
+  orderMoves(
+    position,
+    moveList,
+    movesCount,
+    scratch.moveOrderingScratches[ply],
+    transpositionTableBestMove,
+  );
 
   for (let i = 0; i < movesCount; i++) {
     const move = moveList.moves[i];
