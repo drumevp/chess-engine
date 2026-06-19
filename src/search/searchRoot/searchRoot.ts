@@ -118,6 +118,8 @@ const searchRoot = (
     movesCount,
     scratch.moveOrderingScratches[0],
     priorityMove ?? transpositionTableBestMove,
+    scratch.killerMoves,
+    0,
   );
 
   for (let i = 0; i < movesCount; i++) {

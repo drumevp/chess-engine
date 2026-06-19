@@ -4,6 +4,7 @@ import { Undo } from "../../engine/types/history";
 import { MoveGenerationContext, MoveList } from "../../engine/types/move";
 import { Position } from "../../engine/types/position";
 import type { MoveOrderingScratch } from "../helpers/moveOrdering";
+import type { KillerMoves } from "./killerMoves";
 
 export type SearchResult = {
   bestMove: number | null;
@@ -39,6 +40,7 @@ export type SearchScratch = {
   pvTable: Uint32Array[];
   pvLength: Uint16Array;
   moveOrderingScratches: MoveOrderingScratch[];
+  killerMoves: KillerMoves;
 };
 
 export type SearchState = {
