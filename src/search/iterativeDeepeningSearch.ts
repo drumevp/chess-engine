@@ -8,6 +8,7 @@ import {
   IterativeDeepeningSearchResult,
   SearchLimits,
 } from "./types/search";
+import { createTranspositionTable } from "./transpositionTable/transpositionTable";
 
 const iterativeDeepeningSearch = (
   position: Position,
@@ -45,6 +46,8 @@ const iterativeDeepeningSearch = (
     };
   }
 
+  const transpositionTable = createTranspositionTable();
+
   for (let depth = 1; depth <= maxDepth; depth++) {
     if (control.stopped) {
       break;
@@ -58,6 +61,7 @@ const iterativeDeepeningSearch = (
       depth,
       control,
       bestResult.bestMove,
+      transpositionTable,
     );
 
     if (control.stopped) {
