@@ -24,6 +24,7 @@ export type IterativeDeepeningSearchResult = SearchResult & {
 export type SearchLimits = {
   maxNodes?: number;
   maxTimeMs?: number;
+  stopSignal?: Int32Array<SharedArrayBuffer>;
   strengthElo?: number;
   minStrengthElo?: number;
   maxStrengthElo?: number;

@@ -8,6 +8,7 @@ export type LazySmpSearchOptions = {
   depthStagger?: number;
   useRootMovePriorities?: boolean;
   evaluatorType?: LazySmpEvaluatorType;
+  nnueModelPath?: string;
   transpositionTableSize?: number;
   useSharedTranspositionTable?: boolean;
 };
@@ -22,6 +23,7 @@ export type LazySmpWorkerData = {
   limits: SearchLimits;
   priorityMove: number | null;
   evaluatorType: LazySmpEvaluatorType;
+  nnueModelPath?: string;
   transpositionTable?: SharedTranspositionTableBuffers;
 };
 

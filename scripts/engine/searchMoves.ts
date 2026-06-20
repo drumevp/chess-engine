@@ -1,20 +1,8 @@
 import generateFenToPosition from "../../src/engine/fen/fenToPosition/generateFenToPosition";
 import generateLegalMoves from "../../src/engine/movegen/generateLegalMoves";
-import internalToUci from "../../src/engine/notation/uci/internalToUci";
-import {
-  moveDecodeFrom,
-  moveDecodePromotionPiece,
-  moveDecodeTo,
-} from "../../src/engine/position/moves/packedMove";
+import packedMoveToUci from "../../src/engine/notation/uci/packedMoveToUci";
 import iterativeDeepeningSearch from "../../src/search/iterativeDeepeningSearch";
 import type { SearchEvaluator } from "../../src/search/types/nnue";
-
-export const encodedMoveToUci = (move: number): string =>
-  internalToUci({
-    from: moveDecodeFrom(move),
-    to: moveDecodeTo(move),
-    promotionPiece: moveDecodePromotionPiece(move),
-  });
 
 export const chooseSearchMove = (
   fen: string,
@@ -35,10 +23,10 @@ export const chooseSearchMove = (
   );
 
   if (result.bestMove !== null) {
-    return encodedMoveToUci(result.bestMove);
+    return packedMoveToUci(result.bestMove);
   }
 
   const legalMoves = generateLegalMoves(position);
 
-  return legalMoves.length === 0 ? null : encodedMoveToUci(legalMoves[0]);
+  return legalMoves.length === 0 ? null : packedMoveToUci(legalMoves[0]);
 };

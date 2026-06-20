@@ -1,17 +1,12 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { access, mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import ChessEngine from "../../src/engine/ChessEngine";
 import { COLOR } from "../../src/engine/constants/color";
-import { createNnueEvaluator } from "../../src/search/nnue/inference";
-import { getArg, getNumberArg, hasArg } from "./args";
-import {
-  getModelLabel,
-  loadNnueModel,
-  writeNnueCheckpoint,
-} from "./modelFiles";
-import { chooseSearchMove } from "./searchMoves";
+import { UciClient } from "../../src/uci/UciClient";
+import type { UciEvaluatorName } from "../../src/uci/searchProtocol";
+import { getArg, getNumberArg } from "../nnue/args";
 import { MATCH_OPENING_LINES } from "./matchOpenings";
-import { UciEngine } from "./uciEngine";
+import { getModelLabel } from "../nnue/modelFiles";
 
 type GameResult = "1-0" | "0-1" | "1/2-1/2" | "*";
 
@@ -64,36 +59,97 @@ const estimateElo = (scoreRate: number, opponentElo: number): number => {
   return Math.round(opponentElo + eloDiff);
 };
 
+const getPositiveIntegerArg = (name: string, fallback: number): number => {
+  const value = getNumberArg(name, fallback);
+
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+
+  return value;
+};
+
+const parseEvaluatorName = (): UciEvaluatorName => {
+  const evaluatorName = getArg("--evaluator", "nnue");
+
+  if (evaluatorName !== "simple" && evaluatorName !== "nnue") {
+    throw new Error('--evaluator must be either "simple" or "nnue"');
+  }
+
+  return evaluatorName;
+};
+
+const evaluatorName = parseEvaluatorName();
 const modelPath = getArg("--model", "default");
-const model = await loadNnueModel(modelPath);
-const evaluator = createNnueEvaluator(model);
+const ourThreads = getPositiveIntegerArg("--our-threads", 1);
+const enemyThreads = getPositiveIntegerArg("--enemy-threads", 1);
+const ourEnginePath = resolve(
+  getArg("--our-engine", "dist/drumevp-chess-engine.js"),
+);
 const stockfishPath = resolve(
   getArg("--stockfish", "engines/stockfish/src/stockfish"),
 );
-const games = getNumberArg("--games", 4);
-const maxPly = getNumberArg("--max-ply", 160);
-const ourDepth = getNumberArg("--our-depth", 4);
-const ourMoveTimeMs = getNumberArg("--our-movetime", 50);
-const stockfishMoveTimeMs = getNumberArg("--stockfish-movetime", 50);
+const games = getPositiveIntegerArg("--games", 4);
+
+if (games % 2 !== 0) {
+  throw new Error(
+    "--games must be even so every opening is played as both colors",
+  );
+}
+
+const maxPly = getPositiveIntegerArg("--max-ply", 160);
+const ourDepth = getPositiveIntegerArg("--our-depth", 4);
+const ourMoveTimeMs = getPositiveIntegerArg("--our-movetime", 50);
+const enemyMoveTimeMs = getPositiveIntegerArg("--enemy-movetime", 50);
+const ourHashMb = getPositiveIntegerArg("--our-hash", 128);
+const enemyHashMb = getPositiveIntegerArg("--enemy-hash", 128);
 const opponentElo = Math.max(1320, getNumberArg("--opponent-elo", 1320));
 const outputPath = resolve(
-  getArg("--output", `models/nnue/training/elo-${Date.now()}.json`),
+  getArg("--output", `reports/engine/elo-${Date.now()}.json`),
 );
-const stockfish = new UciEngine(stockfishPath);
+
+try {
+  await access(ourEnginePath);
+} catch {
+  throw new Error(
+    `Our UCI engine was not found at ${ourEnginePath}; run npm run build first`,
+  );
+}
+
+const candidate = new UciClient(process.execPath, {
+  args: [ourEnginePath],
+});
+const stockfish = new UciClient(stockfishPath);
 let points = 0;
 let wins = 0;
 let draws = 0;
 let losses = 0;
 
 await mkdir(dirname(outputPath), { recursive: true });
-await stockfish.initialize();
-await stockfish.setOption("Threads", getArg("--stockfish-threads", "1"));
-await stockfish.setOption("Hash", getArg("--stockfish-hash", "128"));
-await stockfish.setOption("UCI_LimitStrength", "true");
-await stockfish.setOption("UCI_Elo", String(opponentElo));
 
 try {
+  await candidate.initialize();
+  await candidate.setOption("Threads", ourThreads);
+  await candidate.setOption("Hash", ourHashMb);
+  await candidate.setOption("Evaluator", evaluatorName);
+
+  if (evaluatorName === "nnue") {
+    await candidate.setOption(
+      "EvalFile",
+      modelPath === "default" ? "default" : resolve(modelPath),
+    );
+  }
+
+  await stockfish.initialize();
+  await stockfish.setOption("Threads", enemyThreads);
+  await stockfish.setOption("Hash", enemyHashMb);
+  await stockfish.setOption("UCI_LimitStrength", true);
+  await stockfish.setOption("UCI_Elo", opponentElo);
+
   for (let gameIndex = 0; gameIndex < games; gameIndex++) {
+    await candidate.newGame();
+    await stockfish.newGame();
+
     const engine = new ChessEngine();
     const candidateColor = gameIndex % 2 === 0 ? COLOR.WHITE : COLOR.BLACK;
     const openingIndex = Math.trunc(gameIndex / 2) % MATCH_OPENING_LINES.length;
@@ -106,10 +162,16 @@ try {
     for (let ply = moves.length; ply < maxPly && !engine.isGameOver(); ply++) {
       const isCandidateTurn = engine.turn() === candidateColor;
       const move = isCandidateTurn
-        ? chooseSearchMove(engine.exportFen(), ourDepth, ourMoveTimeMs, evaluator)
-        : await stockfish.getBestMove(engine.exportFen(), stockfishMoveTimeMs);
+        ? await candidate.getBestMoveFromPosition(
+            { startPosition: true, moves },
+            { depth: ourDepth, moveTimeMs: ourMoveTimeMs },
+          )
+        : await stockfish.getBestMoveFromPosition(
+            { startPosition: true, moves },
+            { moveTimeMs: enemyMoveTimeMs },
+          );
 
-      if (move === null || move === "0000") {
+      if (move === "0000") {
         break;
       }
 
@@ -142,13 +204,15 @@ try {
     );
   }
 } finally {
+  candidate.close();
   stockfish.close();
 }
 
 const scoreRate = points / games;
 const estimatedElo = estimateElo(scoreRate, opponentElo);
 const report = {
-  model: getModelLabel(modelPath),
+  evaluator: evaluatorName,
+  model: evaluatorName === "nnue" ? getModelLabel(modelPath) : null,
   games,
   wins,
   draws,
@@ -156,23 +220,16 @@ const report = {
   scoreRate,
   opponentElo,
   estimatedElo,
+  ourThreads,
+  enemyThreads,
+  ourDepth,
+  ourMoveTimeMs,
+  enemyMoveTimeMs,
+  ourHashMb,
+  enemyHashMb,
+  ourEnginePath,
+  stockfishPath,
 };
 
 await writeFile(outputPath, JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report));
-
-if (hasArg("--write-model")) {
-  model.metadata = {
-    ...model.metadata,
-    createdAt: new Date().toISOString(),
-    estimatedElo,
-    trainingGames: model.metadata.trainingGames + games,
-  };
-
-  const checkpointPath = await writeNnueCheckpoint(
-    model,
-    getArg("--output-dir", "models/nnue/checkpoints"),
-  );
-
-  console.log(`Wrote ${checkpointPath}`);
-}

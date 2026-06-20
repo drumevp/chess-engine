@@ -11,6 +11,29 @@ TensorFlow CPU binding. The old one-position-at-a-time TypeScript trainer remain
 available as `--backend scalar` for parity debugging, but it is not intended for
 large runs.
 
+## Architecture
+
+The custom quantized architecture is named
+`HalfKAv2_hm-FullThreats-L1024-L31-L32-v1`. It evaluates a position from the
+side-to-move perspective and returns a centipawn score.
+
+| Component | Design |
+| --- | --- |
+| HalfKA input | `22,528` king-bucketed, oriented piece-square features evaluated from both king perspectives |
+| Feature transformer | `1,024` integer accumulator values; the two halves of each perspective are clipped and multiplied into a `1,024`-value combined feature vector |
+| PSQT | `8` buckets blended into the final evaluation |
+| Dense network | `8` piece-count layer stacks, with `31` FC0 outputs expanded into squared and linear activations, `32` FC1 outputs, and one scalar output |
+| FullThreat features | Optional `60,720`-feature threat input; supported by the architecture but disabled in the current default checkpoint |
+
+HalfKA feature accumulators are updated incrementally during make/undo instead
+of being rebuilt at every searched node. Runtime inference uses quantized
+integer weights.
+
+The active bundled checkpoint is
+`models/nnue/defaultCheckpoint/model.dce-nnue`. Select it with
+`evaluator: "nnue"` in `ChessEngine.findBestMove()`. Use `nnueModelPath` or the
+UCI `EvalFile` option to load another checkpoint.
+
 On the 16 GB Apple Silicon development machine, measured tensor throughput is
 roughly 150k positions/s for PSQT, 28k/s for the dense network, and 5.5k/s when
 updating the 23 million HalfKA transformer weights. FullThreat training is a
@@ -21,21 +44,34 @@ Runtime search uses the embedded AssemblyScript/WebAssembly SIMD forward kernel
 by default and falls back to the TypeScript implementation if WebAssembly cannot
 be instantiated. Feature indexing and incremental HalfKA accumulator updates
 remain in TypeScript; only feature transformation and the dense network are in
-AssemblyScript. Rebuild and benchmark the embedded kernel with:
+AssemblyScript. The normal project build rebuilds and embeds the kernel. The
+diagnostic files remain directly runnable when needed:
 
 ```bash
-npm run nnue:wasm:build
-npm run nnue:verify-accumulator
-npm run nnue:benchmark -- --movetime 1000
+npm run build
+npx tsx ./scripts/nnue/verifyAccumulator.ts
+npx tsx ./scripts/nnue/benchmarkInference.ts --movetime 1000
 ```
 
-The script expects the Lichess eval dump at:
+## Training Data
+
+Training uses the
+[Lichess computer-evaluation database](https://database.lichess.org/#evals), a
+CC0 collection of Stockfish evaluations and principal variations. Download
+[`lichess_db_eval.jsonl.zst`](https://database.lichess.org/lichess_db_eval.jsonl.zst)
+and place it at:
 
 ```text
 lichess_data/lichess_db_eval.jsonl.zst
 ```
 
 Override it with `--data <path>` if needed.
+
+The trainer streams the compressed dump, so the `zstd` executable must be
+available on `PATH`. It selects the highest-depth evaluation for each position,
+breaking equal-depth ties by searched nodes, then uses the first PV centipawn
+score as the label. See [Data Filtering](#data-filtering) for the complete
+acceptance rules and score conversion.
 
 ## Model Layout
 
@@ -157,14 +193,26 @@ Use paired openings and at least 64 games before promoting a checkpoint.
 Run a standalone limited-strength check with:
 
 ```bash
-npm run nnue:elo -- \
+npm run build
+npm run engine:elo -- \
+  --evaluator nnue \
   --model models/nnue/runs/<run>/checkpoints/<candidate>.dce-nnue \
   --games 64 \
   --opponent-elo 1320 \
+  --our-threads 1 \
+  --enemy-threads 1 \
   --our-depth 4 \
   --our-movetime 50 \
-  --stockfish-movetime 50
+  --enemy-movetime 50
 ```
+
+Use `--evaluator simple` to test the handcrafted evaluator. Setting
+`--our-threads` above `1` enables Lazy SMP, while `--enemy-threads` configures
+Stockfish. `--model` selects the NNUE checkpoint for both single-threaded and
+Lazy SMP matches. The runner launches both this project and Stockfish through
+UCI, supplies the complete move history to both engines, and requires an even
+game count so each opening is played once with each color. Use `--our-engine`
+to override the default `dist/drumevp-chess-engine.js` entry point.
 
 ## Data Filtering
 

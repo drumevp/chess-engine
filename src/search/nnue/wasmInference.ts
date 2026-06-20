@@ -59,7 +59,7 @@ const decodeWasm = (): Uint8Array => {
 const getWasmModule = (): unknown => {
   if (cachedModule === null) {
     if (nnueWasmBase64.length === 0) {
-      throw new Error("NNUE WASM binary is missing; run npm run nnue:wasm:build");
+      throw new Error("NNUE WASM binary is missing; run npm run build");
     }
 
     cachedModule = new webAssembly.Module(decodeWasm());

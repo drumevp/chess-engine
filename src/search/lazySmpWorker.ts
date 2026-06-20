@@ -1,7 +1,7 @@
 import { parentPort, workerData } from "node:worker_threads";
 import generateFenToPosition from "../engine/fen/fenToPosition/generateFenToPosition";
 import iterativeDeepeningSearch from "./iterativeDeepeningSearch";
-import { createDefaultNnueModel } from "./nnue/defaultModel";
+import { loadNnueModelFromPath } from "./nnue/defaultModel";
 import { createNnueEvaluator } from "./nnue/inference";
 import { deserializeRepetitionCounts } from "./helpers/lazySmp";
 import {
@@ -17,9 +17,10 @@ import type { SearchEvaluator } from "./types/nnue";
 
 const createLazySmpWorkerEvaluator = (
   evaluatorType: LazySmpEvaluatorType,
+  nnueModelPath?: string,
 ): SearchEvaluator | undefined => {
   if (evaluatorType === "defaultNnue") {
-    return createNnueEvaluator(createDefaultNnueModel());
+    return createNnueEvaluator(loadNnueModelFromPath(nnueModelPath));
   }
 
   return undefined;
@@ -41,7 +42,7 @@ const result = iterativeDeepeningSearch(
   repetitionCounts,
   data.maxDepth,
   data.limits,
-  createLazySmpWorkerEvaluator(data.evaluatorType),
+  createLazySmpWorkerEvaluator(data.evaluatorType, data.nnueModelPath),
   data.priorityMove,
   transpositionTable,
 );
