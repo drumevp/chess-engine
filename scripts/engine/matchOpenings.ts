@@ -1,0 +1,17 @@
+export const MATCH_OPENING_LINES = [
+  [],
+  ["e2e4", "e7e5"],
+  ["e2e4", "c7c5"],
+  ["e2e4", "e7e6"],
+  ["e2e4", "c7c6"],
+  ["d2d4", "d7d5"],
+  ["d2d4", "g8f6", "c2c4", "e7e6"],
+  ["d2d4", "g8f6", "c2c4", "g7g6"],
+  ["c2c4", "e7e5"],
+  ["g1f3", "d7d5"],
+  ["e2e4", "d7d5", "e4d5", "d8d5"],
+  ["d2d4", "f7f5"],
+  ["e2e4", "g8f6"],
+  ["c2c4", "g8f6", "b1c3", "e7e5"],
+  ["g2g3", "d7d5", "f1g2"],
+] as const;

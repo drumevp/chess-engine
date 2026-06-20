@@ -4,3 +4,8 @@ export type GameState = (typeof GAME_STATE)[keyof typeof GAME_STATE];
 
 export type GameEndReason =
   (typeof GAME_END_REASON)[keyof typeof GAME_END_REASON];
+
+export type DetermineGameStateRValue = {
+  gameState: GameState;
+  gameEndReason: GameEndReason | null;
+};

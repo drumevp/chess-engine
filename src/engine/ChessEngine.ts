@@ -14,6 +14,15 @@ import { ColorType } from "./types/color";
 import { SimpleMove } from "./types/move";
 import internalToUci from "./notation/uci/internalToUci";
 import uciToInternal from "./notation/uci/uciToInternal";
+import {
+  decrementRepetition,
+  incrementRepetition,
+} from "./helpers/zobristHashRepetition";
+import findBestMove from "./position/moves/findBestMove/findBestMove";
+import type {
+  FindBestMoveOptions,
+  FindBestMoveResult,
+} from "./types/findBestMove";
 
 class ChessEngine {
   private position: Position;
@@ -49,11 +58,7 @@ class ChessEngine {
 
   public makeMove(move: SimpleMove): void {
     const legalMoves = this.generateLegalMoves();
-    const appliedMove = makeMoveWrapper(
-      this.position,
-      legalMoves,
-      move,
-    );
+    const appliedMove = makeMoveWrapper(this.position, legalMoves, move);
 
     // History update
     this.history.push({ move: appliedMove.move, undo: appliedMove.undo });
@@ -63,9 +68,7 @@ class ChessEngine {
     this.analyzePositionCache = null;
 
     // Update position repetition counts
-    const currentHashCount =
-      this.repetitionCounts.get(this.position.zobristHash) ?? 0;
-    this.repetitionCounts.set(this.position.zobristHash, currentHashCount + 1);
+    incrementRepetition(this.repetitionCounts, this.position.zobristHash);
   }
 
   public makeUciMove(uciMove: string): void {
@@ -82,14 +85,7 @@ class ChessEngine {
     }
 
     // Undo repetition counts
-    const hashToRemove = this.position.zobristHash;
-    const previousHashCount = this.repetitionCounts.get(hashToRemove) ?? 0;
-
-    if (previousHashCount <= 1) {
-      this.repetitionCounts.delete(hashToRemove);
-    } else {
-      this.repetitionCounts.set(hashToRemove, previousHashCount - 1);
-    }
+    decrementRepetition(this.repetitionCounts, this.position.zobristHash);
 
     undoMove(this.position, historyEntry.move, historyEntry.undo);
 
@@ -100,6 +96,12 @@ class ChessEngine {
 
   public perft(depth: number): number {
     return perft(this.position, depth);
+  }
+
+  public findBestMove(
+    options: FindBestMoveOptions = {},
+  ): Promise<FindBestMoveResult> {
+    return findBestMove(this.position, this.repetitionCounts, options);
   }
 
   public loadFen(fen: string): void {
@@ -119,6 +121,10 @@ class ChessEngine {
 
   public exportFen(): string {
     return generateFenFromPosition(this.position);
+  }
+
+  public getRepetitionCounts(): Map<bigint, number> {
+    return new Map(this.repetitionCounts);
   }
 
   public analyzePosition(): AnalyzePosition {

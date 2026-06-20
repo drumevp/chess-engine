@@ -1,0 +1,29 @@
+import {
+  NNUE_ARCHITECTURE_NAME,
+  NNUE_FC_0_ACTIVATION_INPUTS,
+  NNUE_FC_0_OUTPUTS,
+  NNUE_FC_0_OUTPUTS_WITH_BUCKET,
+  NNUE_FC_1_OUTPUTS,
+  NNUE_FEATURE_VECTOR_DIMENSIONS,
+  NNUE_FULL_THREATS_FEATURE_DIMENSIONS,
+  NNUE_HALF_KA_FEATURE_DIMENSIONS,
+  NNUE_LAYER_STACKS,
+  NNUE_PSQ_BUCKETS,
+  NNUE_TRANSFORMED_FEATURE_DIMENSIONS,
+} from "../constants/nnue";
+import type { NnueArchitecture } from "../types/nnue";
+
+export const NNUE_ARCHITECTURE: NnueArchitecture = {
+  halfKaFeatureDimensions: NNUE_HALF_KA_FEATURE_DIMENSIONS,
+  fullThreatsFeatureDimensions: NNUE_FULL_THREATS_FEATURE_DIMENSIONS,
+  transformedFeatureDimensions: NNUE_TRANSFORMED_FEATURE_DIMENSIONS,
+  featureVectorDimensions: NNUE_FEATURE_VECTOR_DIMENSIONS,
+  fc0Outputs: NNUE_FC_0_OUTPUTS,
+  fc0OutputsWithBucket: NNUE_FC_0_OUTPUTS_WITH_BUCKET,
+  fc0ActivationInputs: NNUE_FC_0_ACTIVATION_INPUTS,
+  fc1Outputs: NNUE_FC_1_OUTPUTS,
+  psqBuckets: NNUE_PSQ_BUCKETS,
+  layerStacks: NNUE_LAYER_STACKS,
+};
+
+export const getNnueArchitectureName = (): string => NNUE_ARCHITECTURE_NAME;

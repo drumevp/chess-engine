@@ -1,0 +1,3 @@
+export const DEFAULT_LAZY_SMP_WORKER_COUNT = 2;
+export const MAX_LAZY_SMP_WORKER_COUNT = 32;
+export const DEFAULT_LAZY_SMP_DEPTH_STAGGER = 1;

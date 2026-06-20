@@ -10,7 +10,16 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+build/
 *.local
+
+# Local engine builds and NNUE generated artifacts
+engines/stockfish
+models/nnue/checkpoints
+models/nnue/training
+models/nnue/runs
+lichess_data/
+reports/engine/
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +31,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+build/
