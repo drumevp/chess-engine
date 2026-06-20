@@ -3,10 +3,10 @@ import { dirname, resolve } from "node:path";
 import ChessEngine from "../../src/engine/ChessEngine";
 import generateLegalMoves from "../../src/engine/movegen/generateLegalMoves";
 import generateFenToPosition from "../../src/engine/fen/fenToPosition/generateFenToPosition";
+import packedMoveToUci from "../../src/engine/notation/uci/packedMoveToUci";
 import { createSeededRandom, getRandomInt } from "../../src/search/nnue/random";
+import { UciClient, type UciScore } from "../../src/uci/UciClient";
 import { getArg, getNumberArg } from "./args";
-import { encodedMoveToUci } from "./searchMoves";
-import { UciEngine, type UciScore } from "./uciEngine";
 
 const MATE_SCORE_CP = 30_000;
 
@@ -33,7 +33,9 @@ const createRandomFen = (
       break;
     }
 
-    engine.makeUciMove(encodedMoveToUci(moves[getRandomInt(random, 0, moves.length - 1)]));
+    engine.makeUciMove(
+      packedMoveToUci(moves[getRandomInt(random, 0, moves.length - 1)]),
+    );
   }
 
   return engine.exportFen();
@@ -49,7 +51,7 @@ const seed = getNumberArg("--seed", 0x51a7e);
 const outputPath = resolve(
   getArg("--output", `models/nnue/training/positions-${Date.now()}.jsonl`),
 );
-const stockfish = new UciEngine(stockfishPath);
+const stockfish = new UciClient(stockfishPath);
 const random = createSeededRandom(seed);
 
 await mkdir(dirname(outputPath), { recursive: true });

@@ -3,10 +3,10 @@ import { dirname, resolve } from "node:path";
 import ChessEngine from "../../src/engine/ChessEngine";
 import { COLOR } from "../../src/engine/constants/color";
 import { createNnueEvaluator } from "../../src/search/nnue/inference";
+import { UciClient } from "../../src/uci/UciClient";
+import { chooseSearchMove } from "../engine/searchMoves";
 import { getArg } from "./args";
 import { loadNnueModel } from "./modelFiles";
-import { chooseSearchMove } from "./searchMoves";
-import { UciEngine } from "./uciEngine";
 
 const getGameResult = (engine: ChessEngine): string => {
   if (engine.isCheckmate()) {
@@ -37,7 +37,7 @@ const evaluator =
   evaluatorName === "nnue"
     ? createNnueEvaluator(await loadNnueModel(modelPath))
     : undefined;
-const stockfish = new UciEngine(stockfishPath);
+const stockfish = new UciClient(stockfishPath);
 
 await mkdir(dirname(outputPath), { recursive: true });
 await stockfish.initialize();

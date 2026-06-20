@@ -21,7 +21,10 @@ const DEFAULT_NNUE_CHECKPOINT_RELATIVE_PATH =
   "models/nnue/defaultCheckpoint/model.dce-nnue";
 
 const getDefaultNnueCheckpointCandidatePaths = (): string[] => {
-  const currentDirectory = dirname(fileURLToPath(import.meta.url));
+  const currentDirectory =
+    typeof import.meta.url === "string"
+      ? dirname(fileURLToPath(import.meta.url))
+      : __dirname;
 
   return [
     resolve(currentDirectory, "../../../", DEFAULT_NNUE_CHECKPOINT_RELATIVE_PATH),
@@ -42,3 +45,8 @@ export const createDefaultNnueModel = () => {
 
   return createSeededRandomDefaultNnueModel();
 };
+
+export const loadNnueModelFromPath = (modelPath?: string) =>
+  modelPath === undefined
+    ? createDefaultNnueModel()
+    : deserializeNnueModel(readFileSync(modelPath));

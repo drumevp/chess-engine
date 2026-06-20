@@ -27,6 +27,10 @@ import {
 } from "./transpositionTable/transpositionTable";
 import type { TranspositionTable } from "./types/transpositionTable";
 
+export type SearchIterationCallback = (
+  result: IterativeDeepeningSearchResult,
+) => void;
+
 const iterativeDeepeningSearch = (
   position: Position,
   repetitionCounts: Map<bigint, number>,
@@ -35,6 +39,7 @@ const iterativeDeepeningSearch = (
   evaluator?: SearchEvaluator,
   initialPriorityMove: number | null = null,
   transpositionTable?: TranspositionTable,
+  onIteration?: SearchIterationCallback,
 ): IterativeDeepeningSearchResult => {
   const control = createSearchControl(limits, evaluator);
   let bestResult: IterativeDeepeningSearchResult = {
@@ -158,6 +163,7 @@ const iterativeDeepeningSearch = (
       elapsedTimeMs: getSearchElapsedTimeMs(control),
       stopped: false,
     };
+    onIteration?.(bestResult);
   }
 
   return {

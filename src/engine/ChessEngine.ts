@@ -18,6 +18,11 @@ import {
   decrementRepetition,
   incrementRepetition,
 } from "./helpers/zobristHashRepetition";
+import findBestMove from "./position/moves/findBestMove/findBestMove";
+import type {
+  FindBestMoveOptions,
+  FindBestMoveResult,
+} from "./types/findBestMove";
 
 class ChessEngine {
   private position: Position;
@@ -93,6 +98,12 @@ class ChessEngine {
     return perft(this.position, depth);
   }
 
+  public findBestMove(
+    options: FindBestMoveOptions = {},
+  ): Promise<FindBestMoveResult> {
+    return findBestMove(this.position, this.repetitionCounts, options);
+  }
+
   public loadFen(fen: string): void {
     this.position = generateFenToPosition(fen);
 
@@ -110,6 +121,10 @@ class ChessEngine {
 
   public exportFen(): string {
     return generateFenFromPosition(this.position);
+  }
+
+  public getRepetitionCounts(): Map<bigint, number> {
+    return new Map(this.repetitionCounts);
   }
 
   public analyzePosition(): AnalyzePosition {

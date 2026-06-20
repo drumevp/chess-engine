@@ -113,6 +113,15 @@ export const shouldStopSearch = (control: SearchControl): boolean => {
   }
 
   if (
+    control.limits.stopSignal !== undefined &&
+    Atomics.load(control.limits.stopSignal, 0) !== 0
+  ) {
+    control.stopped = true;
+
+    return true;
+  }
+
+  if (
     control.limits.maxTimeMs !== undefined &&
     Date.now() - control.startTime >= control.limits.maxTimeMs
   ) {

@@ -19,6 +19,7 @@ models/nnue/checkpoints
 models/nnue/training
 models/nnue/runs
 lichess_data/
+reports/engine/
 
 # Editor directories and files
 .vscode/*

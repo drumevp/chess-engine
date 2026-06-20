@@ -1,3 +1,5 @@
+import { resolve as resolvePath } from "node:path";
+import { pathToFileURL } from "node:url";
 import { Worker } from "node:worker_threads";
 import generateFenFromPosition from "../engine/fen/fenFromPosition/generateFenFromPosition";
 import type { Position } from "../engine/types/position";
@@ -21,13 +23,18 @@ import type {
 } from "./types/lazySmp";
 import type { SearchLimits } from "./types/search";
 
-const getLazySmpWorkerUrl = (): URL =>
-  new URL(
-    import.meta.url.endsWith(".ts")
-      ? "./lazySmpWorker.ts"
-      : "./lazySmpWorker.js",
-    import.meta.url,
-  );
+const getLazySmpWorkerUrl = (): URL => {
+  if (typeof import.meta.url === "string") {
+    return new URL(
+      import.meta.url.endsWith(".ts")
+        ? "./lazySmpWorker.ts"
+        : "./lazySmpWorker.js",
+      import.meta.url,
+    );
+  }
+
+  return pathToFileURL(resolvePath(__dirname, "lazySmpWorker.js"));
+};
 
 const runLazySmpWorker = (
   data: LazySmpWorkerData,
@@ -102,6 +109,7 @@ const lazySmpSearch = async (
           ? null
           : priorityMoves[workerId % priorityMoves.length],
       evaluatorType: options.evaluatorType ?? "simple",
+      nnueModelPath: options.nnueModelPath,
       transpositionTable: transpositionTableBuffers,
     });
   }

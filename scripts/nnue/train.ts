@@ -30,10 +30,12 @@ import type { AttackInfo } from "../../src/engine/types/attackInfo";
 import type { MoveGenerationContext, MoveList } from "../../src/engine/types/move";
 import type { Position } from "../../src/engine/types/position";
 import type { NnueModel, SearchEvaluator } from "../../src/search/types/nnue";
+import { UciClient, type UciScore } from "../../src/uci/UciClient";
+import { MATCH_OPENING_LINES } from "../engine/matchOpenings";
+import { chooseSearchMove } from "../engine/searchMoves";
 import { getArg, getNumberArg, hasArg } from "./args";
 import { createFeatureCache } from "./featureCache";
 import { createJsonlWriter } from "./jsonl";
-import { MATCH_OPENING_LINES } from "./matchOpenings";
 import {
   ensureDefaultNnueCheckpoint,
   getTimestamp,
@@ -41,7 +43,6 @@ import {
   promoteDefaultNnueCheckpoint,
   writeNnueCheckpoint,
 } from "./modelFiles";
-import { chooseSearchMove } from "./searchMoves";
 import {
   applyOutputCalibration,
   evaluateTrainableNnueRecord,
@@ -60,7 +61,6 @@ import {
   type TensorTrainingEpochSummary,
   type TensorTrainingPhase,
 } from "./tensorTraining";
-import { UciEngine, type UciScore } from "./uciEngine";
 
 type LichessPrincipalVariation = {
   cp?: number;
@@ -1218,7 +1218,7 @@ const scoreToCentipawns = (score: UciScore): number => {
 };
 
 const adjudicateFinalPosition = async (
-  stockfish: UciEngine,
+  stockfish: UciClient,
   fen: string,
   depth: number,
   thresholdCp: number,
@@ -1248,7 +1248,7 @@ const adjudicateFinalPosition = async (
 };
 
 const playMatchGame = async (
-  stockfish: UciEngine,
+  stockfish: UciClient,
   engineColor: typeof COLOR.WHITE | typeof COLOR.BLACK,
   evaluator: SearchEvaluator,
   options: {
@@ -1309,7 +1309,7 @@ const evaluateAgainstStockfish = async (
     adjudicateThresholdCp: number;
   },
 ): Promise<MatchSummary[]> => {
-  const stockfish = new UciEngine(resolve(options.stockfishPath));
+  const stockfish = new UciClient(resolve(options.stockfishPath));
   const evaluator = createNnueEvaluator(model);
   const summaries: MatchSummary[] = [];
 

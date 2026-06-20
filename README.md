@@ -1,20 +1,21 @@
-# Chess movegen ts
+# Chess Engine
 
-A bitboard legal move generator implementation in Typescript. I started this project to learn about bitboards and how to perform bitwise operations. The goal was to achieve decent performance while maintaining full legality.
+This library includes a custom 2x32bit bitboard legal move generator, search mostly based on the stockfish architecture, UCI and a custom built and trained evaluator based on the NNUE architecture.
 
-# Branches
+Currently wins 4/8 games against `https://github.com/official-stockfish/stockfish` at 2200 ELO. Both running at 500ms per move on 2 threads on my machine.
 
-- `bitboard-bigint`: This was my original implementation. Representing every bitboard as a 64bit value as a bigint. This is the cleanest implementation, but the least performant. Kiwipete depth 5 is `10.07M nps`.
-- `bitboard-32bit`: I rewrote the bigint engine to use 2x32bit values to represent the 64bit values. The calculations in javascript are much faster this way. The only downside is the codebase is larger and harder to read. Kiwipete depth 5 is `40.96M nps`.
-- `master`: This is basically just the `bitboard-32bit` branch, but a lot of the code is inlined, rather than using helper functions. This makes it very ugly to read. I go into more detail here in the Performance section below. Kiwipete depth 5 is `104.21M nps`.
+To improve the results, both the search and eval model need to be further optimized.
 
-# Usage
+# Installation
 
 I am using `node -v` = `v26.1.0`
 
+To install: `npm install @drumevp/chess-engine`
+
+# Local Usage
+
 - `npm install` for dev dependencies. This library doesn't rely on any other dependencies.
-- `npm run build`. The perft script points at the generated `dist/index.cjs` file.
-- I got the node counts and position FEN strings from `https://www.chessprogramming.org/Perft_Results`. To test depth 5 run `test-perft:deep`. For depth 4 it is `test-perft`.
+- `npm run build`
 
 # Features
 
@@ -24,8 +25,74 @@ I am using `node -v` = `v26.1.0`
 - FEN string loading and exporting.
 - Packed moves represented as a 32bit value.
 - Zobrist hashing for the position.
+- Custom trained NNUE architecture model.
+- UCI executable
+- Search for finding the best move
 
-# Performance
+```ts
+import { ChessEngine } from "@drumevp/chess-engine";
+
+const engine = new ChessEngine();
+engine.makeUciMove("e2e4");
+
+const result = await engine.findBestMove({
+  evaluator: "nnue", // or evalutaor: "simple"
+  threads: 4,
+  depth: 12,
+  moveTimeMs: 1000,
+});
+
+console.log(result.uci, result.score);
+```
+
+## UCI engine
+
+The library includes a UCI executable.
+
+```bash
+npm install @drumevp/chess-engine
+./node_modules/.bin/drumevp-chess-engine
+```
+
+```bash
+npm install --global @drumevp/chess-engine
+drumevp-chess-engine
+```
+
+```bash
+npm run build
+./dist/drumevp-chess-engine.js
+```
+
+It can also be used programatically with the `UciClient` exported by the library. This also works with any UCI compatible engine. I am using this with stockfish for elo testing.
+
+```ts
+import { fileURLToPath } from "node:url";
+import { UciClient } from "@drumevp/chess-engine";
+
+const packageEntry = import.meta.resolve("@drumevp/chess-engine");
+const enginePath = fileURLToPath(
+  new URL("./drumevp-chess-engine.js", packageEntry),
+);
+
+const engine = new UciClient(process.execPath, {
+  args: [enginePath],
+});
+
+await engine.initialize();
+await engine.setOption("Evaluator", "nnue");
+await engine.setOption("Threads", 2);
+
+const output = await this.sendAndWait("isready");
+
+engine.close();
+```
+
+# Perft Performance
+
+I got the node counts and position FEN strings from `https://www.chessprogramming.org/Perft_Results`.
+
+To test depth 5 run `test-perft:deep`. For depth 4 it is `test-perft`.
 
 Small comparison between the perft performance of my movegen vs Chess.js (popular chess library). I am running all the tests on an M1 Pro Macbook Pro. For some more context, I got about 180M nps using stockfish.js wasm (written in C++, I think forked from the official Stockfish repo) on kiwipete depth 5.
 
@@ -62,8 +129,55 @@ Format: `nodes @ time (Million nodes/sec)`
 | Pos 4    |  6 @ .03ms (0.17) |    264 @ .30ms (0.88) |   9,467 @ 8.05ms (1.18) | 422,333 @ 385.06ms (1.10) | 15,833,292 @ 14.23s (1.11) |
 | Pos 5    | 44 @ .04ms (1.14) | 1,486 @ 1.06ms (1.40) | 62,379 @ 61.71ms (1.01) |  2,103,487 @ 1.78s (1.18) |  89,941,194 @ 1.33m (1.13) |
 
+# Custom evaluator architecture and training
+
+The engine includes a custom quantized NNUE evaluator with incremental HalfKA
+accumulators and an AssemblyScript/WebAssembly SIMD inference path. The bundled
+default checkpoint was trained from the
+[Lichess computer-evaluation database](https://database.lichess.org/#evals).
+
+The current model continued from the previous default checkpoint (trained on 20mil positions) and sampled
+`100,000,000` additional positions with:
+
+```bash
+npm run nnue:train -- \
+  --backend tensor \
+  --base default \
+  --data lichess_data/lichess_db_eval.jsonl.zst \
+  --positions 100000000 \
+  --validation-positions 500000 \
+  --batch-size 1024 \
+  --sample-multiplier 2 \
+  --shuffle-buffer 500000 \
+  --psqt-epochs 0 \
+  --network-epochs 1 \
+  --feature-epochs 2 \
+  --train-reeval-positions 250000 \
+  --games-per-elo 64 \
+  --elos 1320,1600,2000,2200 \
+  --min-promotion-games 128 \
+  --log-every 5120000
+```
+
+For training from scratch use `--base material`.
+
+See the [NNUE architecture and training guide](./models/nnue/nnue-training.md)
+for the full architecture, dataset setup, training stages, validation,
+checkpoint promotion, FullThreat training, and all command-line options.
+
+# Branches for bitboard movegen and perft performance
+
+- `bitboard-bigint`: This was my original implementation. Representing every bitboard as a 64bit value as a bigint. This is the cleanest implementation, but the least performant. Kiwipete depth 5 is `10.07M nps`.
+- `bitboard-32bit`: I rewrote the bigint engine to use 2x32bit values to represent the 64bit values. The calculations in javascript are much faster this way. The only downside is the codebase is larger and harder to read. Kiwipete depth 5 is `40.96M nps`.
+- `master`: This is basically just the `bitboard-32bit` branch, but a lot of the code is inlined, rather than using helper functions. This makes it very ugly to read. I go into more detail here in the Performance section below. Kiwipete depth 5 is `104.21M nps`.
+
 # TODOs:
 
 1. Add incremental zobrist hashing to makeMove
-2. Add search to find bestmove
-3. Implement UCI interface
+2. Proper documentation and publish example frontend
+
+# ABOUT
+
+All the movegen branches were written by me. Basically everything under src/engine/...
+
+The search, uci and eval (nnue) implenentations were directed by me and covered mostly by Codex using 5.5 Extended Thinking.

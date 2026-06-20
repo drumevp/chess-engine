@@ -1,6 +1,6 @@
 {
   "name": "@drumevp/chess-engine",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "A TypeScript bitboard chess move generation engine",
   "license": "MIT",
   "keywords": [
@@ -18,6 +18,9 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "drumevp-chess-engine": "./dist/drumevp-chess-engine.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -32,17 +35,12 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "prebuild": "npm run nnue:wasm:build",
-    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "build": "asc --config asconfig.json --target release && tsx ./scripts/nnue/embedWasm.ts && tsup",
     "test-perft": "tsx ./scripts/perft.ts --max-depth 4",
     "test-perft:deep": "tsx ./scripts/perft.ts --max-depth 5",
     "export-precalculated-data": "tsx ./scripts/precalculateAttackTables.ts",
     "nnue:train": "tsx ./scripts/nnue/train.ts",
-    "nnue:elo": "tsx ./scripts/nnue/estimateNnueElo.ts",
-    "nnue:verify-tensor": "tsx ./scripts/nnue/verifyTensorTraining.ts",
-    "nnue:verify-accumulator": "tsx ./scripts/nnue/verifyAccumulator.ts",
-    "nnue:benchmark": "tsx ./scripts/nnue/benchmarkInference.ts",
-    "nnue:wasm:build": "asc --config asconfig.json --target release && tsx ./scripts/nnue/embedWasm.ts",
+    "engine:elo": "tsx ./scripts/engine/estimateElo.ts",
     "pack:dry": "npm pack --dry-run"
   },
   "devDependencies": {
