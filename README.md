@@ -12,10 +12,13 @@ I am using `node -v` = `v26.1.0`
 
 To install: `npm install @drumevp/chess-engine`
 
+This will automatically download the lastest evaluator nnue model weights file.
+
 # Local Usage
 
 - `npm install` for dev dependencies. This library doesn't rely on any other dependencies.
 - `npm run build`
+- To pull the evaluator (nnue) model, either use `git-lfs pull` or download it from Releases. It sits under `/models/defaultCheckpoint/`
 
 # Features
 
@@ -164,6 +167,25 @@ For training from scratch use `--base material`.
 See the [NNUE architecture and training guide](./models/nnue/nnue-training.md)
 for the full architecture, dataset setup, training stages, validation,
 checkpoint promotion, FullThreat training, and all command-line options.
+
+# Elo testing
+
+If you're running the `engine:elo` command to test how the search + evaluator perform, you need stockfish installed locally.
+You can run `npx tsx scripts/nnue/prepareStockfish.ts` to clone and install stockfish or install it yourself under `/engines/stockfish`.
+
+Then an example command for elo testing is:
+
+```bash
+npm run engine:elo -- \
+  --evaluator nnue \
+  --games 8 \
+  --opponent-elo 2000 \
+  --our-threads 2 \
+  --enemy-threads 2 \
+  --our-movetime 50 \
+  --enemy-movetime 50
+  --our-depth 20
+```
 
 # Branches for bitboard movegen and perft performance
 

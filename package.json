@@ -31,7 +31,7 @@
   "files": [
     "dist",
     "models/nnue/README.md",
-    "models/nnue/defaultCheckpoint"
+    "scripts/downloadModel.mjs"
   ],
   "sideEffects": false,
   "scripts": {
@@ -41,7 +41,8 @@
     "export-precalculated-data": "tsx ./scripts/precalculateAttackTables.ts",
     "nnue:train": "tsx ./scripts/nnue/train.ts",
     "engine:elo": "tsx ./scripts/engine/estimateElo.ts",
-    "pack:dry": "npm pack --dry-run"
+    "pack:dry": "npm pack --dry-run",
+    "postinstall": "node scripts/downloadModel.mjs"
   },
   "devDependencies": {
     "@tensorflow/tfjs-node": "^4.22.0",
