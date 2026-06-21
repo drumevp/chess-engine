@@ -34,7 +34,7 @@ export default defineConfig([
     target: "es2022",
     platform: "browser",
     dts: true,
-    splitting: true,
+    splitting: false,
     clean: false,
     esbuildOptions(options) {
       options.define = {
