@@ -12,7 +12,7 @@ I am using `node -v` = `v26.1.0`
 
 To install: `npm install @drumevp/chess-engine`
 
-This will automatically download the lastest evaluator nnue model weights file.
+This will automatically download the lastest evaluator nnue model weights file (110MB).
 
 # Local Usage
 
