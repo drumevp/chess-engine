@@ -2,9 +2,9 @@
 
 This library includes a custom 2x32bit bitboard legal move generator, search mostly based on the stockfish architecture, UCI and a custom built and trained evaluator based on the NNUE architecture.
 
-Currently wins 4/8 games against `https://github.com/official-stockfish/stockfish` at 2200 ELO. Both running at 500ms per move on 2 threads on my machine.
+I have estimated the elo to be around 2000 when using the NNUE evaluator.
 
-To improve the results, both the search and eval model need to be further optimized.
+A caveat: The search algorithm performs about 4x slower in the browser and doesn't support using threads > 1, unlike nodejs. This will of course have an effect on playing strength.
 
 # Installation
 
@@ -35,6 +35,10 @@ This will automatically download the lastest evaluator nnue model weights file.
 ```ts
 import { ChessEngine } from "@drumevp/chess-engine";
 
+// If using in browser pass isBrowser option to the ChessEngine.
+// Otherwise the code will load random weights instead of the trained model
+
+// const engine = new ChessEngine({ isBrowser: true });
 const engine = new ChessEngine();
 engine.makeUciMove("e2e4");
 
