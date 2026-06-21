@@ -9,6 +9,7 @@ export type FindBestMoveOptions = {
   threads?: number;
   evaluator?: ChessEngineEvaluator;
   nnueModelPath?: string;
+  nnueModelUrl?: string;
 };
 
 export type FindBestMoveResult = {

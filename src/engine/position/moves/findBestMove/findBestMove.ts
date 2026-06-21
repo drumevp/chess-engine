@@ -7,7 +7,6 @@ import type {
   FindBestMoveResult,
 } from "../../../types/findBestMove";
 import iterativeDeepeningSearch from "../../../../search/iterativeDeepeningSearch";
-import lazySmpSearch from "../../../../search/lazySmpSearch";
 import { createNnueEvaluator } from "../../../../search/nnue/inference";
 import getCachedNnueModel from "./nnueModelCache";
 import normalizeFindBestMoveOptions from "./normalizeFindBestMoveOptions";
@@ -27,30 +26,39 @@ const findBestMove = async (
   repetitionCounts: Map<bigint, number>,
   options: FindBestMoveOptions = {},
 ): Promise<FindBestMoveResult> => {
-  const normalizedOptions = normalizeFindBestMoveOptions(options);
-  const { depth, moveTimeMs, nodes, threads, evaluator, nnueModelPath } =
+  const normalizedOptions = await normalizeFindBestMoveOptions(options);
+  const { depth, moveTimeMs, nodes, threads, evaluator, nnueModelPath, nnueModelUrl } =
     normalizedOptions;
   const limits = {
     maxTimeMs: moveTimeMs,
     maxNodes: nodes,
   };
-  const result =
-    threads === 1
-      ? iterativeDeepeningSearch(
-          position,
-          repetitionCounts,
-          depth,
-          limits,
-          evaluator === "nnue"
-            ? createNnueEvaluator(getCachedNnueModel(nnueModelPath))
-            : undefined,
-        )
-      : await lazySmpSearch(position, repetitionCounts, depth, limits, {
-          workerCount: threads,
-          depthStagger: 0,
-          evaluatorType: evaluator === "nnue" ? "defaultNnue" : "simple",
-          nnueModelPath,
-        });
+
+  let result: { bestMove: number | null; score: number; pv: number[]; depth: number; nodes: number; elapsedTimeMs: number; stopped: boolean };
+
+  if (threads === 1) {
+    result = iterativeDeepeningSearch(
+      position,
+      repetitionCounts,
+      depth,
+      limits,
+      evaluator === "nnue"
+        ? createNnueEvaluator(await getCachedNnueModel(nnueModelPath, nnueModelUrl))
+        : undefined,
+    );
+  } else {
+    if (typeof __BROWSER__ !== "undefined" && __BROWSER__) {
+      throw new Error("Multi-threaded search requires Node.js");
+    }
+    const { default: lazySmpSearch } = await import("../../../../search/lazySmpSearch");
+    result = await lazySmpSearch(position, repetitionCounts, depth, limits, {
+      workerCount: threads,
+      depthStagger: 0,
+      evaluatorType: evaluator === "nnue" ? "defaultNnue" : "simple",
+      nnueModelPath,
+    });
+  }
+
   let move = result.bestMove;
 
   if (move === null) {

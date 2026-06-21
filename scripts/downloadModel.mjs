@@ -47,13 +47,13 @@ const downloadFile = (url, dest) =>
         downloaded += chunk.length;
         const pct = total ? Math.round((downloaded / total) * 100) : 0;
         if (pct - lastLog >= 5) {
-          process.stdout.write(`\rDownloading model... ${pct}%`);
+          process.stderr.write(`\rDownloading model... ${pct}%`);
           lastLog = pct;
         }
       });
       response.pipe(file);
       file.on("finish", () => {
-        process.stdout.write(`\rDownloading model... 100%\n`);
+        process.stderr.write(`\rDownloading model... 100%\n`);
         file.close();
         resolvePromise();
       });
@@ -66,7 +66,7 @@ const downloadFile = (url, dest) =>
 const main = async () => {
   const dir = dirname(MODEL_PATH);
   if (existsSync(MODEL_PATH) && !isLfsPointer(MODEL_PATH)) {
-    console.log(`Model already exists at ${MODEL_RELATIVE_PATH}`);
+    console.error(`Model already exists at ${MODEL_RELATIVE_PATH}`);
     return;
   }
 
@@ -74,10 +74,10 @@ const main = async () => {
     await unlink(MODEL_PATH);
   }
 
-  console.log(`Downloading NNUE model from ${MODEL_URL}`);
+  console.error(`Downloading NNUE model from ${MODEL_URL}`);
   await mkdir(dir, { recursive: true });
   await downloadFile(MODEL_URL, MODEL_PATH);
-  console.log(`Model saved to ${MODEL_RELATIVE_PATH}`);
+  console.error(`Model saved to ${MODEL_RELATIVE_PATH}`);
 };
 
 main().catch((err) => {

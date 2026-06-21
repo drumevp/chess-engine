@@ -1,19 +1,37 @@
-import { loadNnueModelFromPath } from "../../../../search/nnue/defaultModel";
+import { createDefaultNnueModel, loadNnueModelFromPath, setDefaultNnueModelBuffer } from "../../../../search/nnue/defaultModel";
 import type { NnueModel } from "../../../../search/types/nnue";
 
-let cachedModel: { key: string; model: NnueModel } | null = null;
+type CachedModel = { key: string; model: NnueModel };
 
-const getCachedNnueModel = (modelPath?: string): NnueModel => {
-  const key = modelPath ?? "default";
+let cachedModel: Promise<CachedModel> | null = null;
 
-  if (cachedModel?.key !== key) {
-    cachedModel = {
-      key,
-      model: loadNnueModelFromPath(modelPath),
-    };
+const getCachedNnueModel = async (
+  modelPath?: string,
+  modelUrl?: string,
+): Promise<NnueModel> => {
+  const key = modelUrl ?? (modelPath ?? "default");
+
+  if (cachedModel !== null) {
+    const current = await cachedModel;
+    if (current.key === key) {
+      return current.model;
+    }
   }
 
-  return cachedModel.model;
+  const loadPromise = (async (): Promise<CachedModel> => {
+    if (modelUrl) {
+      const response = await fetch(modelUrl);
+      const buffer = new Uint8Array(await response.arrayBuffer());
+      setDefaultNnueModelBuffer(buffer);
+      return { key, model: await createDefaultNnueModel() };
+    }
+
+    return { key, model: await loadNnueModelFromPath(modelPath) };
+  })();
+
+  cachedModel = loadPromise;
+  const result = await loadPromise;
+  return result.model;
 };
 
 export default getCachedNnueModel;

@@ -1,4 +1,3 @@
-import { resolve } from "node:path";
 import {
   DEFAULT_FIND_BEST_MOVE_DEPTH,
   DEFAULT_FIND_BEST_MOVE_EVALUATOR,
@@ -18,6 +17,7 @@ export type NormalizedFindBestMoveOptions = {
   threads: number;
   evaluator: ChessEngineEvaluator;
   nnueModelPath?: string;
+  nnueModelUrl?: string;
 };
 
 const getPositiveIntegerOption = (
@@ -54,9 +54,21 @@ const getPositiveOption = (
   return value;
 };
 
-const normalizeFindBestMoveOptions = (
+const normalizeNnueModelPath = async (path?: string): Promise<string | undefined> => {
+  if (path === undefined) return undefined;
+  if (typeof process !== "undefined" && process.versions?.node) {
+    try {
+      const { resolve } = await import("node:path");
+      return resolve(path);
+    } catch {
+    }
+  }
+  return path;
+};
+
+const normalizeFindBestMoveOptions = async (
   options: FindBestMoveOptions,
-): NormalizedFindBestMoveOptions => {
+): Promise<NormalizedFindBestMoveOptions> => {
   const evaluator =
     options.evaluator ?? DEFAULT_FIND_BEST_MOVE_EVALUATOR;
 
@@ -83,10 +95,8 @@ const normalizeFindBestMoveOptions = (
       MAX_LAZY_SMP_WORKER_COUNT,
     ),
     evaluator,
-    nnueModelPath:
-      options.nnueModelPath === undefined
-        ? undefined
-        : resolve(options.nnueModelPath),
+    nnueModelPath: await normalizeNnueModelPath(options.nnueModelPath),
+    nnueModelUrl: options.nnueModelUrl,
   };
 };
 

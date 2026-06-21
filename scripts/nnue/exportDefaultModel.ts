@@ -1,5 +1,6 @@
 import { createDefaultNnueModel } from "../../src/search/nnue/defaultModel";
 import { writeNnueCheckpoint } from "./modelFiles";
 
-const outputPath = await writeNnueCheckpoint(createDefaultNnueModel());
+const model = await createDefaultNnueModel();
+const outputPath = await writeNnueCheckpoint(model);
 console.log(`Wrote ${outputPath}`);

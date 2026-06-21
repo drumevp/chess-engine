@@ -1,8 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { NNUE_DEFAULT_RANDOM_SEED } from "../constants/nnue";
-import type { NnueModelMetadata } from "../types/nnue";
+import type { NnueModel, NnueModelMetadata } from "../types/nnue";
 import { getNnueArchitectureName } from "./architecture";
 import { createRandomNnueModel } from "./model";
 import { deserializeNnueModel } from "./serialization";
@@ -17,36 +14,67 @@ export const DEFAULT_NNUE_MODEL_METADATA: NnueModelMetadata = {
   trainingPositions: 0,
 };
 
-const DEFAULT_NNUE_CHECKPOINT_RELATIVE_PATH =
-  "models/nnue/defaultCheckpoint/model.dce-nnue";
+let cachedModelBuffer: Uint8Array | null = null;
 
-const getDefaultNnueCheckpointCandidatePaths = (): string[] => {
-  const currentDirectory =
-    typeof import.meta.url === "string"
-      ? dirname(fileURLToPath(import.meta.url))
-      : __dirname;
-
-  return [
-    resolve(currentDirectory, "../../../", DEFAULT_NNUE_CHECKPOINT_RELATIVE_PATH),
-    resolve(currentDirectory, "../", DEFAULT_NNUE_CHECKPOINT_RELATIVE_PATH),
-    resolve(process.cwd(), DEFAULT_NNUE_CHECKPOINT_RELATIVE_PATH),
-  ];
+export const setDefaultNnueModelBuffer = (buffer: Uint8Array | null) => {
+  cachedModelBuffer = buffer;
 };
+
+export const getDefaultNnueModelBuffer = () => cachedModelBuffer;
 
 export const createSeededRandomDefaultNnueModel = () =>
   createRandomNnueModel(DEFAULT_NNUE_MODEL_METADATA, NNUE_DEFAULT_RANDOM_SEED);
 
-export const createDefaultNnueModel = () => {
-  for (const checkpointPath of getDefaultNnueCheckpointCandidatePaths()) {
-    if (existsSync(checkpointPath)) {
-      return deserializeNnueModel(readFileSync(checkpointPath));
+const tryLoadFromFs = async (): Promise<NnueModel | null> => {
+  if (typeof process !== "undefined" && process.versions?.node) {
+    try {
+      const { existsSync, readFileSync } = await import("node:fs");
+      const { dirname, resolve } = await import("node:path");
+      const { fileURLToPath } = await import("node:url");
+
+      const DEFAULT_NNUE_CHECKPOINT_RELATIVE_PATH =
+        "models/nnue/defaultCheckpoint/model.dce-nnue";
+
+      const candidatePaths = (): string[] => {
+        const currentDirectory =
+          typeof import.meta.url === "string"
+            ? dirname(fileURLToPath(import.meta.url))
+            : __dirname;
+
+        return [
+          resolve(currentDirectory, "../../../", DEFAULT_NNUE_CHECKPOINT_RELATIVE_PATH),
+          resolve(currentDirectory, "../", DEFAULT_NNUE_CHECKPOINT_RELATIVE_PATH),
+          resolve(process.cwd(), DEFAULT_NNUE_CHECKPOINT_RELATIVE_PATH),
+        ];
+      };
+
+      for (const checkpointPath of candidatePaths()) {
+        if (existsSync(checkpointPath)) {
+          return deserializeNnueModel(readFileSync(checkpointPath));
+        }
+      }
+    } catch {
     }
   }
+  return null;
+};
+
+export const createDefaultNnueModel = async (): Promise<NnueModel> => {
+  if (cachedModelBuffer) {
+    return deserializeNnueModel(cachedModelBuffer);
+  }
+
+  const fsModel = await tryLoadFromFs();
+  if (fsModel) return fsModel;
 
   return createSeededRandomDefaultNnueModel();
 };
 
-export const loadNnueModelFromPath = (modelPath?: string) =>
+export const loadNnueModelFromPath = async (modelPath?: string): Promise<NnueModel> =>
   modelPath === undefined
     ? createDefaultNnueModel()
-    : deserializeNnueModel(readFileSync(modelPath));
+    : deserializeNnueModel(new Uint8Array(
+        typeof process !== "undefined" && process.versions?.node
+          ? (await import("node:fs")).readFileSync(modelPath)
+          : (await (await fetch(modelPath)).arrayBuffer()),
+      ));

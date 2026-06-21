@@ -23,6 +23,7 @@ import type {
   FindBestMoveOptions,
   FindBestMoveResult,
 } from "./types/findBestMove";
+import type { ChessEngineOptions } from "./types/chessEngine";
 
 class ChessEngine {
   private position: Position;
@@ -33,14 +34,24 @@ class ChessEngine {
   private legalMovesCache: Uint32Array | null;
   private analyzePositionCache: AnalyzePosition | null;
 
-  constructor(fen?: string) {
-    this.position = fen ? generateFenToPosition(fen) : createInitialPosition();
-    this.history = [];
+  private options: ChessEngineOptions;
 
+  constructor(fenOrOptions?: string | ChessEngineOptions, options?: ChessEngineOptions) {
+    if (typeof fenOrOptions === "string") {
+      this.position = generateFenToPosition(fenOrOptions);
+      this.options = options ?? {};
+    } else if (fenOrOptions && "isBrowser" in fenOrOptions) {
+      this.position = createInitialPosition();
+      this.options = fenOrOptions;
+    } else {
+      this.position = createInitialPosition();
+      this.options = {};
+    }
+
+    this.history = [];
     this.repetitionCounts = new Map();
     // Set the count for the current position hash to 1
     this.repetitionCounts.set(this.position.zobristHash, 1);
-
     // Caches
     this.legalMovesCache = null;
     this.analyzePositionCache = null;
@@ -101,7 +112,12 @@ class ChessEngine {
   public findBestMove(
     options: FindBestMoveOptions = {},
   ): Promise<FindBestMoveResult> {
-    return findBestMove(this.position, this.repetitionCounts, options);
+    const merged: FindBestMoveOptions = {
+      ...options,
+      threads: this.options.isBrowser ? 1 : (options.threads ?? 1),
+      nnueModelUrl: options.nnueModelUrl ?? this.options.nnueModelUrl ?? (this.options.isBrowser ? "./model.dce-nnue" : undefined),
+    };
+    return findBestMove(this.position, this.repetitionCounts, merged);
   }
 
   public loadFen(fen: string): void {

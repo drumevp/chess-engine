@@ -241,7 +241,7 @@ const verifyLayerStacks = (
   }
 };
 
-const model = createDefaultNnueModel();
+const model = await createDefaultNnueModel();
 const evaluator = createNnueEvaluator(model, { backend: "wasm" });
 
 for (const testCase of NAMED_CASES) {

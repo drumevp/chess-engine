@@ -29,7 +29,7 @@ const postMessage = (message: UciSearchWorkerMessage): void => {
   port.postMessage(message);
 };
 
-const getEvaluator = (request: UciSearchRequest): SearchEvaluator | undefined => {
+const getEvaluator = async (request: UciSearchRequest): Promise<SearchEvaluator | undefined> => {
   if (request.evaluator === "simple") {
     return undefined;
   }
@@ -45,7 +45,7 @@ const getEvaluator = (request: UciSearchRequest): SearchEvaluator | undefined =>
 
   cachedEvaluatorPath = evaluatorPath;
   cachedNnueEvaluator = createNnueEvaluator(
-    loadNnueModelFromPath(request.nnueModelPath),
+    await loadNnueModelFromPath(request.nnueModelPath),
   );
 
   return cachedNnueEvaluator;
@@ -66,6 +66,7 @@ const runSearch = async (request: UciSearchRequest): Promise<void> => {
     const repetitionCounts = deserializeRepetitionCounts(
       request.repetitionCounts,
     );
+    const evaluator = await getEvaluator(request);
     const result =
       request.threads <= 1
         ? iterativeDeepeningSearch(
@@ -73,7 +74,7 @@ const runSearch = async (request: UciSearchRequest): Promise<void> => {
             repetitionCounts,
             request.maxDepth,
             request.limits,
-            getEvaluator(request),
+            evaluator,
             null,
             getTranspositionTable(request.transpositionTableSize),
             (iteration) => {
