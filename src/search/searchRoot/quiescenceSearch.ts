@@ -13,12 +13,23 @@ import {
 import generateAttackInfo from "../../engine/movegen/attackInfo/main";
 import generateLegalMovesFromContext from "../../engine/movegen/generateLegalMovesFromContext";
 import getMoveGenerationContext from "../../engine/movegen/getMoveGenerationContext";
+import { MOVE_FLAG } from "../../engine/constants/move";
+import { PAWN_INDEX } from "../../engine/constants/piece";
 import determineGameState, {
   determineDrawGameState,
 } from "../../engine/position/analyzePosition/determineGameState";
 import { makeMoveWithUndo } from "../../engine/position/moves/makeMove/makeMove";
+import {
+  moveDecodeCapturedPiece,
+  moveDecodeFlag,
+} from "../../engine/position/moves/packedMove";
 import undoMove from "../../engine/position/moves/undoMove/undoMove";
 import { Position } from "../../engine/types/position";
+import {
+  CHECKMATE_SCORE,
+  getPieceValue,
+} from "../constants/eval";
+import { QUIESCENCE_DELTA_MARGIN } from "../constants/search";
 import {
   evaluatePosition,
   popEvaluatorMove,
@@ -34,7 +45,7 @@ import {
   getMateDistancePrunedBeta,
   isMateDistancePruned,
 } from "../helpers/mateDistancePruning";
-import { orderMoves } from "../helpers/moveOrdering";
+import { orderMoves, selectNextMove } from "../helpers/moveOrdering";
 import {
   getTerminalScore,
   shouldStopSearch,
@@ -101,9 +112,10 @@ const quiescenceSearch = (
   }
 
   let bestScore = -Infinity;
+  let standPat = -Infinity;
 
   if (!isCheck) {
-    const standPat = getCorrectedStaticEval(
+    standPat = getCorrectedStaticEval(
       position,
       correctionHistory,
       evaluatePosition(control.evaluator, position),
@@ -137,11 +149,13 @@ const quiescenceSearch = (
     }
   }
 
+  const moveOrderingScratch = scratch.moveOrderingScratches[ply];
+
   orderMoves(
     position,
     moveList,
     movesCount,
-    scratch.moveOrderingScratches[ply],
+    moveOrderingScratch,
     null,
     null,
     null,
@@ -150,10 +164,57 @@ const quiescenceSearch = (
   );
 
   for (let i = 0; i < movesCount; i++) {
+    selectNextMove(moveList, movesCount, moveOrderingScratch, i);
     const move = moveList.moves[i];
     const undo = scratch.undoStack[ply];
+    let moveWasMade = false;
 
-    makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
+    if (!isCheck && ply + 1 < scratch.moveLists.length) {
+      const moveFlag = moveDecodeFlag(move);
+      const isPromotion =
+        moveFlag === MOVE_FLAG.PROMOTION ||
+        moveFlag === MOVE_FLAG.PROMOTION_CAPTURE;
+      const capturedPiece =
+        moveFlag === MOVE_FLAG.EN_PASSANT
+          ? PAWN_INDEX
+          : moveDecodeCapturedPiece(move);
+      const isDeltaPruningCandidate =
+        !isPromotion &&
+        Number.isFinite(alpha) &&
+        Math.abs(alpha) < CHECKMATE_SCORE - 1_000 &&
+        standPat +
+          getPieceValue(capturedPiece) +
+          QUIESCENCE_DELTA_MARGIN <=
+          alpha;
+
+      if (isDeltaPruningCandidate) {
+        makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
+        moveWasMade = true;
+
+        const childMoveList = scratch.moveLists[ply + 1];
+        const childCtx = getMoveGenerationContext(
+          position,
+          childMoveList,
+          scratch.contexts[ply + 1],
+        );
+        const givesCheck =
+          generateAttackInfo(childCtx, scratch.attackInfos[ply + 1])
+            .checkCount > 0;
+
+        if (!givesCheck) {
+          undoMove(position, move, undo);
+
+          control.qDeltaPrunes++;
+
+          continue;
+        }
+      }
+    }
+
+    if (!moveWasMade) {
+      makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
+    }
+    control.nodes++;
     pushEvaluatorMove(control.evaluator, position, move, undo);
     incrementRepetition(repetitionCounts, position.zobristHash);
     const childHash = position.zobristHash;

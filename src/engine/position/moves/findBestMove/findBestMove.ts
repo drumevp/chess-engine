@@ -34,7 +34,7 @@ const findBestMove = async (
     maxNodes: nodes,
   };
 
-  let result: { bestMove: number | null; score: number; pv: number[]; depth: number; selDepth: number; nodes: number; qNodes: number; hashfull: number; elapsedTimeMs: number; stopped: boolean };
+  let result: { bestMove: number | null; score: number; pv: number[]; depth: number; selDepth: number; nodes: number; qNodes: number; qDeltaPrunes: number; betaCutoffs: number; firstMoveBetaCutoffs: number; betaCutoffMoveIndexSum: number; nullMoveCutoffs: number; reverseFutilityPrunes: number; probCutCutoffs: number; singularExtensions: number; hashfull: number; elapsedTimeMs: number; stopped: boolean };
 
   if (threads === 1) {
     result = iterativeDeepeningSearch(
@@ -97,6 +97,14 @@ const findBestMove = async (
     selDepth: result.selDepth,
     nodes: result.nodes,
     qNodes: result.qNodes,
+    qDeltaPrunes: result.qDeltaPrunes,
+    betaCutoffs: result.betaCutoffs,
+    firstMoveBetaCutoffs: result.firstMoveBetaCutoffs,
+    betaCutoffMoveIndexSum: result.betaCutoffMoveIndexSum,
+    nullMoveCutoffs: result.nullMoveCutoffs,
+    reverseFutilityPrunes: result.reverseFutilityPrunes,
+    probCutCutoffs: result.probCutCutoffs,
+    singularExtensions: result.singularExtensions,
     hashfull: result.hashfull,
     elapsedTimeMs: result.elapsedTimeMs,
     stopped: result.stopped,

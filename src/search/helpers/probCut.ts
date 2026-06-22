@@ -16,11 +16,9 @@ import {
   PROB_CUT_REDUCTION,
   PROB_CUT_SEE_THRESHOLD,
 } from "../constants/probCut";
-import {
-  popEvaluatorMove,
-  pushEvaluatorMove,
-} from "../eval/evaluator";
+import { popEvaluatorMove, pushEvaluatorMove } from "../eval/evaluator";
 import quiescenceSearch from "../searchRoot/quiescenceSearch";
+import { selectNextMove } from "./moveOrdering";
 import type { CaptureHistory } from "../types/captureHistory";
 import type { CorrectionHistory } from "../types/correctionHistory";
 import type { HistoryHeuristic } from "../types/historyHeuristic";
@@ -65,8 +63,7 @@ export const canUseProbCut = (
   return Math.abs(beta) < CHECKMATE_SCORE - PROB_CUT_MATE_SCORE_BUFFER;
 };
 
-export const getProbCutBeta = (beta: number): number =>
-  beta + PROB_CUT_MARGIN;
+export const getProbCutBeta = (beta: number): number => beta + PROB_CUT_MARGIN;
 
 export const getProbCutSearchDepth = (depth: number): number =>
   Math.max(0, depth - PROB_CUT_REDUCTION - 1);
@@ -90,6 +87,7 @@ export const tryProbCut = (
   const moveOrderingScratch = scratch.moveOrderingScratches[ply];
 
   for (let i = 0; i < movesCount; i++) {
+    selectNextMove(moveList, movesCount, moveOrderingScratch, i);
     const move = moveList.moves[i];
 
     if (
@@ -100,6 +98,8 @@ export const tryProbCut = (
     }
 
     const undo = scratch.undoStack[ply];
+
+    control.nodes++;
 
     makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
     pushEvaluatorMove(control.evaluator, position, move, undo);

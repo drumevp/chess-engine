@@ -6,7 +6,9 @@ export type TranspositionTableBound =
 export type TranspositionTable = {
   size: number;
   keyMask: bigint;
+  generation: number;
   occupied: Uint8Array;
+  generations: Uint8Array;
   keys: BigUint64Array;
   depths: Int16Array;
   scores: Int32Array;
@@ -25,6 +27,7 @@ export type TranspositionTableEntry = {
 export type SharedTranspositionTableBuffers = {
   size: number;
   occupied: SharedArrayBuffer;
+  generations: SharedArrayBuffer;
   keys: SharedArrayBuffer;
   depths: SharedArrayBuffer;
   scores: SharedArrayBuffer;

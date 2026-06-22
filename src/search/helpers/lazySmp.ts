@@ -9,7 +9,11 @@ import {
   DEFAULT_LAZY_SMP_WORKER_COUNT,
   MAX_LAZY_SMP_WORKER_COUNT,
 } from "../constants/lazySmp";
-import { createMoveOrderingScratch, orderMoves } from "./moveOrdering";
+import {
+  createMoveOrderingScratch,
+  orderMoves,
+  selectNextMove,
+} from "./moveOrdering";
 import type {
   LazySmpSearchOptions,
   LazySmpWorkerSearchResult,
@@ -84,12 +88,14 @@ export const getLazySmpPriorityMoves = (
     return [];
   }
 
-  orderMoves(position, moveList, movesCount, createMoveOrderingScratch());
+  const moveOrderingScratch = createMoveOrderingScratch();
+  orderMoves(position, moveList, movesCount, moveOrderingScratch);
 
   const priorityMoveCount = Math.min(workerCount, movesCount);
   const priorityMoves = new Array<number>(priorityMoveCount);
 
   for (let i = 0; i < priorityMoveCount; i++) {
+    selectNextMove(moveList, movesCount, moveOrderingScratch, i);
     priorityMoves[i] = moveList.moves[i];
   }
 

@@ -23,6 +23,14 @@ export type FindBestMoveResult = {
   selDepth: number;
   nodes: number;
   qNodes: number;
+  qDeltaPrunes: number;
+  betaCutoffs: number;
+  firstMoveBetaCutoffs: number;
+  betaCutoffMoveIndexSum: number;
+  nullMoveCutoffs: number;
+  reverseFutilityPrunes: number;
+  probCutCutoffs: number;
+  singularExtensions: number;
   hashfull: number;
   elapsedTimeMs: number;
   stopped: boolean;

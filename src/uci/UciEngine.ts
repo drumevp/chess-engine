@@ -35,11 +35,7 @@ type ActiveSearch = {
   lastInfoNodes: number;
 };
 
-const clampInteger = (
-  value: number,
-  min: number,
-  max: number,
-): number => {
+const clampInteger = (value: number, min: number, max: number): number => {
   if (!Number.isFinite(value)) {
     return min;
   }
@@ -58,9 +54,7 @@ const getUciSearchWorkerUrl = (): URL =>
 const hashMegabytesToTableSize = (hashMb: number): number => {
   const targetEntries = Math.max(
     1,
-    Math.floor(
-      (hashMb * 1024 * 1024) / TRANSPOSITION_TABLE_BYTES_PER_ENTRY,
-    ),
+    Math.floor((hashMb * 1024 * 1024) / TRANSPOSITION_TABLE_BYTES_PER_ENTRY),
   );
 
   return 2 ** Math.floor(Math.log2(targetEntries));
@@ -192,8 +186,7 @@ export class UciEngine {
       (token) => token.toLowerCase() === "name",
     );
     const valueIndex = tokens.findIndex(
-      (token, index) =>
-        index > nameIndex && token.toLowerCase() === "value",
+      (token, index) => index > nameIndex && token.toLowerCase() === "value",
     );
 
     if (nameIndex === -1) {
@@ -206,7 +199,12 @@ export class UciEngine {
       .join(" ")
       .toLowerCase();
     const value =
-      valueIndex === -1 ? "" : tokens.slice(valueIndex + 1).join(" ").trim();
+      valueIndex === -1
+        ? ""
+        : tokens
+            .slice(valueIndex + 1)
+            .join(" ")
+            .trim();
 
     switch (name) {
       case "threads":
@@ -296,7 +294,9 @@ export class UciEngine {
       maxDepth,
       limits: {
         maxNodes:
-          maxNodes === undefined ? undefined : Math.max(1, Math.trunc(maxNodes)),
+          maxNodes === undefined
+            ? undefined
+            : Math.max(1, Math.trunc(maxNodes)),
         maxTimeMs,
         stopSignal,
       },
@@ -329,7 +329,10 @@ export class UciEngine {
     }
 
     const isWhite = this.game.turn() === COLOR.WHITE;
-    const remainingTimeMs = getCommandNumber(tokens, isWhite ? "wtime" : "btime");
+    const remainingTimeMs = getCommandNumber(
+      tokens,
+      isWhite ? "wtime" : "btime",
+    );
 
     if (remainingTimeMs === undefined) {
       return undefined;
@@ -399,9 +402,7 @@ export class UciEngine {
     activeSearch.lastInfoNodes = result.nodes;
     const timeMs = Math.max(0, Math.trunc(result.elapsedTimeMs));
     const nps =
-      timeMs === 0
-        ? result.nodes
-        : Math.trunc((result.nodes * 1_000) / timeMs);
+      timeMs === 0 ? result.nodes : Math.trunc((result.nodes * 1_000) / timeMs);
     const pv = result.pv.map(packedMoveToUci).join(" ");
     const pvSuffix = pv === "" ? "" : ` pv ${pv}`;
 
@@ -430,7 +431,7 @@ export class UciEngine {
 
     const bestMove =
       result.bestMove === null
-        ? activeSearch.lastBestMove ?? activeSearch.fallbackMove
+        ? (activeSearch.lastBestMove ?? activeSearch.fallbackMove)
         : packedMoveToUci(result.bestMove);
 
     this.activeSearch = null;

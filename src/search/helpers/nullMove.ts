@@ -1,5 +1,7 @@
-import hashPosition from "../../engine/hash/zobrist";
+import getHashableEnPassantFile from "../../engine/hash/helpers/getHashableEnPassantFile";
 import getOppositeColor from "../../engine/helpers/getOppositeColor";
+import { zobristBlackToMoveKey } from "../../engine/tables/generated/zobristBlackToMoveKey";
+import { zobristEnPassantFileKeys } from "../../engine/tables/generated/zobristEnPassantFileKeys";
 import type { Position } from "../../engine/types/position";
 import type { NullMoveUndo } from "../types/nullMove";
 
@@ -13,9 +15,16 @@ export const makeNullMove = (
   undo.previousHalfMoveClock = position.halfMoveClock;
   undo.previousZobristHash = position.zobristHash;
 
+  const previousHashableEnPassantFile = getHashableEnPassantFile(position);
+
   position.color = getOppositeColor(position.color);
   position.enPassantSquare = null;
-  position.zobristHash = hashPosition(position);
+  position.zobristHash ^= zobristBlackToMoveKey;
+
+  if (previousHashableEnPassantFile !== null) {
+    position.zobristHash ^=
+      zobristEnPassantFileKeys[previousHashableEnPassantFile];
+  }
 };
 
 export const undoNullMove = (

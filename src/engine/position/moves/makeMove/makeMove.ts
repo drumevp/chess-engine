@@ -39,7 +39,8 @@ import { Position } from "../../../types/position";
 import calculatePieceIndex from "../../../helpers/calculatePieceIndex";
 import { MOVE_FLAG } from "../../../constants/move";
 import { COLOR } from "../../../constants/color";
-import hashPosition from "../../../hash/zobrist";
+import getHashableEnPassantFile from "../../../hash/helpers/getHashableEnPassantFile";
+import updateZobristHashForMove from "../../../hash/updateZobristHashForMove";
 
 type MakeMoveOptions = {
   updateZobristHash?: boolean;
@@ -61,6 +62,11 @@ export const makeMoveWithUndo = (
   undo.previousZobristHash = position.zobristHash;
   undo.capturedPieceStateIndex = null;
   undo.capturedSquare = null;
+
+  const shouldUpdateZobristHash = options?.updateZobristHash === true;
+  const previousHashableEnPassantFile = shouldUpdateZobristHash
+    ? getHashableEnPassantFile(position)
+    : null;
 
   position.enPassantSquare = null;
 
@@ -145,8 +151,19 @@ export const makeMoveWithUndo = (
     }
   }
 
-  if (options?.updateZobristHash === true) {
-    position.zobristHash = hashPosition(position);
+  if (shouldUpdateZobristHash) {
+    position.zobristHash = updateZobristHashForMove(
+      position,
+      moveFrom,
+      moveTo,
+      moveColor,
+      movePiece,
+      moveCapturedPiece,
+      movePromotionPiece,
+      moveFlag,
+      undo.previousCastlingRights,
+      previousHashableEnPassantFile,
+    );
   }
 
   return undo;

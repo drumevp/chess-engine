@@ -10,6 +10,8 @@ import {
   TranspositionTableEntry,
 } from "../types/transpositionTable";
 
+const TRANSPOSITION_TABLE_STALE_GENERATIONS = 4;
+
 const getPowerOfTwoTableSize = (size: number): number => {
   if (!Number.isFinite(size) || size <= 1) {
     return DEFAULT_TRANSPOSITION_TABLE_SIZE;
@@ -61,7 +63,9 @@ export const createTranspositionTable = (
   return {
     size: tableSize,
     keyMask: BigInt(tableSize - 1),
+    generation: 0,
     occupied: new Uint8Array(tableSize),
+    generations: new Uint8Array(tableSize),
     keys: new BigUint64Array(tableSize),
     depths: new Int16Array(tableSize),
     scores: new Int32Array(tableSize),
@@ -79,7 +83,9 @@ export const createSharedTranspositionTable = (
   return {
     size: tableSize,
     keyMask: BigInt(tableSize - 1),
+    generation: 0,
     occupied: new Uint8Array(new SharedArrayBuffer(tableSize)),
+    generations: new Uint8Array(new SharedArrayBuffer(tableSize)),
     keys: new BigUint64Array(new SharedArrayBuffer(tableSize * 8)),
     depths: new Int16Array(new SharedArrayBuffer(tableSize * 2)),
     scores: new Int32Array(new SharedArrayBuffer(tableSize * 4)),
@@ -94,6 +100,7 @@ export const getSharedTranspositionTableBuffers = (
 ): SharedTranspositionTableBuffers => ({
   size: transpositionTable.size,
   occupied: transpositionTable.occupied.buffer as SharedArrayBuffer,
+  generations: transpositionTable.generations.buffer as SharedArrayBuffer,
   keys: transpositionTable.keys.buffer as SharedArrayBuffer,
   depths: transpositionTable.depths.buffer as SharedArrayBuffer,
   scores: transpositionTable.scores.buffer as SharedArrayBuffer,
@@ -107,7 +114,9 @@ export const createTranspositionTableFromSharedBuffers = (
 ): TranspositionTable => ({
   size: buffers.size,
   keyMask: BigInt(buffers.size - 1),
+  generation: 0,
   occupied: new Uint8Array(buffers.occupied),
+  generations: new Uint8Array(buffers.generations),
   keys: new BigUint64Array(buffers.keys),
   depths: new Int16Array(buffers.depths),
   scores: new Int32Array(buffers.scores),
@@ -116,6 +125,19 @@ export const createTranspositionTableFromSharedBuffers = (
   hasBestMove: new Uint8Array(buffers.hasBestMove),
 });
 
+export const advanceTranspositionTableGeneration = (
+  transpositionTable: TranspositionTable,
+): void => {
+  const nextGeneration = (transpositionTable.generation + 1) & 0xff;
+
+  if (nextGeneration === 0) {
+    transpositionTable.occupied.fill(0);
+    transpositionTable.generations.fill(0);
+  }
+
+  transpositionTable.generation = nextGeneration;
+};
+
 export const getTranspositionTableHashfull = (
   transpositionTable: TranspositionTable,
 ): number => {
@@ -123,7 +145,10 @@ export const getTranspositionTableHashfull = (
   let occupied = 0;
 
   for (let i = 0; i < sampleSize; i++) {
-    occupied += transpositionTable.occupied[i];
+    occupied += Number(
+      transpositionTable.occupied[i] !== 0 &&
+        transpositionTable.generations[i] === transpositionTable.generation,
+    );
   }
 
   return sampleSize === 0 ? 0 : Math.trunc((occupied * 1_000) / sampleSize);
@@ -146,6 +171,8 @@ export const probeTranspositionTable = (
   ) {
     return null;
   }
+
+  transpositionTable.generations[index] = transpositionTable.generation;
 
   const score = getProbedScore(transpositionTable.scores[index], ply);
   const bound = transpositionTable.bounds[index];
@@ -179,6 +206,8 @@ export const getTranspositionTableBestMove = (
     return null;
   }
 
+  transpositionTable.generations[index] = transpositionTable.generation;
+
   return transpositionTable.bestMoves[index];
 };
 
@@ -195,6 +224,8 @@ export const getTranspositionTableEntry = (
   ) {
     return null;
   }
+
+  transpositionTable.generations[index] = transpositionTable.generation;
 
   return {
     depth: transpositionTable.depths[index],
@@ -217,15 +248,27 @@ export const storeTranspositionTable = (
   ply: number,
 ): void => {
   const index = getTranspositionTableIndex(transpositionTable, hash);
+  const isSameKey =
+    transpositionTable.occupied[index] !== 0 &&
+    transpositionTable.keys[index] === hash;
+  const age =
+    (transpositionTable.generation - transpositionTable.generations[index]) &
+    0xff;
 
   if (
     transpositionTable.occupied[index] !== 0 &&
-    transpositionTable.depths[index] > depth
+    transpositionTable.depths[index] > depth &&
+    (isSameKey || age < TRANSPOSITION_TABLE_STALE_GENERATIONS)
   ) {
+    if (isSameKey) {
+      transpositionTable.generations[index] = transpositionTable.generation;
+    }
+
     return;
   }
 
   transpositionTable.occupied[index] = 1;
+  transpositionTable.generations[index] = transpositionTable.generation;
   transpositionTable.keys[index] = hash;
   transpositionTable.depths[index] = depth;
   transpositionTable.scores[index] = getStoredScore(score, ply);

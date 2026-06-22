@@ -41,7 +41,10 @@ import {
   getMateDistancePrunedBeta,
   isMateDistancePruned,
 } from "../helpers/mateDistancePruning";
-import { orderMoves } from "../helpers/moveOrdering";
+import {
+  orderMoves,
+  selectNextMove,
+} from "../helpers/moveOrdering";
 import quiescenceSearch from "./quiescenceSearch";
 import { SearchResult } from "../types/search";
 import { SearchControl } from "../types/search";
@@ -170,8 +173,16 @@ const searchRoot = (
   bestMove = movesCount > 0 ? moveList.moves[0] : null;
 
   for (let i = 0; i < movesCount; i++) {
+    selectNextMove(
+      moveList,
+      movesCount,
+      scratch.moveOrderingScratches[0],
+      i,
+    );
     const move = moveList.moves[i];
     const undo = scratch.undoStack[0];
+
+    control.nodes++;
 
     makeMoveWithUndo(searchPosition, move, undo, { updateZobristHash: true });
     pushEvaluatorMove(control.evaluator, searchPosition, move, undo);
@@ -179,13 +190,14 @@ const searchRoot = (
     const childHash = searchPosition.zobristHash;
 
     let score: number;
+    const childDepth = depth - 1;
 
     if (i === 0) {
       score = -failSoftAlphaBetaNegaMax(
         searchPosition,
         -beta,
         -alpha,
-        depth - 1,
+        childDepth,
         1,
         scratch,
         searchRepetitionCounts,
@@ -194,13 +206,16 @@ const searchRoot = (
         searchHistoryHeuristic,
         searchCaptureHistory,
         searchCorrectionHistory,
+        null,
+        false,
+        false,
       );
     } else {
       score = -failSoftAlphaBetaNegaMax(
         searchPosition,
         -alpha - 1,
         -alpha,
-        depth - 1,
+        childDepth,
         1,
         scratch,
         searchRepetitionCounts,
@@ -209,6 +224,9 @@ const searchRoot = (
         searchHistoryHeuristic,
         searchCaptureHistory,
         searchCorrectionHistory,
+        null,
+        false,
+        true,
       );
 
       if (!control.stopped && score > alpha && score < beta) {
@@ -216,7 +234,7 @@ const searchRoot = (
           searchPosition,
           -beta,
           -alpha,
-          depth - 1,
+          childDepth,
           1,
           scratch,
           searchRepetitionCounts,
@@ -225,6 +243,9 @@ const searchRoot = (
           searchHistoryHeuristic,
           searchCaptureHistory,
           searchCorrectionHistory,
+          null,
+          false,
+          false,
         );
       }
     }
@@ -249,6 +270,7 @@ const searchRoot = (
     if (score > alpha) {
       alpha = score;
       updatePrincipalVariation(scratch, 0, move);
+
     }
 
     if (score >= beta) {

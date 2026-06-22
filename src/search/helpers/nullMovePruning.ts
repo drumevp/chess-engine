@@ -31,11 +31,13 @@ export const canUseNullMovePruning = (
   position: Position,
   depth: number,
   beta: number,
+  cutNode: boolean,
   isCheck: boolean,
   isPreviousMoveNull: boolean,
   staticEval: number,
 ): boolean => {
   if (
+    !cutNode ||
     isCheck ||
     isPreviousMoveNull ||
     depth < NULL_MOVE_PRUNING_MIN_DEPTH ||

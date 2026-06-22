@@ -13,10 +13,14 @@ import {
 import generateAttackInfo from "../../engine/movegen/attackInfo/main";
 import generateLegalMovesFromContext from "../../engine/movegen/generateLegalMovesFromContext";
 import getMoveGenerationContext from "../../engine/movegen/getMoveGenerationContext";
-import determineGameState from "../../engine/position/analyzePosition/determineGameState";
+import {
+  determineDrawGameState,
+  determineNoLegalMovesGameState,
+} from "../../engine/position/analyzePosition/determineGameState";
 import { makeMoveWithUndo } from "../../engine/position/moves/makeMove/makeMove";
 import undoMove from "../../engine/position/moves/undoMove/undoMove";
 import { Position } from "../../engine/types/position";
+import { CHECKMATE_SCORE } from "../constants/eval";
 import { TRANSPOSITION_TABLE_BOUND } from "../constants/transpositionTable";
 import {
   evaluatePosition,
@@ -34,7 +38,10 @@ import {
   updatePrincipalVariation,
 } from "../helpers/principalVariation";
 import { recordHistoryHeuristic } from "../helpers/historyHeuristic";
-import { isKillerMove, recordKillerMove } from "../helpers/killerMoves";
+import {
+  isKillerMove,
+  recordKillerMove,
+} from "../helpers/killerMoves";
 import {
   canUseLateMoveReduction,
   getLateMoveReduction,
@@ -49,7 +56,10 @@ import {
   canUseNullMovePruning,
   getNullMoveReduction,
 } from "../helpers/nullMovePruning";
-import { orderMoves } from "../helpers/moveOrdering";
+import {
+  orderMoves,
+  selectNextMove,
+} from "../helpers/moveOrdering";
 import {
   canUseMoveLoopFutilityPruning,
   isMoveLoopFutilityPruned,
@@ -110,6 +120,8 @@ export const failSoftAlphaBetaNegaMax = (
   captureHistory: CaptureHistory,
   correctionHistory: CorrectionHistory,
   excludedMove: number | null = null,
+  previousMoveWasNull = false,
+  cutNode = false,
 ): number => {
   const isExcludedMoveSearch = excludedMove !== null;
 
@@ -137,25 +149,16 @@ export const failSoftAlphaBetaNegaMax = (
 
   resetPrincipalVariation(scratch, ply);
 
-  const moveList = scratch.moveLists[ply];
-  const ctx = getMoveGenerationContext(position, moveList, scratch.contexts[ply]);
-  const attackInfo = generateAttackInfo(ctx, scratch.attackInfos[ply]);
-  const movesCount = generateLegalMovesFromContext(ctx, attackInfo);
-
-  const isCheck = attackInfo.checkCount > 0;
-
-  determineGameState(
+  determineDrawGameState(
     position,
     repetitionCounts,
-    movesCount,
-    isCheck,
     scratch.gameStateScratch,
   );
 
-  const terminalScore = getTerminalScore(scratch.gameStateScratch, ply);
+  const drawScore = getTerminalScore(scratch.gameStateScratch, ply);
 
-  if (terminalScore !== null) {
-    return terminalScore;
+  if (drawScore !== null) {
+    return drawScore;
   }
 
   alpha = getMateDistancePrunedAlpha(alpha, ply);
@@ -166,6 +169,7 @@ export const failSoftAlphaBetaNegaMax = (
   }
 
   const originalAlpha = alpha;
+  const isPvNode = beta - alpha > 1;
 
   const transpositionTableEntry = isExcludedMoveSearch
     ? null
@@ -185,6 +189,11 @@ export const failSoftAlphaBetaNegaMax = (
       return transpositionTableScore;
     }
   }
+
+  const moveList = scratch.moveLists[ply];
+  const ctx = getMoveGenerationContext(position, moveList, scratch.contexts[ply]);
+  const attackInfo = generateAttackInfo(ctx, scratch.attackInfos[ply]);
+  const isCheck = attackInfo.checkCount > 0;
 
   const rawStaticEval = evaluatePosition(control.evaluator, position);
   const staticEval = getCorrectedStaticEval(
@@ -216,6 +225,7 @@ export const failSoftAlphaBetaNegaMax = (
 
   if (canUseReverseFutilityPruning(depth, beta, isCheck)) {
     if (isReverseFutilityPruned(staticEval, beta, depth)) {
+      control.reverseFutilityPrunes++;
       return staticEval;
     }
   }
@@ -225,18 +235,17 @@ export const failSoftAlphaBetaNegaMax = (
       position,
       depth,
       beta,
+      cutNode,
       isCheck,
-      control.isPreviousMoveNull,
+      previousMoveWasNull,
       staticEval,
     )
   ) {
     const nullMoveUndo = scratch.nullMoveUndoStack[ply];
     const reduction = getNullMoveReduction(depth);
     const nullMoveDepth = Math.max(0, depth - reduction - 1);
-    const wasPreviousMoveNull = control.isPreviousMoveNull;
 
     makeNullMove(position, nullMoveUndo);
-    control.isPreviousMoveNull = true;
 
     const score = -failSoftAlphaBetaNegaMax(
       position,
@@ -251,9 +260,11 @@ export const failSoftAlphaBetaNegaMax = (
       historyHeuristic,
       captureHistory,
       correctionHistory,
+      null,
+      true,
+      false,
     );
 
-    control.isPreviousMoveNull = wasPreviousMoveNull;
     undoNullMove(position, nullMoveUndo);
     resetEvaluator(control.evaluator, position);
 
@@ -262,14 +273,30 @@ export const failSoftAlphaBetaNegaMax = (
     }
 
     if (score >= beta) {
+      control.nullMoveCutoffs++;
       return score;
     }
+  }
+
+  const transpositionTableBestMove = transpositionTableEntry?.bestMove ?? null;
+
+  const movesCount = generateLegalMovesFromContext(ctx, attackInfo);
+
+  determineNoLegalMovesGameState(
+    movesCount,
+    isCheck,
+    scratch.gameStateScratch,
+  );
+
+  const terminalScore = getTerminalScore(scratch.gameStateScratch, ply);
+
+  if (terminalScore !== null) {
+    return terminalScore;
   }
 
   let bestScore = -Infinity;
   let bestMove: number | null = null;
   const moveOrderingScratch = scratch.moveOrderingScratches[ply];
-  const transpositionTableBestMove = transpositionTableEntry?.bestMove ?? null;
 
   orderMoves(
     position,
@@ -302,11 +329,13 @@ export const failSoftAlphaBetaNegaMax = (
     );
 
     if (probCutScore !== null) {
+      control.probCutCutoffs++;
       return probCutScore;
     }
   }
 
   for (let i = 0; i < movesCount; i++) {
+    selectNextMove(moveList, movesCount, moveOrderingScratch, i);
     const move = moveList.moves[i];
 
     if (isExcludedMoveSearch && move === excludedMove) {
@@ -396,6 +425,8 @@ export const failSoftAlphaBetaNegaMax = (
         captureHistory,
         correctionHistory,
         move,
+        previousMoveWasNull,
+        cutNode,
       );
 
       if (control.stopped) {
@@ -410,8 +441,20 @@ export const failSoftAlphaBetaNegaMax = (
 
       if (singularScore < singularBeta) {
         extension = getSingularExtensionAmount();
+        control.singularExtensions++;
+      } else if (
+        singularScore >= beta &&
+        Math.abs(singularScore) < CHECKMATE_SCORE - 1_000
+      ) {
+        return singularScore;
+      } else if (transpositionTableEntry.score >= beta) {
+        extension = -2;
+      } else if (cutNode) {
+        extension = -1;
       }
     }
+
+    control.nodes++;
 
     makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
     pushEvaluatorMove(control.evaluator, position, move, undo);
@@ -435,6 +478,9 @@ export const failSoftAlphaBetaNegaMax = (
         historyHeuristic,
         captureHistory,
         correctionHistory,
+        null,
+        false,
+        isPvNode ? false : !cutNode,
       );
     } else {
       if (canUseLateMoveReduction(depth, i, isCheck, move)) {
@@ -456,6 +502,9 @@ export const failSoftAlphaBetaNegaMax = (
           historyHeuristic,
           captureHistory,
           correctionHistory,
+          null,
+          false,
+          true,
         );
 
         if (!control.stopped && score > alpha) {
@@ -472,6 +521,9 @@ export const failSoftAlphaBetaNegaMax = (
             historyHeuristic,
             captureHistory,
             correctionHistory,
+            null,
+            false,
+            !cutNode,
           );
         }
       } else {
@@ -488,6 +540,9 @@ export const failSoftAlphaBetaNegaMax = (
           historyHeuristic,
           captureHistory,
           correctionHistory,
+          null,
+          false,
+          !cutNode,
         );
       }
 
@@ -505,6 +560,9 @@ export const failSoftAlphaBetaNegaMax = (
           historyHeuristic,
           captureHistory,
           correctionHistory,
+          null,
+          false,
+          false,
         );
       }
     }
@@ -531,10 +589,18 @@ export const failSoftAlphaBetaNegaMax = (
     if (score > alpha) {
       alpha = score;
       updatePrincipalVariation(scratch, ply, move);
+
     }
 
     if (score >= beta) {
       if (!isExcludedMoveSearch) {
+        control.betaCutoffs++;
+        control.betaCutoffMoveIndexSum += i;
+
+        if (i === 0) {
+          control.firstMoveBetaCutoffs++;
+        }
+
         recordCorrectionHistory(
           correctionHistory,
           position,
@@ -548,6 +614,7 @@ export const failSoftAlphaBetaNegaMax = (
         );
         recordKillerMove(scratch.killerMoves, ply, move);
         recordHistoryHeuristic(historyHeuristic, move, depth);
+
         recordCaptureHistory(captureHistory, move, depth);
 
         storeTranspositionTable(

@@ -14,7 +14,11 @@ export const canUseReverseFutilityPruning = (
   beta: number,
   isCheck: boolean,
 ): boolean => {
-  if (isCheck || depth <= 0 || depth > REVERSE_FUTILITY_PRUNING_MAX_DEPTH) {
+  if (
+    isCheck ||
+    depth <= 0 ||
+    depth > REVERSE_FUTILITY_PRUNING_MAX_DEPTH
+  ) {
     return false;
   }
 

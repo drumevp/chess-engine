@@ -40,13 +40,11 @@ export const determineDrawGameState = (
   out.gameEndReason = null;
 };
 
-const determineGameState = (
-  position: Position,
-  repetitionCounts: Map<bigint, number>,
+export const determineNoLegalMovesGameState = (
   legalMovesCount: number,
   isCheck: boolean,
   out: DetermineGameStateRValue,
-): void => {
+): boolean => {
   /**
    * Checkmate case
    */
@@ -56,7 +54,7 @@ const determineGameState = (
     out.gameState = GAME_STATE.CHECKMATE;
     out.gameEndReason = GAME_END_REASON.CHECKMATE;
 
-    return;
+    return true;
   }
 
   /**
@@ -68,6 +66,20 @@ const determineGameState = (
     out.gameState = GAME_STATE.STALEMATE;
     out.gameEndReason = GAME_END_REASON.STALEMATE;
 
+    return true;
+  }
+
+  return false;
+};
+
+const determineGameState = (
+  position: Position,
+  repetitionCounts: Map<bigint, number>,
+  legalMovesCount: number,
+  isCheck: boolean,
+  out: DetermineGameStateRValue,
+): void => {
+  if (determineNoLegalMovesGameState(legalMovesCount, isCheck, out)) {
     return;
   }
 

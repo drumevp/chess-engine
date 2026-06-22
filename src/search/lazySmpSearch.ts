@@ -114,12 +114,28 @@ const lazySmpSearch = async (
     const bestIteration = selectLazySmpResult(availableResults);
     let nodes = 0;
     let qNodes = 0;
+    let qDeltaPrunes = 0;
+    let betaCutoffs = 0;
+    let firstMoveBetaCutoffs = 0;
+    let betaCutoffMoveIndexSum = 0;
+    let nullMoveCutoffs = 0;
+    let reverseFutilityPrunes = 0;
+    let probCutCutoffs = 0;
+    let singularExtensions = 0;
     let selDepth = 0;
     let hashfull = 0;
 
     for (const result of availableResults) {
       nodes += result.nodes;
       qNodes += result.qNodes;
+      qDeltaPrunes += result.qDeltaPrunes;
+      betaCutoffs += result.betaCutoffs;
+      firstMoveBetaCutoffs += result.firstMoveBetaCutoffs;
+      betaCutoffMoveIndexSum += result.betaCutoffMoveIndexSum;
+      nullMoveCutoffs += result.nullMoveCutoffs;
+      reverseFutilityPrunes += result.reverseFutilityPrunes;
+      probCutCutoffs += result.probCutCutoffs;
+      singularExtensions += result.singularExtensions;
       selDepth = Math.max(selDepth, result.selDepth);
       hashfull = Math.max(hashfull, result.hashfull);
     }
@@ -132,6 +148,14 @@ const lazySmpSearch = async (
       selDepth,
       nodes,
       qNodes,
+      qDeltaPrunes,
+      betaCutoffs,
+      firstMoveBetaCutoffs,
+      betaCutoffMoveIndexSum,
+      nullMoveCutoffs,
+      reverseFutilityPrunes,
+      probCutCutoffs,
+      singularExtensions,
       hashfull,
       elapsedTimeMs: Date.now() - startedAt,
       stopped: false,
@@ -162,12 +186,28 @@ const lazySmpSearch = async (
   const bestResult = selectLazySmpResult(workerResults);
   let nodes = 0;
   let qNodes = 0;
+  let qDeltaPrunes = 0;
+  let betaCutoffs = 0;
+  let firstMoveBetaCutoffs = 0;
+  let betaCutoffMoveIndexSum = 0;
+  let nullMoveCutoffs = 0;
+  let reverseFutilityPrunes = 0;
+  let probCutCutoffs = 0;
+  let singularExtensions = 0;
   let selDepth = 0;
   let hashfull = 0;
 
   for (let i = 0; i < workerResults.length; i++) {
     nodes += workerResults[i].nodes;
     qNodes += workerResults[i].qNodes;
+    qDeltaPrunes += workerResults[i].qDeltaPrunes;
+    betaCutoffs += workerResults[i].betaCutoffs;
+    firstMoveBetaCutoffs += workerResults[i].firstMoveBetaCutoffs;
+    betaCutoffMoveIndexSum += workerResults[i].betaCutoffMoveIndexSum;
+    nullMoveCutoffs += workerResults[i].nullMoveCutoffs;
+    reverseFutilityPrunes += workerResults[i].reverseFutilityPrunes;
+    probCutCutoffs += workerResults[i].probCutCutoffs;
+    singularExtensions += workerResults[i].singularExtensions;
     selDepth = Math.max(selDepth, workerResults[i].selDepth);
     hashfull = Math.max(hashfull, workerResults[i].hashfull);
   }
@@ -180,6 +220,14 @@ const lazySmpSearch = async (
     selDepth,
     nodes,
     qNodes,
+    qDeltaPrunes,
+    betaCutoffs,
+    firstMoveBetaCutoffs,
+    betaCutoffMoveIndexSum,
+    nullMoveCutoffs,
+    reverseFutilityPrunes,
+    probCutCutoffs,
+    singularExtensions,
     hashfull,
     elapsedTimeMs: Date.now() - startedAt,
     stopped: workerResults.some((result) => result.stopped),

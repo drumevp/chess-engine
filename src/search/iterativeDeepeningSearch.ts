@@ -23,6 +23,7 @@ import {
 } from "./types/search";
 import type { SearchEvaluator } from "./types/nnue";
 import {
+  advanceTranspositionTableGeneration,
   createTranspositionTable,
   getTranspositionTableHashfull,
 } from "./transpositionTable/transpositionTable";
@@ -51,6 +52,14 @@ const iterativeDeepeningSearch = (
     selDepth: 0,
     nodes: 0,
     qNodes: 0,
+    qDeltaPrunes: 0,
+    betaCutoffs: 0,
+    firstMoveBetaCutoffs: 0,
+    betaCutoffMoveIndexSum: 0,
+    nullMoveCutoffs: 0,
+    reverseFutilityPrunes: 0,
+    probCutCutoffs: 0,
+    singularExtensions: 0,
     hashfull: 0,
     elapsedTimeMs: 0,
     stopped: false,
@@ -72,6 +81,14 @@ const iterativeDeepeningSearch = (
       selDepth: control.selDepth,
       nodes: control.nodes,
       qNodes: control.qNodes,
+      qDeltaPrunes: control.qDeltaPrunes,
+      betaCutoffs: control.betaCutoffs,
+      firstMoveBetaCutoffs: control.firstMoveBetaCutoffs,
+      betaCutoffMoveIndexSum: control.betaCutoffMoveIndexSum,
+      nullMoveCutoffs: control.nullMoveCutoffs,
+      reverseFutilityPrunes: control.reverseFutilityPrunes,
+      probCutCutoffs: control.probCutCutoffs,
+      singularExtensions: control.singularExtensions,
       hashfull: 0,
       elapsedTimeMs: getSearchElapsedTimeMs(control),
       stopped: control.stopped,
@@ -88,6 +105,8 @@ const iterativeDeepeningSearch = (
     if (control.stopped) {
       break;
     }
+
+    advanceTranspositionTableGeneration(searchTranspositionTable);
 
     let result: SearchResult;
 
@@ -157,6 +176,14 @@ const iterativeDeepeningSearch = (
           selDepth: control.selDepth,
           nodes: control.nodes,
           qNodes: control.qNodes,
+          qDeltaPrunes: control.qDeltaPrunes,
+          betaCutoffs: control.betaCutoffs,
+          firstMoveBetaCutoffs: control.firstMoveBetaCutoffs,
+          betaCutoffMoveIndexSum: control.betaCutoffMoveIndexSum,
+          nullMoveCutoffs: control.nullMoveCutoffs,
+          reverseFutilityPrunes: control.reverseFutilityPrunes,
+          probCutCutoffs: control.probCutCutoffs,
+          singularExtensions: control.singularExtensions,
           hashfull: getTranspositionTableHashfull(searchTranspositionTable),
           elapsedTimeMs: getSearchElapsedTimeMs(control),
           stopped: true,
@@ -172,6 +199,14 @@ const iterativeDeepeningSearch = (
       selDepth: control.selDepth,
       nodes: control.nodes,
       qNodes: control.qNodes,
+      qDeltaPrunes: control.qDeltaPrunes,
+      betaCutoffs: control.betaCutoffs,
+      firstMoveBetaCutoffs: control.firstMoveBetaCutoffs,
+      betaCutoffMoveIndexSum: control.betaCutoffMoveIndexSum,
+      nullMoveCutoffs: control.nullMoveCutoffs,
+      reverseFutilityPrunes: control.reverseFutilityPrunes,
+      probCutCutoffs: control.probCutCutoffs,
+      singularExtensions: control.singularExtensions,
       hashfull: getTranspositionTableHashfull(searchTranspositionTable),
       elapsedTimeMs: getSearchElapsedTimeMs(control),
       stopped: false,
@@ -184,6 +219,14 @@ const iterativeDeepeningSearch = (
     selDepth: control.selDepth,
     nodes: control.nodes,
     qNodes: control.qNodes,
+    qDeltaPrunes: control.qDeltaPrunes,
+    betaCutoffs: control.betaCutoffs,
+    firstMoveBetaCutoffs: control.firstMoveBetaCutoffs,
+    betaCutoffMoveIndexSum: control.betaCutoffMoveIndexSum,
+    nullMoveCutoffs: control.nullMoveCutoffs,
+    reverseFutilityPrunes: control.reverseFutilityPrunes,
+    probCutCutoffs: control.probCutCutoffs,
+    singularExtensions: control.singularExtensions,
     hashfull: getTranspositionTableHashfull(searchTranspositionTable),
     elapsedTimeMs: getSearchElapsedTimeMs(control),
     stopped: control.stopped,

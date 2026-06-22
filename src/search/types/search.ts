@@ -19,6 +19,14 @@ export type IterativeDeepeningSearchResult = SearchResult & {
   selDepth: number;
   nodes: number;
   qNodes: number;
+  qDeltaPrunes: number;
+  betaCutoffs: number;
+  firstMoveBetaCutoffs: number;
+  betaCutoffMoveIndexSum: number;
+  nullMoveCutoffs: number;
+  reverseFutilityPrunes: number;
+  probCutCutoffs: number;
+  singularExtensions: number;
   hashfull: number;
   elapsedTimeMs: number;
   stopped: boolean;
@@ -38,10 +46,17 @@ export type SearchControl = {
   evaluator: SearchEvaluator;
   nodes: number;
   qNodes: number;
+  qDeltaPrunes: number;
+  betaCutoffs: number;
+  firstMoveBetaCutoffs: number;
+  betaCutoffMoveIndexSum: number;
+  nullMoveCutoffs: number;
+  reverseFutilityPrunes: number;
+  probCutCutoffs: number;
+  singularExtensions: number;
   selDepth: number;
   startTime: number;
   stopped: boolean;
-  isPreviousMoveNull: boolean;
 };
 
 export type SearchScratch = {

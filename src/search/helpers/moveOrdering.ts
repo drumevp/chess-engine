@@ -31,6 +31,8 @@ export type MoveOrderingScratch = {
   staticExchangeEvaluation: StaticExchangeEvaluationScratch;
 };
 
+const BAD_CAPTURE_SCORE = -10_000;
+
 export const createMoveOrderingScratch = (): MoveOrderingScratch => ({
   scores: new Int32Array(MAX_MOVES),
   staticExchangeScores: new Int32Array(MAX_MOVES),
@@ -77,7 +79,9 @@ const scoreMoveWithStaticExchangeEvaluation = (
 
   if (moveFlag === MOVE_FLAG.PROMOTION_CAPTURE) {
     return (
-      PROMOTION_CAPTURE_SCORE +
+      (staticExchangeEvaluationScore >= 0
+        ? PROMOTION_CAPTURE_SCORE
+        : BAD_CAPTURE_SCORE) +
       staticExchangeEvaluationScore +
       (captureHistory === null
         ? 0
@@ -87,7 +91,9 @@ const scoreMoveWithStaticExchangeEvaluation = (
 
   if (moveFlag === MOVE_FLAG.CAPTURE) {
     return (
-      CAPTURE_SCORE +
+      (staticExchangeEvaluationScore >= 0
+        ? CAPTURE_SCORE
+        : BAD_CAPTURE_SCORE) +
       staticExchangeEvaluationScore +
       (captureHistory === null
         ? 0
@@ -97,7 +103,9 @@ const scoreMoveWithStaticExchangeEvaluation = (
 
   if (moveFlag === MOVE_FLAG.EN_PASSANT) {
     return (
-      EN_PASSANT_SCORE +
+      (staticExchangeEvaluationScore >= 0
+        ? EN_PASSANT_SCORE
+        : BAD_CAPTURE_SCORE) +
       staticExchangeEvaluationScore +
       (captureHistory === null
         ? 0
@@ -175,32 +183,42 @@ export const orderMoves = (
       ply,
     );
   }
+};
 
-  for (let i = 0; i < movesCount - 1; i++) {
-    let bestIndex = i;
-    let bestScore = scores[i];
+export const selectNextMove = (
+  moveList: MoveList,
+  movesCount: number,
+  scratch: MoveOrderingScratch,
+  moveIndex: number,
+): void => {
+  const moves = moveList.moves;
+  const scores = scratch.scores;
+  const staticExchangeScores = scratch.staticExchangeScores;
+  let bestIndex = moveIndex;
+  let bestScore = scores[moveIndex];
 
-    for (let j = i + 1; j < movesCount; j++) {
-      const score = scores[j];
+  for (let i = moveIndex + 1; i < movesCount; i++) {
+    const score = scores[i];
 
-      if (score > bestScore) {
-        bestScore = score;
-        bestIndex = j;
-      }
-    }
-
-    if (bestIndex !== i) {
-      const currentMove = moves[i];
-      moves[i] = moves[bestIndex];
-      moves[bestIndex] = currentMove;
-
-      const currentScore = scores[i];
-      scores[i] = scores[bestIndex];
-      scores[bestIndex] = currentScore;
-
-      const currentStaticExchangeScore = staticExchangeScores[i];
-      staticExchangeScores[i] = staticExchangeScores[bestIndex];
-      staticExchangeScores[bestIndex] = currentStaticExchangeScore;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = i;
     }
   }
+
+  if (bestIndex === moveIndex) {
+    return;
+  }
+
+  const currentMove = moves[moveIndex];
+  moves[moveIndex] = moves[bestIndex];
+  moves[bestIndex] = currentMove;
+
+  const currentScore = scores[moveIndex];
+  scores[moveIndex] = scores[bestIndex];
+  scores[bestIndex] = currentScore;
+
+  const currentStaticExchangeScore = staticExchangeScores[moveIndex];
+  staticExchangeScores[moveIndex] = staticExchangeScores[bestIndex];
+  staticExchangeScores[bestIndex] = currentStaticExchangeScore;
 };

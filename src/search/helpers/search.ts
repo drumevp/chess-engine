@@ -103,10 +103,17 @@ export const createSearchControl = (
   evaluator,
   nodes: 0,
   qNodes: 0,
+  qDeltaPrunes: 0,
+  betaCutoffs: 0,
+  firstMoveBetaCutoffs: 0,
+  betaCutoffMoveIndexSum: 0,
+  nullMoveCutoffs: 0,
+  reverseFutilityPrunes: 0,
+  probCutCutoffs: 0,
+  singularExtensions: 0,
   selDepth: 0,
   startTime: Date.now(),
   stopped: false,
-  isPreviousMoveNull: false,
 });
 
 export const shouldStopSearch = (
@@ -145,8 +152,6 @@ export const shouldStopSearch = (
 
     return true;
   }
-
-  control.nodes++;
 
   return false;
 };
