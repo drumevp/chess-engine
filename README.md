@@ -199,8 +199,7 @@ npm run engine:elo -- \
 
 # TODOs:
 
-1. Add incremental zobrist hashing to makeMove
-2. Proper documentation and publish example frontend
+1. Proper documentation and publish example frontend
 
 # ABOUT
 
