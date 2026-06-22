@@ -102,12 +102,19 @@ export const createSearchControl = (
   limits: normalizeSearchLimits(limits),
   evaluator,
   nodes: 0,
+  qNodes: 0,
+  selDepth: 0,
   startTime: Date.now(),
   stopped: false,
   isPreviousMoveNull: false,
 });
 
-export const shouldStopSearch = (control: SearchControl): boolean => {
+export const shouldStopSearch = (
+  control: SearchControl,
+  ply = 0,
+): boolean => {
+  control.selDepth = Math.max(control.selDepth, ply);
+
   if (control.stopped) {
     return true;
   }

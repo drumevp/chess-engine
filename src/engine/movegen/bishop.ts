@@ -23,6 +23,7 @@ const NO_PIECE_ENCODED =
 const generateBishopMoves = (
   ctx: MoveGenerationContext,
   attackInfo: AttackInfo,
+  capturesAndPromotionsOnly = false,
 ): void => {
   const emptySquaresLo = ~ctx.allOccupancyLo >>> 0;
   const emptySquaresHi = ~ctx.allOccupancyHi >>> 0;
@@ -112,7 +113,9 @@ const generateBishopMoves = (
         captureTargets = (captureTargets & (captureTargets - 1)) >>> 0;
       }
 
-      let quietTargets = (targetsLo & emptySquaresLo) >>> 0;
+      let quietTargets = capturesAndPromotionsOnly
+        ? 0
+        : (targetsLo & emptySquaresLo) >>> 0;
       while (quietTargets !== 0) {
         const targetLsb = quietTargets & -quietTargets;
         const quietTargetSquare = 31 - Math.clz32(targetLsb);
@@ -121,7 +124,9 @@ const generateBishopMoves = (
         quietTargets = (quietTargets & (quietTargets - 1)) >>> 0;
       }
 
-      quietTargets = (targetsHi & emptySquaresHi) >>> 0;
+      quietTargets = capturesAndPromotionsOnly
+        ? 0
+        : (targetsHi & emptySquaresHi) >>> 0;
       while (quietTargets !== 0) {
         const targetLsb = quietTargets & -quietTargets;
         const quietTargetSquare = 63 - Math.clz32(targetLsb);

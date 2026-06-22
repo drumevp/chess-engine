@@ -11,6 +11,7 @@ export type LazySmpSearchOptions = {
   nnueModelPath?: string;
   transpositionTableSize?: number;
   useSharedTranspositionTable?: boolean;
+  onIteration?: (result: IterativeDeepeningSearchResult) => void;
 };
 
 export type SerializedRepetitionCount = readonly [hash: string, count: number];
@@ -32,6 +33,10 @@ export type LazySmpWorkerSearchResult = IterativeDeepeningSearchResult & {
   requestedDepth: number;
   priorityMove: number | null;
 };
+
+export type LazySmpWorkerMessage =
+  | { type: "iteration"; result: LazySmpWorkerSearchResult }
+  | { type: "result"; result: LazySmpWorkerSearchResult };
 
 export type LazySmpSearchResult = IterativeDeepeningSearchResult & {
   workerCount: number;

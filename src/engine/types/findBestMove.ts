@@ -20,7 +20,10 @@ export type FindBestMoveResult = {
   pv: number[];
   pvUci: string[];
   depth: number;
+  selDepth: number;
   nodes: number;
+  qNodes: number;
+  hashfull: number;
   elapsedTimeMs: number;
   stopped: boolean;
   threads: number;

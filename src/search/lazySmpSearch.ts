@@ -19,6 +19,7 @@ import type {
   LazySmpSearchOptions,
   LazySmpSearchResult,
   LazySmpWorkerData,
+  LazySmpWorkerMessage,
   LazySmpWorkerSearchResult,
 } from "./types/lazySmp";
 import type { SearchLimits } from "./types/search";
@@ -38,14 +39,20 @@ const getLazySmpWorkerUrl = (): URL => {
 
 const runLazySmpWorker = (
   data: LazySmpWorkerData,
+  onIteration?: (result: LazySmpWorkerSearchResult) => void,
 ): Promise<LazySmpWorkerSearchResult> =>
   new Promise((resolve, reject) => {
     const worker = new Worker(getLazySmpWorkerUrl(), {
       workerData: data,
     });
 
-    worker.once("message", (result: LazySmpWorkerSearchResult) => {
-      resolve(result);
+    worker.on("message", (message: LazySmpWorkerMessage) => {
+      if (message.type === "iteration") {
+        onIteration?.(message.result);
+        return;
+      }
+
+      resolve(message.result);
     });
     worker.once("error", reject);
     worker.once("exit", (code) => {
@@ -96,30 +103,73 @@ const lazySmpSearch = async (
   const workerPromises = new Array<Promise<LazySmpWorkerSearchResult>>(
     workerCount,
   );
+  const latestWorkerResults = new Array<LazySmpWorkerSearchResult | null>(
+    workerCount,
+  ).fill(null);
+  const emitIteration = (workerResult: LazySmpWorkerSearchResult): void => {
+    latestWorkerResults[workerResult.workerId] = workerResult;
+    const availableResults = latestWorkerResults.filter(
+      (result): result is LazySmpWorkerSearchResult => result !== null,
+    );
+    const bestIteration = selectLazySmpResult(availableResults);
+    let nodes = 0;
+    let qNodes = 0;
+    let selDepth = 0;
+    let hashfull = 0;
+
+    for (const result of availableResults) {
+      nodes += result.nodes;
+      qNodes += result.qNodes;
+      selDepth = Math.max(selDepth, result.selDepth);
+      hashfull = Math.max(hashfull, result.hashfull);
+    }
+
+    options.onIteration?.({
+      bestMove: bestIteration.bestMove,
+      score: bestIteration.score,
+      pv: bestIteration.pv,
+      depth: bestIteration.depth,
+      selDepth,
+      nodes,
+      qNodes,
+      hashfull,
+      elapsedTimeMs: Date.now() - startedAt,
+      stopped: false,
+    });
+  };
 
   for (let workerId = 0; workerId < workerCount; workerId++) {
-    workerPromises[workerId] = runLazySmpWorker({
-      workerId,
-      fen,
-      repetitionCounts: serializedRepetitionCounts,
-      maxDepth: getLazySmpWorkerDepth(maxDepth, workerId, depthStagger),
-      limits: workerLimits,
-      priorityMove:
-        priorityMoves.length === 0
-          ? null
-          : priorityMoves[workerId % priorityMoves.length],
-      evaluatorType: options.evaluatorType ?? "simple",
-      nnueModelPath: options.nnueModelPath,
-      transpositionTable: transpositionTableBuffers,
-    });
+    workerPromises[workerId] = runLazySmpWorker(
+      {
+        workerId,
+        fen,
+        repetitionCounts: serializedRepetitionCounts,
+        maxDepth: getLazySmpWorkerDepth(maxDepth, workerId, depthStagger),
+        limits: workerLimits,
+        priorityMove:
+          priorityMoves.length === 0
+            ? null
+            : priorityMoves[workerId % priorityMoves.length],
+        evaluatorType: options.evaluatorType ?? "defaultNnue",
+        nnueModelPath: options.nnueModelPath,
+        transpositionTable: transpositionTableBuffers,
+      },
+      emitIteration,
+    );
   }
 
   const workerResults = await Promise.all(workerPromises);
   const bestResult = selectLazySmpResult(workerResults);
   let nodes = 0;
+  let qNodes = 0;
+  let selDepth = 0;
+  let hashfull = 0;
 
   for (let i = 0; i < workerResults.length; i++) {
     nodes += workerResults[i].nodes;
+    qNodes += workerResults[i].qNodes;
+    selDepth = Math.max(selDepth, workerResults[i].selDepth);
+    hashfull = Math.max(hashfull, workerResults[i].hashfull);
   }
 
   return {
@@ -127,7 +177,10 @@ const lazySmpSearch = async (
     score: bestResult.score,
     pv: bestResult.pv,
     depth: bestResult.depth,
+    selDepth,
     nodes,
+    qNodes,
+    hashfull,
     elapsedTimeMs: Date.now() - startedAt,
     stopped: workerResults.some((result) => result.stopped),
     workerCount,

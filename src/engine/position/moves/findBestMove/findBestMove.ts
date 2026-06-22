@@ -34,7 +34,7 @@ const findBestMove = async (
     maxNodes: nodes,
   };
 
-  let result: { bestMove: number | null; score: number; pv: number[]; depth: number; nodes: number; elapsedTimeMs: number; stopped: boolean };
+  let result: { bestMove: number | null; score: number; pv: number[]; depth: number; selDepth: number; nodes: number; qNodes: number; hashfull: number; elapsedTimeMs: number; stopped: boolean };
 
   if (threads === 1) {
     result = iterativeDeepeningSearch(
@@ -94,7 +94,10 @@ const findBestMove = async (
     pv: result.pv,
     pvUci: result.pv.map(packedMoveToUci),
     depth: result.depth,
+    selDepth: result.selDepth,
     nodes: result.nodes,
+    qNodes: result.qNodes,
+    hashfull: result.hashfull,
     elapsedTimeMs: result.elapsedTimeMs,
     stopped: result.stopped,
     threads,

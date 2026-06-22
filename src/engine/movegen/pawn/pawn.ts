@@ -36,6 +36,7 @@ const PROMOTION_PIECES = [
 const generatePawnMoves = (
   ctx: MoveGenerationContext,
   attackInfo: AttackInfo,
+  capturesAndPromotionsOnly = false,
 ): void => {
   const color = ctx.color;
   const pawnsIndex = color * NUMBER_OF_PIECE_CATEGORIES + PAWN_INDEX;
@@ -119,13 +120,14 @@ const generatePawnMoves = (
               promotionMoveBits |
               (PROMOTION_PIECES[i] << 19);
           }
-        } else {
+        } else if (!capturesAndPromotionsOnly) {
           moves[moveCount++] =
             originSquare | (oneMoveForwardSquare << 6) | quietMoveBits;
         }
       }
 
       if (
+        !capturesAndPromotionsOnly &&
         currentRank === originRank &&
         oneMoveForwardSquareIsEmpty &&
         !isPinPreventingOneMoveForward

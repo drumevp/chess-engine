@@ -62,34 +62,83 @@ const getTranspositionTable = (size: number): TranspositionTable => {
 
 const runSearch = async (request: UciSearchRequest): Promise<void> => {
   try {
+    const startedAt = Date.now();
     const position = generateFenToPosition(request.fen);
     const repetitionCounts = deserializeRepetitionCounts(
       request.repetitionCounts,
     );
-    const evaluator = await getEvaluator(request);
+    const evaluatorName = request.nnueModelPath ?? "default";
+    let hasReportedNnueLoaded = request.evaluator !== "nnue";
+
+    if (request.evaluator === "nnue") {
+      postMessage({
+        type: "info",
+        searchId: request.searchId,
+        message: `loading NNUE model: ${evaluatorName}`,
+      });
+    }
+
+    const evaluator = request.threads <= 1
+      ? await getEvaluator(request)
+      : undefined;
+    const elapsedBeforeSearch = Date.now() - startedAt;
+    const limits = request.limits.maxTimeMs === undefined
+      ? request.limits
+      : {
+          ...request.limits,
+          maxTimeMs: Math.max(
+            1,
+            request.limits.maxTimeMs - elapsedBeforeSearch,
+          ),
+        };
+
+    if (request.evaluator === "nnue" && request.threads <= 1) {
+      hasReportedNnueLoaded = true;
+      postMessage({
+        type: "info",
+        searchId: request.searchId,
+        message: `loaded NNUE model: ${evaluatorName}`,
+      });
+    }
+
+    const reportIteration = (
+      iteration: import("../search/types/search").IterativeDeepeningSearchResult,
+    ): void => {
+      if (!hasReportedNnueLoaded) {
+        hasReportedNnueLoaded = true;
+        postMessage({
+          type: "info",
+          searchId: request.searchId,
+          message: `loaded NNUE model: ${evaluatorName}`,
+        });
+      }
+
+      postMessage({
+        type: "iteration",
+        searchId: request.searchId,
+        result: {
+          ...iteration,
+          elapsedTimeMs: Date.now() - startedAt,
+        },
+      });
+    };
     const result =
       request.threads <= 1
         ? iterativeDeepeningSearch(
             position,
             repetitionCounts,
             request.maxDepth,
-            request.limits,
+            limits,
             evaluator,
             null,
             getTranspositionTable(request.transpositionTableSize),
-            (iteration) => {
-              postMessage({
-                type: "iteration",
-                searchId: request.searchId,
-                result: iteration,
-              });
-            },
+            reportIteration,
           )
         : await lazySmpSearch(
             position,
             repetitionCounts,
             request.maxDepth,
-            request.limits,
+            limits,
             {
               workerCount: request.threads,
               depthStagger: 0,
@@ -97,10 +146,26 @@ const runSearch = async (request: UciSearchRequest): Promise<void> => {
                 request.evaluator === "nnue" ? "defaultNnue" : "simple",
               nnueModelPath: request.nnueModelPath,
               transpositionTableSize: request.transpositionTableSize,
+              onIteration: reportIteration,
             },
           );
 
-    postMessage({ type: "result", searchId: request.searchId, result });
+    if (!hasReportedNnueLoaded) {
+      postMessage({
+        type: "info",
+        searchId: request.searchId,
+        message: `loaded NNUE model: ${evaluatorName}`,
+      });
+    }
+
+    postMessage({
+      type: "result",
+      searchId: request.searchId,
+      result: {
+        ...result,
+        elapsedTimeMs: Date.now() - startedAt,
+      },
+    });
   } catch (error) {
     postMessage({
       type: "error",

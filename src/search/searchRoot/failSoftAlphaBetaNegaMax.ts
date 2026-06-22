@@ -113,7 +113,21 @@ export const failSoftAlphaBetaNegaMax = (
 ): number => {
   const isExcludedMoveSearch = excludedMove !== null;
 
-  if (shouldStopSearch(control)) {
+  if (depth <= 0) {
+    return quiescenceSearch(
+      position,
+      alpha,
+      beta,
+      ply,
+      scratch,
+      repetitionCounts,
+      control,
+      captureHistory,
+      correctionHistory,
+    );
+  }
+
+  if (shouldStopSearch(control, ply)) {
     return getCorrectedStaticEval(
       position,
       correctionHistory,
@@ -152,20 +166,6 @@ export const failSoftAlphaBetaNegaMax = (
   }
 
   const originalAlpha = alpha;
-
-  if (depth === 0) {
-    return quiescenceSearch(
-      position,
-      alpha,
-      beta,
-      ply,
-      scratch,
-      repetitionCounts,
-      control,
-      captureHistory,
-      correctionHistory,
-    );
-  }
 
   const transpositionTableEntry = isExcludedMoveSearch
     ? null

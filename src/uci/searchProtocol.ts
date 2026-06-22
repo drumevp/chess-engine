@@ -23,6 +23,7 @@ export type UciSearchWorkerCommand =
   | { type: "clearHash" };
 
 export type UciSearchWorkerMessage =
+  | { type: "info"; searchId: number; message: string }
   | {
       type: "iteration";
       searchId: number;

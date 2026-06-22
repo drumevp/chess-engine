@@ -24,6 +24,7 @@ import {
 import type { SearchEvaluator } from "./types/nnue";
 import {
   createTranspositionTable,
+  getTranspositionTableHashfull,
 } from "./transpositionTable/transpositionTable";
 import type { TranspositionTable } from "./types/transpositionTable";
 
@@ -47,7 +48,10 @@ const iterativeDeepeningSearch = (
     score: 0,
     pv: [],
     depth: 0,
+    selDepth: 0,
     nodes: 0,
+    qNodes: 0,
+    hashfull: 0,
     elapsedTimeMs: 0,
     stopped: false,
   };
@@ -65,7 +69,10 @@ const iterativeDeepeningSearch = (
     return {
       ...result,
       depth: 0,
+      selDepth: control.selDepth,
       nodes: control.nodes,
+      qNodes: control.qNodes,
+      hashfull: 0,
       elapsedTimeMs: getSearchElapsedTimeMs(control),
       stopped: control.stopped,
     };
@@ -147,7 +154,10 @@ const iterativeDeepeningSearch = (
         bestResult = {
           ...result,
           depth: Math.max(0, depth - 1),
+          selDepth: control.selDepth,
           nodes: control.nodes,
+          qNodes: control.qNodes,
+          hashfull: getTranspositionTableHashfull(searchTranspositionTable),
           elapsedTimeMs: getSearchElapsedTimeMs(control),
           stopped: true,
         };
@@ -159,7 +169,10 @@ const iterativeDeepeningSearch = (
     bestResult = {
       ...result,
       depth,
+      selDepth: control.selDepth,
       nodes: control.nodes,
+      qNodes: control.qNodes,
+      hashfull: getTranspositionTableHashfull(searchTranspositionTable),
       elapsedTimeMs: getSearchElapsedTimeMs(control),
       stopped: false,
     };
@@ -168,7 +181,10 @@ const iterativeDeepeningSearch = (
 
   return {
     ...bestResult,
+    selDepth: control.selDepth,
     nodes: control.nodes,
+    qNodes: control.qNodes,
+    hashfull: getTranspositionTableHashfull(searchTranspositionTable),
     elapsedTimeMs: getSearchElapsedTimeMs(control),
     stopped: control.stopped,
   };

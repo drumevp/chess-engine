@@ -31,6 +31,7 @@ const NO_PIECE_ENCODED =
 const generateKingMoves = (
   ctx: MoveGenerationContext,
   attackInfo: AttackInfo,
+  capturesAndPromotionsOnly = false,
 ): void => {
   const enemyColor = getOppositeColor(ctx.color);
   const originSquareBitboardLo = squareBitboardsLo[ctx.ownKingSquare];
@@ -131,6 +132,12 @@ const generateKingMoves = (
     }
 
     targets = (targets & (targets - 1)) >>> 0;
+  }
+
+  if (capturesAndPromotionsOnly) {
+    moveList.count = moveCount;
+
+    return;
   }
 
   targets = quietTargetsLo;

@@ -116,6 +116,19 @@ export const createTranspositionTableFromSharedBuffers = (
   hasBestMove: new Uint8Array(buffers.hasBestMove),
 });
 
+export const getTranspositionTableHashfull = (
+  transpositionTable: TranspositionTable,
+): number => {
+  const sampleSize = Math.min(1_000, transpositionTable.size);
+  let occupied = 0;
+
+  for (let i = 0; i < sampleSize; i++) {
+    occupied += transpositionTable.occupied[i];
+  }
+
+  return sampleSize === 0 ? 0 : Math.trunc((occupied * 1_000) / sampleSize);
+};
+
 export const probeTranspositionTable = (
   transpositionTable: TranspositionTable,
   hash: bigint,

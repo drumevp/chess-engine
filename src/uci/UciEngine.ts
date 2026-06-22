@@ -32,6 +32,7 @@ type ActiveSearch = {
   fallbackMove: string;
   lastBestMove: string | null;
   lastDepth: number;
+  lastInfoNodes: number;
 };
 
 const clampInteger = (
@@ -311,6 +312,7 @@ export class UciEngine {
       fallbackMove,
       lastBestMove: null,
       lastDepth: -1,
+      lastInfoNodes: -1,
     };
     this.postToSearchWorker({ type: "search", request });
   }
@@ -360,14 +362,22 @@ export class UciEngine {
       return;
     }
 
-    this.recordSearchResult(message.result);
+    if (message.type === "info") {
+      this.writeInfo(message.message);
+      return;
+    }
+
+    this.recordSearchResult(message.result, message.type === "result");
 
     if (message.type === "result") {
       this.finishSearch(message.result);
     }
   }
 
-  private recordSearchResult(result: IterativeDeepeningSearchResult): void {
+  private recordSearchResult(
+    result: IterativeDeepeningSearchResult,
+    isFinal = false,
+  ): void {
     const activeSearch = this.activeSearch;
 
     if (activeSearch === null) {
@@ -378,11 +388,15 @@ export class UciEngine {
       activeSearch.lastBestMove = packedMoveToUci(result.bestMove);
     }
 
-    if (result.depth === activeSearch.lastDepth) {
+    if (
+      result.depth === activeSearch.lastDepth &&
+      (!isFinal || result.nodes === activeSearch.lastInfoNodes)
+    ) {
       return;
     }
 
     activeSearch.lastDepth = result.depth;
+    activeSearch.lastInfoNodes = result.nodes;
     const timeMs = Math.max(0, Math.trunc(result.elapsedTimeMs));
     const nps =
       timeMs === 0
@@ -392,7 +406,7 @@ export class UciEngine {
     const pvSuffix = pv === "" ? "" : ` pv ${pv}`;
 
     this.writeLine(
-      `info depth ${result.depth} ${this.formatScore(result.score)} nodes ${result.nodes} time ${timeMs} nps ${nps}${pvSuffix}`,
+      `info depth ${result.depth} seldepth ${result.selDepth} ${this.formatScore(result.score)} nodes ${result.nodes} time ${timeMs} nps ${nps} hashfull ${result.hashfull}${pvSuffix}`,
     );
   }
 
@@ -444,13 +458,12 @@ export class UciEngine {
     }
 
     Atomics.store(activeSearch.stopSignal, 0, 1);
-    this.activeSearch = null;
 
     if (emitBestMove) {
-      this.writeLine(
-        `bestmove ${activeSearch.lastBestMove ?? activeSearch.fallbackMove}`,
-      );
+      return;
     }
+
+    this.activeSearch = null;
   }
 
   private clearHash(): void {

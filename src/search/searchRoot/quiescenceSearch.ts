@@ -13,11 +13,12 @@ import {
 import generateAttackInfo from "../../engine/movegen/attackInfo/main";
 import generateLegalMovesFromContext from "../../engine/movegen/generateLegalMovesFromContext";
 import getMoveGenerationContext from "../../engine/movegen/getMoveGenerationContext";
-import determineGameState from "../../engine/position/analyzePosition/determineGameState";
+import determineGameState, {
+  determineDrawGameState,
+} from "../../engine/position/analyzePosition/determineGameState";
 import { makeMoveWithUndo } from "../../engine/position/moves/makeMove/makeMove";
 import undoMove from "../../engine/position/moves/undoMove/undoMove";
 import { Position } from "../../engine/types/position";
-import { isQuiescenceMove } from "../constants/search";
 import {
   evaluatePosition,
   popEvaluatorMove,
@@ -53,13 +54,15 @@ const quiescenceSearch = (
   captureHistory: CaptureHistory,
   correctionHistory: CorrectionHistory,
 ): number => {
-  if (shouldStopSearch(control)) {
+  if (shouldStopSearch(control, ply)) {
     return getCorrectedStaticEval(
       position,
       correctionHistory,
       evaluatePosition(control.evaluator, position),
     );
   }
+
+  control.qNodes++;
 
   if (ply >= scratch.moveLists.length) {
     return getCorrectedStaticEval(
@@ -74,22 +77,20 @@ const quiescenceSearch = (
   const moveList = scratch.moveLists[ply];
   const ctx = getMoveGenerationContext(position, moveList, scratch.contexts[ply]);
   const attackInfo = generateAttackInfo(ctx, scratch.attackInfos[ply]);
-  const movesCount = generateLegalMovesFromContext(ctx, attackInfo);
-
   const isCheck = attackInfo.checkCount > 0;
 
-  determineGameState(
-    position,
-    repetitionCounts,
-    movesCount,
-    isCheck,
-    scratch.gameStateScratch,
-  );
+  if (!isCheck) {
+    determineDrawGameState(
+      position,
+      repetitionCounts,
+      scratch.gameStateScratch,
+    );
 
-  const terminalScore = getTerminalScore(scratch.gameStateScratch, ply);
+    const drawScore = getTerminalScore(scratch.gameStateScratch, ply);
 
-  if (terminalScore !== null) {
-    return terminalScore;
+    if (drawScore !== null) {
+      return drawScore;
+    }
   }
 
   alpha = getMateDistancePrunedAlpha(alpha, ply);
@@ -118,6 +119,24 @@ const quiescenceSearch = (
     }
   }
 
+  const movesCount = generateLegalMovesFromContext(ctx, attackInfo, !isCheck);
+
+  if (isCheck) {
+    determineGameState(
+      position,
+      repetitionCounts,
+      movesCount,
+      true,
+      scratch.gameStateScratch,
+    );
+
+    const terminalScore = getTerminalScore(scratch.gameStateScratch, ply);
+
+    if (terminalScore !== null) {
+      return terminalScore;
+    }
+  }
+
   orderMoves(
     position,
     moveList,
@@ -133,10 +152,6 @@ const quiescenceSearch = (
   for (let i = 0; i < movesCount; i++) {
     const move = moveList.moves[i];
     const undo = scratch.undoStack[ply];
-
-    if (!isCheck && !isQuiescenceMove(move)) {
-      continue;
-    }
 
     makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
     pushEvaluatorMove(control.evaluator, position, move, undo);
