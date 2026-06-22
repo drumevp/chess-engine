@@ -24,9 +24,10 @@ import { CHECKMATE_SCORE } from "../constants/eval";
 import { TRANSPOSITION_TABLE_BOUND } from "../constants/transpositionTable";
 import {
   evaluatePosition,
+  popEvaluatorNullMove,
   popEvaluatorMove,
+  pushEvaluatorNullMove,
   pushEvaluatorMove,
-  resetEvaluator,
 } from "../eval/evaluator";
 import { recordCaptureHistory } from "../helpers/captureHistory";
 import {
@@ -40,6 +41,7 @@ import {
 import { recordHistoryHeuristic } from "../helpers/historyHeuristic";
 import {
   isKillerMove,
+  isKillerMoveCandidate,
   recordKillerMove,
 } from "../helpers/killerMoves";
 import {
@@ -246,6 +248,12 @@ export const failSoftAlphaBetaNegaMax = (
     const nullMoveDepth = Math.max(0, depth - reduction - 1);
 
     makeNullMove(position, nullMoveUndo);
+    scratch.hasCurrentMove[ply] = 0;
+    pushEvaluatorNullMove(
+      control.evaluator,
+      position,
+      nullMoveUndo.previousZobristHash,
+    );
 
     const score = -failSoftAlphaBetaNegaMax(
       position,
@@ -266,7 +274,7 @@ export const failSoftAlphaBetaNegaMax = (
     );
 
     undoNullMove(position, nullMoveUndo);
-    resetEvaluator(control.evaluator, position);
+    popEvaluatorNullMove(control.evaluator);
 
     if (control.stopped) {
       return staticEval;
@@ -296,6 +304,7 @@ export const failSoftAlphaBetaNegaMax = (
 
   let bestScore = -Infinity;
   let bestMove: number | null = null;
+  let skipQuietMoves = false;
   const moveOrderingScratch = scratch.moveOrderingScratches[ply];
 
   orderMoves(
@@ -349,6 +358,35 @@ export const failSoftAlphaBetaNegaMax = (
         move === transpositionTableBestMove) ||
       isKillerMove(scratch.killerMoves, ply, move);
 
+    if (
+      !isPvNode &&
+      !isCheck &&
+      depth >= 2 &&
+      depth <= 4 &&
+      hasSearchedMove &&
+      isKillerMoveCandidate(move) &&
+      !isImportantMove &&
+      (skipQuietMoves || i + 1 >= 3 + depth * depth)
+    ) {
+      skipQuietMoves = true;
+      makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
+
+      const childMoveList = scratch.moveLists[ply + 1];
+      const childContext = getMoveGenerationContext(
+        position,
+        childMoveList,
+        scratch.contexts[ply + 1],
+      );
+      const givesCheck =
+        generateAttackInfo(childContext, scratch.attackInfos[ply + 1])
+          .checkCount > 0;
+
+      undoMove(position, move, undo);
+
+      if (!givesCheck) {
+        continue;
+      }
+    }
     if (
       canUseMoveLoopFutilityPruning(
         depth,
@@ -411,6 +449,7 @@ export const failSoftAlphaBetaNegaMax = (
         transpositionTableEntry.score,
         depth,
       );
+      scratch.hasCurrentMove[ply] = 0;
       const singularScore = failSoftAlphaBetaNegaMax(
         position,
         singularBeta - 1,
@@ -455,6 +494,8 @@ export const failSoftAlphaBetaNegaMax = (
     }
 
     control.nodes++;
+    scratch.currentMoves[ply] = move;
+    scratch.hasCurrentMove[ply] = 1;
 
     makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
     pushEvaluatorMove(control.evaluator, position, move, undo);

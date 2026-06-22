@@ -143,11 +143,43 @@ const applyFeatureDeltaForBothPerspectives = (
   );
 };
 
-const shouldRefreshAfterMove = (move: number): boolean => {
+const applyFeatureDeltaForPerspective = (
+  weights: NnueWeights,
+  stack: NnueAccumulatorStack,
+  ply: number,
+  perspective: ColorType,
+  square: number,
+  pieceColor: ColorType,
+  piece: number,
+  kingSquare: number,
+  direction: 1 | -1,
+): void => {
+  const update = direction === 1 ? addHalfKaFeature : removeHalfKaFeature;
+  const accumulator =
+    perspective === COLOR.WHITE
+      ? stack.whiteAccumulators[ply]
+      : stack.blackAccumulators[ply];
+  const psqtAccumulator =
+    perspective === COLOR.WHITE
+      ? stack.whitePsqtAccumulators[ply]
+      : stack.blackPsqtAccumulators[ply];
+
+  update(
+    weights,
+    perspective,
+    square,
+    pieceColor,
+    piece,
+    kingSquare,
+    accumulator,
+    psqtAccumulator,
+  );
+};
+
+const isCastlingMove = (move: number): boolean => {
   const moveFlag = moveDecodeFlag(move);
 
   return (
-    moveDecodePiece(move) === KING_INDEX ||
     moveFlag === MOVE_FLAG.KING_CASTLE ||
     moveFlag === MOVE_FLAG.QUEEN_CASTLE
   );
@@ -168,7 +200,7 @@ export const pushNnueAccumulatorStack = (
     throw new Error("NNUE accumulator stack capacity exceeded");
   }
 
-  if (shouldRefreshAfterMove(move)) {
+  if (isCastlingMove(move)) {
     stack.currentPly = childPly;
     refreshNnueAccumulatorStackFrame(stack, weights, position, scratch, childPly);
 
@@ -186,6 +218,71 @@ export const pushNnueAccumulatorStack = (
   const addedPiece = movePromotionPiece ?? movePiece;
   const whiteKingSquare = undo.previousWhiteKingSquare;
   const blackKingSquare = undo.previousBlackKingSquare;
+
+  if (movePiece === KING_INDEX) {
+    const opposingPerspective =
+      moveColor === COLOR.WHITE ? COLOR.BLACK : COLOR.WHITE;
+    const opposingKingSquare =
+      opposingPerspective === COLOR.WHITE
+        ? whiteKingSquare
+        : blackKingSquare;
+
+    refreshHalfKaAccumulator(
+      weights,
+      position,
+      moveColor,
+      scratch.activeFeatures,
+      moveColor === COLOR.WHITE
+        ? stack.whiteAccumulators[childPly]
+        : stack.blackAccumulators[childPly],
+      moveColor === COLOR.WHITE
+        ? stack.whitePsqtAccumulators[childPly]
+        : stack.blackPsqtAccumulators[childPly],
+    );
+
+    applyFeatureDeltaForPerspective(
+      weights,
+      stack,
+      childPly,
+      opposingPerspective,
+      moveFrom,
+      moveColor,
+      movePiece,
+      opposingKingSquare,
+      -1,
+    );
+
+    if (
+      undo.capturedSquare !== null &&
+      undo.capturedPieceStateIndex !== null
+    ) {
+      applyFeatureDeltaForPerspective(
+        weights,
+        stack,
+        childPly,
+        opposingPerspective,
+        undo.capturedSquare,
+        getPieceColorFromStateIndex(undo.capturedPieceStateIndex),
+        getPieceTypeFromStateIndex(undo.capturedPieceStateIndex),
+        opposingKingSquare,
+        -1,
+      );
+    }
+
+    applyFeatureDeltaForPerspective(
+      weights,
+      stack,
+      childPly,
+      opposingPerspective,
+      moveTo,
+      moveColor,
+      addedPiece,
+      opposingKingSquare,
+      1,
+    );
+
+    return;
+  }
 
   applyFeatureDeltaForBothPerspectives(
     weights,

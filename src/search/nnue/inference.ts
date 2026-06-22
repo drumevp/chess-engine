@@ -389,6 +389,7 @@ export const createNnueEvaluator = (
     options.backend ?? "auto",
   );
   const positionHashStack: bigint[] = [];
+  const nullMoveHashStack: bigint[] = [];
   let currentHash: bigint | null = null;
 
   const reset = (position: Position): void => {
@@ -437,6 +438,24 @@ export const createNnueEvaluator = (
     popMove: (): void => {
       popNnueAccumulatorStack(stack);
       currentHash = positionHashStack[stack.currentPly] ?? null;
+    },
+    pushNullMove: (position, previousHash): void => {
+      if (currentHash !== previousHash) {
+        reset(position);
+      }
+
+      nullMoveHashStack.push(previousHash);
+      positionHashStack[stack.currentPly] = position.zobristHash;
+      currentHash = position.zobristHash;
+    },
+    popNullMove: (): void => {
+      const previousHash = nullMoveHashStack.pop();
+
+      currentHash = previousHash ?? null;
+
+      if (previousHash !== undefined) {
+        positionHashStack[stack.currentPly] = previousHash;
+      }
     },
   };
 };

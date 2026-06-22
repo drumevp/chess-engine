@@ -100,6 +100,8 @@ export const tryProbCut = (
     const undo = scratch.undoStack[ply];
 
     control.nodes++;
+    scratch.currentMoves[ply] = move;
+    scratch.hasCurrentMove[ply] = 1;
 
     makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
     pushEvaluatorMove(control.evaluator, position, move, undo);

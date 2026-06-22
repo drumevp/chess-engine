@@ -22,6 +22,7 @@ import { makeMoveWithUndo } from "../../engine/position/moves/makeMove/makeMove"
 import {
   moveDecodeCapturedPiece,
   moveDecodeFlag,
+  moveDecodeTo,
 } from "../../engine/position/moves/packedMove";
 import undoMove from "../../engine/position/moves/undoMove/undoMove";
 import { Position } from "../../engine/types/position";
@@ -163,11 +164,18 @@ const quiescenceSearch = (
     ply,
   );
 
+  let moveCount = 0;
+  const previousTo =
+    ply > 0 && scratch.hasCurrentMove[ply - 1] !== 0
+      ? moveDecodeTo(scratch.currentMoves[ply - 1])
+      : -1;
+
   for (let i = 0; i < movesCount; i++) {
     selectNextMove(moveList, movesCount, moveOrderingScratch, i);
     const move = moveList.moves[i];
     const undo = scratch.undoStack[ply];
     let moveWasMade = false;
+    moveCount++;
 
     if (!isCheck && ply + 1 < scratch.moveLists.length) {
       const moveFlag = moveDecodeFlag(move);
@@ -186,8 +194,13 @@ const quiescenceSearch = (
           getPieceValue(capturedPiece) +
           QUIESCENCE_DELTA_MARGIN <=
           alpha;
+      const isMoveCountPruningCandidate =
+        !isPromotion &&
+        moveCount > 4 &&
+        moveDecodeTo(move) !== previousTo &&
+        bestScore > -CHECKMATE_SCORE + 1_000;
 
-      if (isDeltaPruningCandidate) {
+      if (isDeltaPruningCandidate || isMoveCountPruningCandidate) {
         makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
         moveWasMade = true;
 
@@ -215,6 +228,8 @@ const quiescenceSearch = (
       makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
     }
     control.nodes++;
+    scratch.currentMoves[ply] = move;
+    scratch.hasCurrentMove[ply] = 1;
     pushEvaluatorMove(control.evaluator, position, move, undo);
     incrementRepetition(repetitionCounts, position.zobristHash);
     const childHash = position.zobristHash;

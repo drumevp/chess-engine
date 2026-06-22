@@ -71,6 +71,8 @@ export const createSearchScratch = (depth: number): SearchScratch => {
     nullMoveUndoStack,
     pvTable,
     pvLength: new Uint16Array(searchPlyCount),
+    currentMoves: new Uint32Array(searchPlyCount),
+    hasCurrentMove: new Uint8Array(searchPlyCount),
     moveOrderingScratches,
     killerMoves: createKillerMoves(searchPlyCount),
     gameStateScratch: {

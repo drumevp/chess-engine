@@ -183,6 +183,8 @@ const searchRoot = (
     const undo = scratch.undoStack[0];
 
     control.nodes++;
+    scratch.currentMoves[0] = move;
+    scratch.hasCurrentMove[0] = 1;
 
     makeMoveWithUndo(searchPosition, move, undo, { updateZobristHash: true });
     pushEvaluatorMove(control.evaluator, searchPosition, move, undo);

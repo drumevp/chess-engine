@@ -68,6 +68,8 @@ export type SearchScratch = {
   gameStateScratch: DetermineGameStateRValue;
   pvTable: Uint32Array[];
   pvLength: Uint16Array;
+  currentMoves: Uint32Array;
+  hasCurrentMove: Uint8Array;
   moveOrderingScratches: MoveOrderingScratch[];
   killerMoves: KillerMoves;
 };

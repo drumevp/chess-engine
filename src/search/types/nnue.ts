@@ -7,6 +7,8 @@ export type SearchEvaluator = {
   reset?: (position: Position) => void;
   pushMove?: (position: Position, move: number, undo: Undo) => void;
   popMove?: () => void;
+  pushNullMove?: (position: Position, previousHash: bigint) => void;
+  popNullMove?: () => void;
 };
 
 export type NnueModelMetadata = {

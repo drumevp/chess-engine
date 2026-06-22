@@ -31,3 +31,15 @@ export const pushEvaluatorMove = (
 export const popEvaluatorMove = (evaluator: SearchEvaluator): void => {
   evaluator.popMove?.();
 };
+
+export const pushEvaluatorNullMove = (
+  evaluator: SearchEvaluator,
+  position: Position,
+  previousHash: bigint,
+): void => {
+  evaluator.pushNullMove?.(position, previousHash);
+};
+
+export const popEvaluatorNullMove = (evaluator: SearchEvaluator): void => {
+  evaluator.popNullMove?.();
+};
