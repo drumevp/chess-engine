@@ -187,7 +187,11 @@ export const failSoftAlphaBetaNegaMax = (
       ply,
     );
 
-    if (transpositionTableScore !== null) {
+    if (
+      transpositionTableScore !== null &&
+      (!isPvNode ||
+        Math.abs(transpositionTableScore) < CHECKMATE_SCORE - 1_000)
+    ) {
       return transpositionTableScore;
     }
   }
@@ -280,7 +284,10 @@ export const failSoftAlphaBetaNegaMax = (
       return staticEval;
     }
 
-    if (score >= beta) {
+    if (
+      score >= beta &&
+      Math.abs(score) < CHECKMATE_SCORE - 1_000
+    ) {
       control.nullMoveCutoffs++;
       return score;
     }
@@ -364,6 +371,8 @@ export const failSoftAlphaBetaNegaMax = (
       depth >= 2 &&
       depth <= 4 &&
       hasSearchedMove &&
+      bestScore > -CHECKMATE_SCORE + 1_000 &&
+      Math.abs(alpha) < CHECKMATE_SCORE - 1_000 &&
       isKillerMoveCandidate(move) &&
       !isImportantMove &&
       (skipQuietMoves || i + 1 >= 3 + depth * depth)
@@ -388,6 +397,7 @@ export const failSoftAlphaBetaNegaMax = (
       }
     }
     if (
+      bestScore > -CHECKMATE_SCORE + 1_000 &&
       canUseMoveLoopFutilityPruning(
         depth,
         alpha,
@@ -403,6 +413,7 @@ export const failSoftAlphaBetaNegaMax = (
     }
 
     if (
+      bestScore > -CHECKMATE_SCORE + 1_000 &&
       canUseStaticExchangeEvaluationPruning(
         depth,
         alpha,

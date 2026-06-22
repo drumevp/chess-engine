@@ -141,7 +141,14 @@ export const tryProbCut = (
     decrementRepetition(repetitionCounts, childHash);
     popEvaluatorMove(control.evaluator);
 
-    if (control.stopped || score >= probCutBeta) {
+    if (control.stopped) {
+      return score;
+    }
+
+    if (
+      score >= probCutBeta &&
+      Math.abs(score) < CHECKMATE_SCORE - PROB_CUT_MATE_SCORE_BUFFER
+    ) {
       return score;
     }
   }
