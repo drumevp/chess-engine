@@ -35,6 +35,8 @@ export type IterativeDeepeningSearchResult = SearchResult & {
 export type SearchLimits = {
   maxNodes?: number;
   maxTimeMs?: number;
+  /** Absolute wall-clock deadline shared by all workers in a search. */
+  deadlineMs?: number;
   stopSignal?: Int32Array<SharedArrayBuffer>;
   strengthElo?: number;
   minStrengthElo?: number;

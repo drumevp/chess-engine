@@ -138,8 +138,10 @@ export const shouldStopSearch = (
   }
 
   if (
-    control.limits.maxTimeMs !== undefined &&
-    Date.now() - control.startTime >= control.limits.maxTimeMs
+    (control.limits.deadlineMs !== undefined &&
+      Date.now() >= control.limits.deadlineMs) ||
+    (control.limits.maxTimeMs !== undefined &&
+      Date.now() - control.startTime >= control.limits.maxTimeMs)
   ) {
     control.stopped = true;
 

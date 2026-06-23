@@ -29,6 +29,7 @@ export type UciEngineOptions = {
 type ActiveSearch = {
   id: number;
   stopSignal: Int32Array<SharedArrayBuffer>;
+  deadlineTimer: NodeJS.Timeout | null;
   fallbackMove: string;
   lastBestMove: string | null;
   lastDepth: number;
@@ -273,6 +274,7 @@ export class UciEngine {
 
   private startSearch(tokens: readonly string[]): void {
     this.stopSearch(false);
+    const startedAt = Date.now();
     const legalMoves = this.game.generateLegalMoves();
     const fallbackMove =
       legalMoves.length === 0 ? "0000" : packedMoveToUci(legalMoves[0]);
@@ -298,6 +300,8 @@ export class UciEngine {
             ? undefined
             : Math.max(1, Math.trunc(maxNodes)),
         maxTimeMs,
+        deadlineMs:
+          maxTimeMs === undefined ? undefined : startedAt + maxTimeMs,
         stopSignal,
       },
       threads: this.threads,
@@ -309,12 +313,32 @@ export class UciEngine {
     this.activeSearch = {
       id: searchId,
       stopSignal,
+      deadlineTimer: null,
       fallbackMove,
       lastBestMove: null,
       lastDepth: -1,
       lastInfoNodes: -1,
     };
+
+    if (maxTimeMs !== undefined) {
+      const delayMs = Math.max(0, startedAt + maxTimeMs - Date.now());
+      this.activeSearch.deadlineTimer = setTimeout(() => {
+        this.handleSearchDeadline(searchId);
+      }, delayMs);
+    }
+
     this.postToSearchWorker({ type: "search", request });
+  }
+
+  private handleSearchDeadline(searchId: number): void {
+    const activeSearch = this.activeSearch;
+
+    if (activeSearch === null || activeSearch.id !== searchId) {
+      return;
+    }
+
+    Atomics.store(activeSearch.stopSignal, 0, 1);
+    this.finishSearchWithFallback();
   }
 
   private getSearchTimeMs(tokens: readonly string[]): number | undefined {
@@ -434,6 +458,7 @@ export class UciEngine {
         ? (activeSearch.lastBestMove ?? activeSearch.fallbackMove)
         : packedMoveToUci(result.bestMove);
 
+    this.clearSearchDeadline(activeSearch);
     this.activeSearch = null;
     this.writeLine(`bestmove ${bestMove}`);
   }
@@ -445,6 +470,7 @@ export class UciEngine {
       return;
     }
 
+    this.clearSearchDeadline(activeSearch);
     this.activeSearch = null;
     this.writeLine(
       `bestmove ${activeSearch.lastBestMove ?? activeSearch.fallbackMove}`,
@@ -464,7 +490,15 @@ export class UciEngine {
       return;
     }
 
+    this.clearSearchDeadline(activeSearch);
     this.activeSearch = null;
+  }
+
+  private clearSearchDeadline(activeSearch: ActiveSearch): void {
+    if (activeSearch.deadlineTimer !== null) {
+      clearTimeout(activeSearch.deadlineTimer);
+      activeSearch.deadlineTimer = null;
+    }
   }
 
   private clearHash(): void {

@@ -65,14 +65,19 @@ const runLazySmpWorker = (
 const getLazySmpWorkerLimits = (
   limits: SearchLimits,
   workerCount: number,
+  startedAt: number,
 ): SearchLimits => {
-  if (limits.maxNodes === undefined || workerCount <= 1) {
-    return limits;
-  }
-
   return {
     ...limits,
-    maxNodes: Math.max(1, Math.trunc(limits.maxNodes / workerCount)),
+    deadlineMs:
+      limits.deadlineMs ??
+      (limits.maxTimeMs === undefined
+        ? undefined
+        : startedAt + limits.maxTimeMs),
+    maxNodes:
+      limits.maxNodes === undefined || workerCount <= 1
+        ? limits.maxNodes
+        : Math.max(1, Math.trunc(limits.maxNodes / workerCount)),
   };
 };
 
@@ -88,7 +93,7 @@ const lazySmpSearch = async (
   const depthStagger = getLazySmpDepthStagger(options);
   const fen = generateFenFromPosition(position);
   const serializedRepetitionCounts = serializeRepetitionCounts(repetitionCounts);
-  const workerLimits = getLazySmpWorkerLimits(limits, workerCount);
+  const workerLimits = getLazySmpWorkerLimits(limits, workerCount, startedAt);
   const transpositionTableBuffers =
     options.useSharedTranspositionTable === false
       ? undefined
