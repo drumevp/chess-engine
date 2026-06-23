@@ -56,6 +56,57 @@ import {
   createTranspositionTable,
   getTranspositionTableBestMove,
 } from "../transpositionTable/transpositionTable";
+import clonePosition from "../../engine/helpers/clonePosition";
+import { createUndo } from "../../engine/types/history";
+
+const extendPvFromTranspositionTable = (
+  position: Position,
+  pv: number[],
+  transpositionTable: TranspositionTable,
+): number[] => {
+  if (pv.length === 0) {
+    return pv;
+  }
+
+  const extendedPv = [...pv];
+  const scratchPosition = clonePosition(position);
+  const undo = createUndo();
+  const MAX_EXTRA_PLY = 32;
+  const positionHashes: bigint[] = [scratchPosition.zobristHash];
+
+  for (const move of extendedPv) {
+    makeMoveWithUndo(scratchPosition, move, undo, {
+      updateZobristHash: true,
+    });
+    positionHashes.push(scratchPosition.zobristHash);
+  }
+
+  for (let ply = 0; ply < MAX_EXTRA_PLY; ply++) {
+    const ttBestMove = getTranspositionTableBestMove(
+      transpositionTable,
+      scratchPosition.zobristHash,
+    );
+
+    if (ttBestMove === null) {
+      break;
+    }
+
+    makeMoveWithUndo(scratchPosition, ttBestMove, undo, {
+      updateZobristHash: true,
+    });
+    const nextHash = scratchPosition.zobristHash;
+
+    if (positionHashes.includes(nextHash)) {
+      undoMove(scratchPosition, ttBestMove, undo);
+      break;
+    }
+
+    extendedPv.push(ttBestMove);
+    positionHashes.push(nextHash);
+  }
+
+  return extendedPv;
+};
 
 const searchRoot = (
   position: Position,
@@ -260,7 +311,11 @@ const searchRoot = (
       return {
         bestMove,
         score: bestScore === -Infinity ? 0 : bestScore,
-        pv: getPrincipalVariation(scratch),
+        pv: extendPvFromTranspositionTable(
+          searchPosition,
+          getPrincipalVariation(scratch),
+          searchTranspositionTable,
+        ),
       };
     }
 
@@ -282,7 +337,11 @@ const searchRoot = (
       return {
         bestMove,
         score,
-        pv: getPrincipalVariation(scratch),
+        pv: extendPvFromTranspositionTable(
+          searchPosition,
+          getPrincipalVariation(scratch),
+          searchTranspositionTable,
+        ),
       };
     }
   }
@@ -290,7 +349,11 @@ const searchRoot = (
   return {
     bestMove,
     score: bestScore,
-    pv: getPrincipalVariation(scratch),
+    pv: extendPvFromTranspositionTable(
+      searchPosition,
+      getPrincipalVariation(scratch),
+      searchTranspositionTable,
+    ),
   };
 };
 

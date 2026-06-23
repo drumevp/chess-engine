@@ -3,8 +3,8 @@
   "options": {
     "runtime": "stub",
     "enable": ["simd"],
-    "initialMemory": 8,
-    "maximumMemory": 8,
+    "initialMemory": 800,
+    "maximumMemory": 1024,
     "noAssert": true
   },
   "targets": {

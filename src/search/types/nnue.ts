@@ -66,8 +66,28 @@ export type NnueModel = {
   weights: NnueWeights;
 };
 
+export type NnueAccumulatorBackend = {
+  readonly memory: ArrayBuffer;
+  readonly accumulatorBase: number;
+  readonly accumulatorSlotByteSize: number;
+  readonly accumulatorSlotCount: number;
+  readonly activeFeaturesScratch: Int32Array;
+  readonly activeFeaturesScratchPointer: number;
+  readonly applyFeature: (
+    slot: number,
+    feature: number,
+    direction: 1 | -1,
+  ) => void;
+  readonly refreshAccumulator: (
+    slot: number,
+    activeFeaturesPointer: number,
+    featureCount: number,
+  ) => void;
+};
+
 export type NnueAccumulatorStack = {
   currentPly: number;
+  accumulatorBackend?: NnueAccumulatorBackend;
   whiteAccumulators: Int32Array[];
   blackAccumulators: Int32Array[];
   whitePsqtAccumulators: Int32Array[];

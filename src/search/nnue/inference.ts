@@ -1,6 +1,7 @@
 import { COLOR } from "../../engine/constants/color";
 import type { Position } from "../../engine/types/position";
 import {
+  NNUE_ACCUMULATOR_STACK_CAPACITY,
   NNUE_FC_0_ACTIVATION_INPUTS,
   NNUE_FC_0_OUTPUTS,
   NNUE_FC_0_OUTPUTS_WITH_BUCKET,
@@ -16,6 +17,7 @@ import {
   NNUE_WEIGHT_SCALE_BITS,
 } from "../constants/nnue";
 import type {
+  NnueAccumulatorBackend,
   NnueAccumulatorStack,
   NnueForwardTrace,
   NnueModel,
@@ -359,22 +361,32 @@ const evaluateNnueFromStack = (
   );
 };
 
-const createNetworkForward = (
+type NnueNetworkBackend = {
+  readonly networkForward?: NnueNetworkForward;
+  readonly accumulatorBackend?: NnueAccumulatorBackend;
+};
+
+const createNetworkBackend = (
   model: NnueModel,
   backend: NnueEvaluatorBackend,
-): NnueNetworkForward | undefined => {
+): NnueNetworkBackend => {
   if (backend === "typescript" || model.metadata.network === false) {
-    return undefined;
+    return {};
   }
 
   try {
-    return createWasmNnueNetworkForward(model);
+    const networkForward = createWasmNnueNetworkForward(model);
+
+    return {
+      networkForward,
+      accumulatorBackend: networkForward.accumulatorBackend,
+    };
   } catch (error) {
     if (backend === "wasm") {
       throw error;
     }
 
-    return undefined;
+    return {};
   }
 };
 
@@ -383,14 +395,18 @@ export const createNnueEvaluator = (
   options: NnueEvaluatorOptions = {},
 ): SearchEvaluator => {
   const scratch = createNnueScratch();
-  const stack = createNnueAccumulatorStack();
-  const networkForward = createNetworkForward(
+  const { networkForward, accumulatorBackend } = createNetworkBackend(
     model,
     options.backend ?? "auto",
   );
+  const stack = createNnueAccumulatorStack(
+    NNUE_ACCUMULATOR_STACK_CAPACITY,
+    accumulatorBackend,
+  );
+  // eslint-disable-next-line prefer-const
+  let currentHash: bigint | null = null;
   const positionHashStack: bigint[] = [];
   const nullMoveHashStack: bigint[] = [];
-  let currentHash: bigint | null = null;
 
   const reset = (position: Position): void => {
     resetNnueAccumulatorStack(stack, model.weights, position, scratch);

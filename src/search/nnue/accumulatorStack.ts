@@ -19,6 +19,7 @@ import {
   NNUE_TRANSFORMED_FEATURE_DIMENSIONS,
 } from "../constants/nnue";
 import type {
+  NnueAccumulatorBackend,
   NnueAccumulatorStack,
   NnueScratch,
   NnueWeights,
@@ -29,28 +30,53 @@ import {
   removeHalfKaFeature,
 } from "./accumulator";
 import { getPieceColorFromStateIndex } from "./features";
+import { createWasmAccumulatorView } from "./wasmAccumulator";
+
+const getSlot = (ply: number, perspective: ColorType): number =>
+  ply * 2 + (perspective === COLOR.WHITE ? 0 : 1);
+
+const createAccumulator = (
+  slot: number,
+  accumulatorBackend?: NnueAccumulatorBackend,
+): Int32Array =>
+  accumulatorBackend === undefined
+    ? new Int32Array(NNUE_TRANSFORMED_FEATURE_DIMENSIONS)
+    : createWasmAccumulatorView(accumulatorBackend, slot);
 
 export const createNnueAccumulatorStack = (
   capacity = NNUE_ACCUMULATOR_STACK_CAPACITY,
-): NnueAccumulatorStack => ({
-  currentPly: 0,
-  whiteAccumulators: Array.from(
-    { length: capacity },
-    () => new Int32Array(NNUE_TRANSFORMED_FEATURE_DIMENSIONS),
-  ),
-  blackAccumulators: Array.from(
-    { length: capacity },
-    () => new Int32Array(NNUE_TRANSFORMED_FEATURE_DIMENSIONS),
-  ),
-  whitePsqtAccumulators: Array.from(
-    { length: capacity },
-    () => new Int32Array(NNUE_PSQ_BUCKETS),
-  ),
-  blackPsqtAccumulators: Array.from(
-    { length: capacity },
-    () => new Int32Array(NNUE_PSQ_BUCKETS),
-  ),
-});
+  accumulatorBackend?: NnueAccumulatorBackend,
+): NnueAccumulatorStack => {
+  if (
+    accumulatorBackend !== undefined &&
+    capacity * 2 > accumulatorBackend.accumulatorSlotCount
+  ) {
+    throw new RangeError(
+      `NNUE accumulator capacity ${capacity} exceeds WASM capacity ${
+        accumulatorBackend.accumulatorSlotCount / 2
+      }`,
+    );
+  }
+
+  return {
+    currentPly: 0,
+    accumulatorBackend,
+    whiteAccumulators: Array.from({ length: capacity }, (_, i) =>
+      createAccumulator(i * 2, accumulatorBackend),
+    ),
+    blackAccumulators: Array.from({ length: capacity }, (_, i) =>
+      createAccumulator(i * 2 + 1, accumulatorBackend),
+    ),
+    whitePsqtAccumulators: Array.from(
+      { length: capacity },
+      () => new Int32Array(NNUE_PSQ_BUCKETS),
+    ),
+    blackPsqtAccumulators: Array.from(
+      { length: capacity },
+      () => new Int32Array(NNUE_PSQ_BUCKETS),
+    ),
+  };
+};
 
 export const resetNnueAccumulatorStack = (
   stack: NnueAccumulatorStack,
@@ -77,6 +103,8 @@ export const refreshNnueAccumulatorStackFrame = (
     scratch.activeFeatures,
     stack.whiteAccumulators[ply],
     stack.whitePsqtAccumulators[ply],
+    getSlot(ply, COLOR.WHITE),
+    stack.accumulatorBackend,
   );
   refreshHalfKaAccumulator(
     weights,
@@ -85,6 +113,8 @@ export const refreshNnueAccumulatorStackFrame = (
     scratch.activeFeatures,
     stack.blackAccumulators[ply],
     stack.blackPsqtAccumulators[ply],
+    getSlot(ply, COLOR.BLACK),
+    stack.accumulatorBackend,
   );
 };
 
@@ -130,6 +160,8 @@ const applyFeatureDeltaForBothPerspectives = (
     whiteKingSquare,
     whiteAccumulator,
     whitePsqtAccumulator,
+    getSlot(ply, COLOR.WHITE),
+    stack.accumulatorBackend,
   );
   blackUpdate(
     weights,
@@ -140,6 +172,8 @@ const applyFeatureDeltaForBothPerspectives = (
     blackKingSquare,
     blackAccumulator,
     blackPsqtAccumulator,
+    getSlot(ply, COLOR.BLACK),
+    stack.accumulatorBackend,
   );
 };
 
@@ -173,6 +207,8 @@ const applyFeatureDeltaForPerspective = (
     kingSquare,
     accumulator,
     psqtAccumulator,
+    getSlot(ply, perspective),
+    stack.accumulatorBackend,
   );
 };
 
@@ -238,6 +274,8 @@ export const pushNnueAccumulatorStack = (
       moveColor === COLOR.WHITE
         ? stack.whitePsqtAccumulators[childPly]
         : stack.blackPsqtAccumulators[childPly],
+      getSlot(childPly, moveColor),
+      stack.accumulatorBackend,
     );
 
     applyFeatureDeltaForPerspective(

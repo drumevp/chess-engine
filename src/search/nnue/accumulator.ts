@@ -4,9 +4,33 @@ import {
   NNUE_PSQ_BUCKETS,
   NNUE_TRANSFORMED_FEATURE_DIMENSIONS,
 } from "../constants/nnue";
-import type { NnueWeights } from "../types/nnue";
+import type {
+  NnueAccumulatorBackend,
+  NnueWeights,
+} from "../types/nnue";
 import { appendHalfKaActiveFeatures, makeHalfKaFeatureIndex } from "./features";
 import { appendFullThreatActiveFeatures } from "./fullThreats";
+
+const applyHalfKaAccumulatorFeature = (
+  weights: NnueWeights,
+  feature: number,
+  accumulator: Int32Array,
+  direction: 1 | -1,
+  slot: number,
+  accumulatorBackend?: NnueAccumulatorBackend,
+): void => {
+  if (accumulatorBackend !== undefined && slot >= 0) {
+    accumulatorBackend.applyFeature(slot, feature, direction);
+
+    return;
+  }
+
+  let weightIndex = feature * NNUE_TRANSFORMED_FEATURE_DIMENSIONS;
+
+  for (let i = 0; i < NNUE_TRANSFORMED_FEATURE_DIMENSIONS; i++) {
+    accumulator[i] += direction * weights.featureWeights[weightIndex++];
+  }
+};
 
 const applyHalfKaFeature = (
   weights: NnueWeights,
@@ -14,12 +38,17 @@ const applyHalfKaFeature = (
   accumulator: Int32Array,
   psqtAccumulator: Int32Array,
   direction: 1 | -1,
+  slot: number = -1,
+  accumulatorBackend?: NnueAccumulatorBackend,
 ): void => {
-  let weightIndex = feature * NNUE_TRANSFORMED_FEATURE_DIMENSIONS;
-
-  for (let i = 0; i < NNUE_TRANSFORMED_FEATURE_DIMENSIONS; i++) {
-    accumulator[i] += direction * weights.featureWeights[weightIndex++];
-  }
+  applyHalfKaAccumulatorFeature(
+    weights,
+    feature,
+    accumulator,
+    direction,
+    slot,
+    accumulatorBackend,
+  );
 
   let psqtWeightIndex = feature * NNUE_PSQ_BUCKETS;
 
@@ -37,6 +66,8 @@ export const addHalfKaFeature = (
   kingSquare: number,
   accumulator: Int32Array,
   psqtAccumulator: Int32Array,
+  slot: number = -1,
+  accumulatorBackend?: NnueAccumulatorBackend,
 ): void => {
   applyHalfKaFeature(
     weights,
@@ -44,6 +75,8 @@ export const addHalfKaFeature = (
     accumulator,
     psqtAccumulator,
     1,
+    slot,
+    accumulatorBackend,
   );
 };
 
@@ -56,6 +89,8 @@ export const removeHalfKaFeature = (
   kingSquare: number,
   accumulator: Int32Array,
   psqtAccumulator: Int32Array,
+  slot: number = -1,
+  accumulatorBackend?: NnueAccumulatorBackend,
 ): void => {
   applyHalfKaFeature(
     weights,
@@ -63,6 +98,8 @@ export const removeHalfKaFeature = (
     accumulator,
     psqtAccumulator,
     -1,
+    slot,
+    accumulatorBackend,
   );
 };
 
@@ -73,6 +110,8 @@ export const refreshHalfKaAccumulator = (
   activeFeatures: Uint32Array,
   accumulator: Int32Array,
   psqtAccumulator: Int32Array,
+  slot: number = -1,
+  accumulatorBackend?: NnueAccumulatorBackend,
 ): void => {
   const activeFeatureCount = appendHalfKaActiveFeatures(
     position,
@@ -81,17 +120,38 @@ export const refreshHalfKaAccumulator = (
     0,
   );
 
-  accumulator.set(weights.featureBias);
+  if (accumulatorBackend !== undefined && slot >= 0) {
+    accumulatorBackend.activeFeaturesScratch.set(
+      activeFeatures.subarray(0, activeFeatureCount),
+    );
+    accumulatorBackend.refreshAccumulator(
+      slot,
+      accumulatorBackend.activeFeaturesScratchPointer,
+      activeFeatureCount,
+    );
+  } else {
+    accumulator.set(weights.featureBias);
+
+    for (let i = 0; i < activeFeatureCount; i++) {
+      applyHalfKaAccumulatorFeature(
+        weights,
+        activeFeatures[i],
+        accumulator,
+        1,
+        -1,
+      );
+    }
+  }
+
   psqtAccumulator.fill(0);
 
   for (let i = 0; i < activeFeatureCount; i++) {
-    applyHalfKaFeature(
-      weights,
-      activeFeatures[i],
-      accumulator,
-      psqtAccumulator,
-      1,
-    );
+    const feature = activeFeatures[i];
+    let psqtWeightIndex = feature * NNUE_PSQ_BUCKETS;
+
+    for (let j = 0; j < NNUE_PSQ_BUCKETS; j++) {
+      psqtAccumulator[j] += weights.psqtWeights[psqtWeightIndex++];
+    }
   }
 };
 

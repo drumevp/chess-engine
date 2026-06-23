@@ -1,4 +1,5 @@
 import generateLegalMoves from "../../src/engine/movegen/generateLegalMoves";
+import { COLOR } from "../../src/engine/constants/color";
 import generateFenToPosition from "../../src/engine/fen/fenToPosition/generateFenToPosition";
 import internalToUci from "../../src/engine/notation/uci/internalToUci";
 import { createInitialPosition } from "../../src/engine/position/initialPosition";
@@ -12,6 +13,11 @@ import undoMove from "../../src/engine/position/moves/undoMove/undoMove";
 import { createUndo, type Undo } from "../../src/engine/types/history";
 import type { Position } from "../../src/engine/types/position";
 import { createDefaultNnueModel } from "../../src/search/nnue/defaultModel";
+import {
+  NNUE_MAX_ACTIVE_FULL_THREAT_FEATURES,
+  NNUE_TRANSFORMED_FEATURE_DIMENSIONS,
+} from "../../src/search/constants/nnue";
+import { appendFullThreatActiveFeatures } from "../../src/search/nnue/fullThreats";
 import {
   createNnueEvaluator,
   evaluateNnue,
@@ -29,6 +35,13 @@ type NamedCase = {
 type MoveRecord = {
   move: number;
   undo: Undo;
+};
+
+type EvaluatorIsolationCase = {
+  name: string;
+  evaluator: SearchEvaluator;
+  position: Position;
+  moveRecord?: MoveRecord;
 };
 
 const INITIAL_FEN =
@@ -241,6 +254,155 @@ const verifyLayerStacks = (
   }
 };
 
+const verifyEvaluatorIsolation = (
+  model: NnueModel,
+  existingWasmEvaluator: SearchEvaluator,
+): void => {
+  const cases: EvaluatorIsolationCase[] = [
+    {
+      name: "existing-wasm",
+      evaluator: existingWasmEvaluator,
+      position: createInitialPosition(),
+    },
+    {
+      name: "typescript-created-after-wasm",
+      evaluator: createNnueEvaluator(model, { backend: "typescript" }),
+      position: generateFenToPosition(LAYER_STACK_FENS[4]),
+    },
+    {
+      name: "second-wasm",
+      evaluator: createNnueEvaluator(model, { backend: "wasm" }),
+      position: generateFenToPosition(LAYER_STACK_FENS[6]),
+    },
+  ];
+
+  for (const testCase of cases) {
+    testCase.evaluator.reset?.(testCase.position);
+  }
+
+  for (const testCase of cases) {
+    assertAccumulatorMatchesFullRefresh(
+      model,
+      testCase.evaluator,
+      testCase.position,
+      `${testCase.name}: isolated-root`,
+    );
+
+    const move = generateLegalMoves(testCase.position)[0];
+    const undo = createUndo();
+
+    makeMoveWithUndo(testCase.position, move, undo, {
+      updateZobristHash: true,
+    });
+    testCase.evaluator.pushMove?.(testCase.position, move, undo);
+    testCase.moveRecord = { move, undo };
+  }
+
+  for (const testCase of cases) {
+    assertAccumulatorMatchesFullRefresh(
+      model,
+      testCase.evaluator,
+      testCase.position,
+      `${testCase.name}: isolated-child`,
+    );
+  }
+
+  for (let i = cases.length - 1; i >= 0; i--) {
+    const testCase = cases[i];
+    const record = testCase.moveRecord;
+
+    if (record === undefined) {
+      throw new Error(`${testCase.name}: missing isolation move record`);
+    }
+
+    undoMove(testCase.position, record.move, record.undo);
+    testCase.evaluator.popMove?.();
+    assertAccumulatorMatchesFullRefresh(
+      model,
+      testCase.evaluator,
+      testCase.position,
+      `${testCase.name}: isolated-pop`,
+    );
+  }
+};
+
+const verifyFullThreatForwardIsolation = (model: NnueModel): void => {
+  const position = createInitialPosition();
+  const activeFeatures = new Uint32Array(
+    NNUE_MAX_ACTIVE_FULL_THREAT_FEATURES,
+  );
+  const activeFeatureCount = appendFullThreatActiveFeatures(
+    position,
+    COLOR.WHITE,
+    activeFeatures,
+    0,
+    { lo: 0, hi: 0 },
+  );
+
+  if (activeFeatureCount === 0) {
+    throw new Error("full-threat-isolation: expected active features");
+  }
+
+  const weightOffset =
+    activeFeatures[0] * NNUE_TRANSFORMED_FEATURE_DIMENSIONS;
+  const previousWeights = model.weights.threatWeights.slice(
+    weightOffset,
+    weightOffset + NNUE_TRANSFORMED_FEATURE_DIMENSIONS,
+  );
+
+  model.weights.threatWeights.fill(
+    64,
+    weightOffset,
+    weightOffset + NNUE_TRANSFORMED_FEATURE_DIMENSIONS,
+  );
+
+  try {
+    const fullThreatModel: NnueModel = {
+      ...model,
+      metadata: { ...model.metadata, fullThreats: true },
+    };
+    const evaluator = createNnueEvaluator(fullThreatModel, {
+      backend: "wasm",
+    });
+
+    evaluator.reset?.(position);
+    const rootScore = assertAccumulatorMatchesFullRefresh(
+      fullThreatModel,
+      evaluator,
+      position,
+      "full-threat-isolation: root",
+    );
+    const move = generateLegalMoves(position)[0];
+    const undo = createUndo();
+
+    makeMoveWithUndo(position, move, undo, { updateZobristHash: true });
+    evaluator.pushMove?.(position, move, undo);
+    assertAccumulatorMatchesFullRefresh(
+      fullThreatModel,
+      evaluator,
+      position,
+      "full-threat-isolation: child",
+    );
+
+    undoMove(position, move, undo);
+    evaluator.popMove?.();
+    const poppedScore = assertAccumulatorMatchesFullRefresh(
+      fullThreatModel,
+      evaluator,
+      position,
+      "full-threat-isolation: pop",
+    );
+
+    if (poppedScore !== rootScore) {
+      throw new Error(
+        `full-threat-isolation: popped ${poppedScore} !== root ${rootScore}`,
+      );
+    }
+  } finally {
+    model.weights.threatWeights.set(previousWeights, weightOffset);
+  }
+};
+
 const model = await createDefaultNnueModel();
 const evaluator = createNnueEvaluator(model, { backend: "wasm" });
 
@@ -250,6 +412,8 @@ for (const testCase of NAMED_CASES) {
 
 verifyLayerStacks(model, evaluator);
 verifyRandomSequences(model, evaluator);
+verifyEvaluatorIsolation(model, evaluator);
+verifyFullThreatForwardIsolation(model);
 
 console.log(
   JSON.stringify({
@@ -257,5 +421,7 @@ console.log(
     layerStacks: LAYER_STACK_FENS.length,
     randomSequences: 16,
     randomMaxPlies: 24,
+    isolatedEvaluators: 3,
+    fullThreatForwardIsolation: true,
   }),
 );

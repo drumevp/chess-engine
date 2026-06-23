@@ -46,10 +46,7 @@ const findBestMove = async (
         ? createNnueEvaluator(await getCachedNnueModel(nnueModelPath, nnueModelUrl))
         : undefined,
     );
-  } else {
-    if (typeof __BROWSER__ !== "undefined" && __BROWSER__) {
-      throw new Error("Multi-threaded search requires Node.js");
-    }
+  } else if (typeof __BROWSER__ === "undefined" || !__BROWSER__) {
     const { default: lazySmpSearch } = await import("../../../../search/lazySmpSearch");
     result = await lazySmpSearch(position, repetitionCounts, depth, limits, {
       workerCount: threads,
@@ -57,6 +54,8 @@ const findBestMove = async (
       evaluatorType: evaluator === "nnue" ? "defaultNnue" : "simple",
       nnueModelPath,
     });
+  } else {
+    throw new Error("Multi-threaded search requires Node.js");
   }
 
   let move = result.bestMove;
