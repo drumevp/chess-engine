@@ -45,6 +45,10 @@ import {
   orderMoves,
   selectNextMove,
 } from "../helpers/moveOrdering";
+import {
+  canUseLateMoveReduction,
+  getLateMoveReduction,
+} from "../helpers/lateMoveReduction";
 import quiescenceSearch from "./quiescenceSearch";
 import { SearchResult } from "../types/search";
 import { SearchControl } from "../types/search";
@@ -136,6 +140,8 @@ const searchRoot = (
   const searchCaptureHistory = captureHistory ?? createCaptureHistory();
   const searchCorrectionHistory =
     correctionHistory ?? createCorrectionHistory();
+  const searchTranspositionTable =
+    transpositionTable ?? createTranspositionTable();
   resetEvaluator(control.evaluator, searchPosition);
   resetPrincipalVariation(scratch, 0);
 
@@ -190,6 +196,7 @@ const searchRoot = (
       control,
       searchCaptureHistory,
       searchCorrectionHistory,
+      searchTranspositionTable,
     );
 
     return {
@@ -201,8 +208,6 @@ const searchRoot = (
 
   let bestMove: number | null = null;
   let bestScore = -Infinity;
-  const searchTranspositionTable =
-    transpositionTable ?? createTranspositionTable();
   const searchHistoryHeuristic = historyHeuristic ?? createHistoryHeuristic();
   const transpositionTableBestMove = getTranspositionTableBestMove(
     searchTranspositionTable,
@@ -264,23 +269,68 @@ const searchRoot = (
         false,
       );
     } else {
-      score = -failSoftAlphaBetaNegaMax(
-        searchPosition,
-        -alpha - 1,
-        -alpha,
-        childDepth,
-        1,
-        scratch,
-        searchRepetitionCounts,
-        control,
-        searchTranspositionTable,
-        searchHistoryHeuristic,
-        searchCaptureHistory,
-        searchCorrectionHistory,
-        null,
-        false,
-        true,
-      );
+      if (canUseLateMoveReduction(depth, i, isCheck, move)) {
+        const reduction = Math.min(
+          getLateMoveReduction(depth, i),
+          childDepth - 1,
+        );
+
+        score = -failSoftAlphaBetaNegaMax(
+          searchPosition,
+          -alpha - 1,
+          -alpha,
+          childDepth - reduction,
+          1,
+          scratch,
+          searchRepetitionCounts,
+          control,
+          searchTranspositionTable,
+          searchHistoryHeuristic,
+          searchCaptureHistory,
+          searchCorrectionHistory,
+          null,
+          false,
+          true,
+        );
+
+        if (!control.stopped && score > alpha) {
+          score = -failSoftAlphaBetaNegaMax(
+            searchPosition,
+            -alpha - 1,
+            -alpha,
+            childDepth,
+            1,
+            scratch,
+            searchRepetitionCounts,
+            control,
+            searchTranspositionTable,
+            searchHistoryHeuristic,
+            searchCaptureHistory,
+            searchCorrectionHistory,
+            null,
+            false,
+            true,
+          );
+        }
+      } else {
+        score = -failSoftAlphaBetaNegaMax(
+          searchPosition,
+          -alpha - 1,
+          -alpha,
+          childDepth,
+          1,
+          scratch,
+          searchRepetitionCounts,
+          control,
+          searchTranspositionTable,
+          searchHistoryHeuristic,
+          searchCaptureHistory,
+          searchCorrectionHistory,
+          null,
+          false,
+          true,
+        );
+      }
 
       if (!control.stopped && score > alpha && score < beta) {
         score = -failSoftAlphaBetaNegaMax(

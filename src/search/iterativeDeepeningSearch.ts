@@ -116,16 +116,21 @@ const iterativeDeepeningSearch = (
       let delta = getInitialAspirationWindowDelta();
       let alpha = getAspirationWindowAlpha(bestResult.score, delta);
       let beta = getAspirationWindowBeta(bestResult.score, delta);
+      let failedHighCount = 0;
+      let aspirationPriorityMove =
+        bestResult.bestMove ?? initialPriorityMove;
 
       while (true) {
+        const adjustedDepth = Math.max(1, depth - failedHighCount);
+
         result = searchRoot(
           position,
           repetitionCounts,
           alpha,
           beta,
-          depth,
+          adjustedDepth,
           control,
-          bestResult.bestMove ?? initialPriorityMove,
+          aspirationPriorityMove,
           searchTranspositionTable,
           historyHeuristic,
           captureHistory,
@@ -136,17 +141,22 @@ const iterativeDeepeningSearch = (
           break;
         }
 
+        aspirationPriorityMove =
+          result.bestMove ?? aspirationPriorityMove;
+
         if (isAspirationWindowFailLow(result.score, alpha)) {
-          delta = getNextAspirationWindowDelta(delta);
+          beta = alpha;
           alpha = getAspirationWindowAlpha(result.score, delta);
-          beta = getAspirationWindowBeta(result.score, delta);
+          failedHighCount = 0;
+          delta = getNextAspirationWindowDelta(delta);
           continue;
         }
 
         if (isAspirationWindowFailHigh(result.score, beta)) {
-          delta = getNextAspirationWindowDelta(delta);
-          alpha = getAspirationWindowAlpha(result.score, delta);
+          alpha = Math.max(alpha, beta - delta);
           beta = getAspirationWindowBeta(result.score, delta);
+          failedHighCount++;
+          delta = getNextAspirationWindowDelta(delta);
           continue;
         }
 

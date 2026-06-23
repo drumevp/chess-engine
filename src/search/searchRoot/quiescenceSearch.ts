@@ -54,6 +54,13 @@ import {
 import { SearchControl, SearchScratch } from "../types/search";
 import type { CaptureHistory } from "../types/captureHistory";
 import type { CorrectionHistory } from "../types/correctionHistory";
+import type { TranspositionTable } from "../types/transpositionTable";
+import { TRANSPOSITION_TABLE_BOUND } from "../constants/transpositionTable";
+import {
+  getTranspositionTableEntry,
+  probeTranspositionTable,
+  storeTranspositionTable,
+} from "../transpositionTable/transpositionTable";
 
 const quiescenceSearch = (
   position: Position,
@@ -65,6 +72,7 @@ const quiescenceSearch = (
   control: SearchControl,
   captureHistory: CaptureHistory,
   correctionHistory: CorrectionHistory,
+  transpositionTable: TranspositionTable,
 ): number => {
   if (shouldStopSearch(control, ply)) {
     return getCorrectedStaticEval(
@@ -112,7 +120,26 @@ const quiescenceSearch = (
     return alpha;
   }
 
+  const transpositionTableEntry = getTranspositionTableEntry(
+    transpositionTable,
+    position.zobristHash,
+    ply,
+  );
+  const transpositionTableScore = probeTranspositionTable(
+    transpositionTable,
+    position.zobristHash,
+    0,
+    alpha,
+    beta,
+    ply,
+  );
+
+  if (transpositionTableScore !== null) {
+    return transpositionTableScore;
+  }
+
   let bestScore = -Infinity;
+  let bestMove: number | null = null;
   let standPat = -Infinity;
 
   if (!isCheck) {
@@ -124,6 +151,16 @@ const quiescenceSearch = (
     bestScore = standPat;
 
     if (standPat >= beta) {
+      storeTranspositionTable(
+        transpositionTable,
+        position.zobristHash,
+        0,
+        standPat,
+        TRANSPOSITION_TABLE_BOUND.LOWER_BOUND,
+        null,
+        ply,
+      );
+
       return standPat;
     }
 
@@ -157,7 +194,7 @@ const quiescenceSearch = (
     moveList,
     movesCount,
     moveOrderingScratch,
-    null,
+    transpositionTableEntry?.bestMove ?? null,
     null,
     null,
     captureHistory,
@@ -244,6 +281,7 @@ const quiescenceSearch = (
       control,
       captureHistory,
       correctionHistory,
+      transpositionTable,
     );
 
     undoMove(position, move, undo);
@@ -262,6 +300,7 @@ const quiescenceSearch = (
 
     if (score > bestScore) {
       bestScore = score;
+      bestMove = move;
     }
 
     if (score > alpha) {
@@ -270,9 +309,29 @@ const quiescenceSearch = (
     }
 
     if (score >= beta) {
+      storeTranspositionTable(
+        transpositionTable,
+        position.zobristHash,
+        0,
+        score,
+        TRANSPOSITION_TABLE_BOUND.LOWER_BOUND,
+        move,
+        ply,
+      );
+
       return score;
     }
   }
+
+  storeTranspositionTable(
+    transpositionTable,
+    position.zobristHash,
+    0,
+    bestScore,
+    TRANSPOSITION_TABLE_BOUND.UPPER_BOUND,
+    bestMove,
+    ply,
+  );
 
   return bestScore;
 };

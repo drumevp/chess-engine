@@ -138,6 +138,7 @@ export const failSoftAlphaBetaNegaMax = (
       control,
       captureHistory,
       correctionHistory,
+      transpositionTable,
     );
   }
 
@@ -176,6 +177,7 @@ export const failSoftAlphaBetaNegaMax = (
   const transpositionTableEntry = isExcludedMoveSearch
     ? null
     : getTranspositionTableEntry(transpositionTable, position.zobristHash, ply);
+  const transpositionTableBestMove = transpositionTableEntry?.bestMove ?? null;
 
   if (!isExcludedMoveSearch) {
     const transpositionTableScore = probeTranspositionTable(
@@ -222,6 +224,7 @@ export const failSoftAlphaBetaNegaMax = (
       control,
       captureHistory,
       correctionHistory,
+      transpositionTable,
     );
 
     if (control.stopped || score <= alpha) {
@@ -229,7 +232,14 @@ export const failSoftAlphaBetaNegaMax = (
     }
   }
 
-  if (canUseReverseFutilityPruning(depth, beta, isCheck)) {
+  if (
+    !isPvNode &&
+    (transpositionTableBestMove === null ||
+      hasMoveOrderingStaticExchangeEvaluationScore(
+        transpositionTableBestMove,
+      )) &&
+    canUseReverseFutilityPruning(depth, beta, isCheck)
+  ) {
     if (isReverseFutilityPruned(staticEval, beta, depth)) {
       control.reverseFutilityPrunes++;
       return staticEval;
@@ -237,6 +247,7 @@ export const failSoftAlphaBetaNegaMax = (
   }
 
   if (
+    !isExcludedMoveSearch &&
     canUseNullMovePruning(
       position,
       depth,
@@ -293,7 +304,16 @@ export const failSoftAlphaBetaNegaMax = (
     }
   }
 
-  const transpositionTableBestMove = transpositionTableEntry?.bestMove ?? null;
+  // Stockfish's internal iterative reduction: PV and cut nodes without a
+  // hash move have poor ordering information, so spend one less ply there.
+  if (
+    !isExcludedMoveSearch &&
+    depth >= 6 &&
+    (isPvNode || cutNode) &&
+    transpositionTableBestMove === null
+  ) {
+    depth--;
+  }
 
   const movesCount = generateLegalMovesFromContext(ctx, attackInfo);
 
@@ -327,13 +347,15 @@ export const failSoftAlphaBetaNegaMax = (
   );
 
   if (canUseProbCut(depth, beta, isCheck)) {
+    const probCutBeta = getProbCutBeta(beta);
     const probCutScore = tryProbCut(
       failSoftAlphaBetaNegaMax,
       position,
       moveList,
       movesCount,
-      getProbCutBeta(beta),
+      probCutBeta,
       getProbCutSearchDepth(depth),
+      excludedMove,
       ply,
       scratch,
       repetitionCounts,
@@ -343,6 +365,10 @@ export const failSoftAlphaBetaNegaMax = (
       captureHistory,
       correctionHistory,
     );
+
+    if (control.stopped) {
+      return staticEval;
+    }
 
     if (probCutScore !== null) {
       control.probCutCutoffs++;

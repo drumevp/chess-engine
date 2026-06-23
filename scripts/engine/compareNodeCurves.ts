@@ -9,7 +9,44 @@ type CurvePoint = {
   score: string;
   nodes: number;
   timeMs: number;
+  bestMove: string | null;
 };
+
+type TestPosition = {
+  name: string;
+  command: string;
+};
+
+const TACTICAL_POSITIONS: readonly TestPosition[] = [
+  {
+    name: "kiwipete",
+    command:
+      "position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+  },
+  {
+    name: "legal-trap",
+    command:
+      "position startpos moves e2e4 e7e5 g1f3 b8c6 f1c4 d7d6 b1c3 c8g4",
+  },
+  {
+    name: "scholars-mate",
+    command:
+      "position fen r1bqkb1r/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
+  },
+  {
+    name: "queen-mate",
+    command: "position fen 7k/6pp/5KQ1/8/8/8/8/8 w - - 0 1",
+  },
+  {
+    name: "tactical-middlegame",
+    command:
+      "position fen rnbq1k1r/pp1Pbppp/2p2n2/8/2B5/8/PPP1NPPP/RNBQK2R b KQ - 1 8",
+  },
+  {
+    name: "promotion-race",
+    command: "position fen 8/P7/8/8/8/8/7p/5K1k w - - 0 1",
+  },
+];
 
 type PendingLine = {
   predicate: (line: string) => boolean;
@@ -48,18 +85,14 @@ class CurveClient {
   }
 
   public async search(
-    moves: readonly string[],
-    depth: number,
+    positionCommand: string,
+    goCommand: string,
   ): Promise<CurvePoint[]> {
     this.send("ucinewgame");
     await this.sendAndWait("isready", (line) => line === "readyok");
     this.curve = [];
-    this.send(
-      moves.length === 0
-        ? "position startpos"
-        : `position startpos moves ${moves.join(" ")}`,
-    );
-    await this.sendAndWait(`go depth ${depth}`, (line) =>
+    this.send(positionCommand);
+    await this.sendAndWait(goCommand, (line) =>
       line.startsWith("bestmove "),
     );
 
@@ -104,6 +137,7 @@ class CurveClient {
       const score = /(?:^|\s)score\s+(cp|mate)\s+(-?\d+)/.exec(line);
       const nodes = /(?:^|\s)nodes\s+(\d+)/.exec(line);
       const time = /(?:^|\s)time\s+(\d+)/.exec(line);
+      const bestMove = /(?:^|\s)pv\s+(\S+)/.exec(line);
 
       if (depth !== null && nodes !== null && score !== null) {
         const point: CurvePoint = {
@@ -112,6 +146,7 @@ class CurveClient {
           score: `${score[1]} ${score[2]}`,
           nodes: Number(nodes[1]),
           timeMs: Number(time?.[1] ?? 0),
+          bestMove: bestMove?.[1] ?? null,
         };
         const existingIndex = this.curve.findIndex(
           (candidate) => candidate.depth === point.depth,
@@ -151,9 +186,28 @@ const stockfishPath = resolve(
   getArg("--stockfish", "engines/stockfish/src/stockfish"),
 );
 const depth = Number(getArg("--depth", "8"));
-const openingCount = Math.min(
-  MATCH_OPENING_LINES.length,
-  Number(getArg("--openings", "10")),
+const nodeLimit = Number(getArg("--nodes", "0"));
+const goCommand =
+  nodeLimit > 0 ? `go nodes ${nodeLimit}` : `go depth ${depth}`;
+const suite = getArg("--suite", "openings");
+const openingPositions = MATCH_OPENING_LINES.map<TestPosition>(
+  (moves, index) => ({
+    name: `opening-${index + 1}`,
+    command:
+      moves.length === 0
+        ? "position startpos"
+        : `position startpos moves ${moves.join(" ")}`,
+  }),
+);
+const allPositions =
+  suite === "tactics"
+    ? TACTICAL_POSITIONS
+    : suite === "all"
+      ? [...openingPositions, ...TACTICAL_POSITIONS]
+      : openingPositions;
+const positionCount = Math.min(
+  allPositions.length,
+  Number(getArg("--positions", getArg("--openings", "10"))),
 );
 const hashMb = Number(getArg("--hash", "128"));
 const ourEngine = new CurveClient(ourEnginePath);
@@ -165,17 +219,18 @@ await Promise.all([
 ]);
 
 try {
-  for (let index = 0; index < openingCount; index++) {
-    const moves = MATCH_OPENING_LINES[index];
+  for (let index = 0; index < positionCount; index++) {
+    const testPosition = allPositions[index];
     const [ourCurve, stockfishCurve] = await Promise.all([
-      ourEngine.search(moves, depth),
-      stockfish.search(moves, depth),
+      ourEngine.search(testPosition.command, goCommand),
+      stockfish.search(testPosition.command, goCommand),
     ]);
 
     console.log(
       JSON.stringify({
         position: index + 1,
-        moves,
+        name: testPosition.name,
+        command: testPosition.command,
         ours: ourCurve,
         stockfish: stockfishCurve,
       }),

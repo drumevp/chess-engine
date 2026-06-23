@@ -20,7 +20,7 @@ export const getInitialAspirationWindowDelta = (): number =>
 
 export const getNextAspirationWindowDelta = (delta: number): number =>
   Math.min(
-    delta * ASPIRATION_WINDOW_DELTA_GROWTH_FACTOR,
+    Math.ceil(delta * ASPIRATION_WINDOW_DELTA_GROWTH_FACTOR),
     ASPIRATION_WINDOW_MAX_DELTA,
   );
 

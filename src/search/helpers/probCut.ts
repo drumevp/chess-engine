@@ -75,6 +75,7 @@ export const tryProbCut = (
   movesCount: number,
   probCutBeta: number,
   probCutDepth: number,
+  excludedMove: number | null,
   ply: number,
   scratch: SearchScratch,
   repetitionCounts: Map<bigint, number>,
@@ -91,6 +92,7 @@ export const tryProbCut = (
     const move = moveList.moves[i];
 
     if (
+      move === excludedMove ||
       !isProbCutMoveCandidate(move) ||
       moveOrderingScratch.staticExchangeScores[i] < PROB_CUT_SEE_THRESHOLD
     ) {
@@ -118,6 +120,7 @@ export const tryProbCut = (
       control,
       captureHistory,
       correctionHistory,
+      transpositionTable,
     );
 
     if (!control.stopped && score >= probCutBeta) {
